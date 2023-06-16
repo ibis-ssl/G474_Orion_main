@@ -104,6 +104,7 @@ char orientation;
 float acc_off[3];
 float gyro_off[3];
 
+uint8_t kick_state;
 uint8_t data_from_ether[Rxbufsize_from_Ether-1];
 uint8_t TX_data_UART[9];
 uint16_t Csense[1];
@@ -199,6 +200,7 @@ int main(void)
   check_motor4=0;
   check_power=0;
   check_FC=0;
+  kick_state=0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
     for(int i=0;i<3;i++){
       actuator_buzzer(20, 20);
@@ -430,7 +432,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		 		actuator_motor5(0.5,1.0);
 	 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
 	 			if(ball[0]==1){
-	 				actuator_kicker(3, 100);
+	 				if(kick_state==0){
+	 					actuator_kicker(3, 100);
+	 					kick_state=1;
+	 				}
+	 			}
+	 			if(ball[0]==0 && kick_state==1){
+	 				kick_state=0;
 	 			}
 	 		 }
 	 		 else{
@@ -448,8 +456,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 			actuator_motor5(0.5,1.0);
 	 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
 	 			if(ball[0]==1){
-	 				actuator_kicker(3, 100);
-	 			}
+					if(kick_state==0){
+						actuator_kicker(3, 100);
+						kick_state=1;
+					}
+				}
+				if(ball[0]==0 && kick_state==1){
+					kick_state=0;
+				}
 	 		 }
 	 		 else{
 	 			 actuator_motor5(0.0,0.0);
@@ -469,11 +483,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 if(cnt_time_tim>200){
 	 if(Ether_connect_check != data_from_ether[Rxbufsize_from_Ether-3]){
 		 Ether_connect=1;
-		 HAL_GPIO_WritePin(GPIOC,GPIO_PIN_14,1);
+		 HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,1);
 	 }
 	 else{
 		 Ether_connect=0;
-		 HAL_GPIO_WritePin(GPIOC,GPIO_PIN_14,0);
+		 HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,0);
 	 }
 	 Ether_connect_check=data_from_ether[Rxbufsize_from_Ether-3];
 	 cnt_time_tim=0;
@@ -512,7 +526,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		 printf("\r\n");
 	 }
 
-		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 		  cnt_time_50Hz=0;
 
 		  actuator_power_ONOFF(1);
@@ -776,13 +790,17 @@ void maintask_run(){
 
 	omni_move(vel_surge, vel_sway, omega,1.0);
 	  if(kick_power>0){
-		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
-			  if(ball[0]==1){
-				  uint8_t kick_power_param=(float)kick_power*255.0;
-				  printf(" kick=%d\r\n",kick_power_param);
-				  actuator_kicker(3, (uint8_t)kick_power_param);
-			  }
-
+	 			if(ball[0]==1){
+					if(kick_state==0){
+					  uint8_t kick_power_param=(float)kick_power*255.0;
+					  printf(" kick=%d\r\n",kick_power_param);
+					  actuator_kicker(3, (uint8_t)kick_power_param);
+					  kick_state=1;
+					}
+				}
+				if(ball[0]==0 && kick_state==1){
+					kick_state=0;
+				}
 	  }
 	  else{
 		  if(chipEN==1){
@@ -793,7 +811,6 @@ void maintask_run(){
 		  }
 		actuator_kicker(1, 1);
 		actuator_kicker_voltage(250.0);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
 	  }
 	  actuator_motor5(drible_power,1.0);
 
