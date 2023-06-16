@@ -1,0 +1,15 @@
+../Core/Src/xprintf.c:26:6:xprintf_init	16	static
+../Core/Src/xprintf.c:31:9:uart_getc	16	static
+../Core/Src/xprintf.c:39:6:uart_putc	24	static
+../Core/Src/xprintf.c:45:6:uart_puts	16	static
+../Core/Src/xprintf.c:52:6:xputc	16	static
+../Core/Src/xprintf.c:70:6:xputs	16	static
+../Core/Src/xprintf.c:79:6:xfputs	24	static
+../Core/Src/xprintf.c:114:6:xvprintf	64	static
+../Core/Src/xprintf.c:191:6:xprintf	16	static
+../Core/Src/xprintf.c:205:6:xsprintf	28	static
+../Core/Src/xprintf.c:225:6:xfprintf	28	static
+../Core/Src/xprintf.c:251:6:put_dump	40	static
+../Core/Src/xprintf.c:303:5:xgets	24	static
+../Core/Src/xprintf.c:334:5:xfgets	32	static
+../Core/Src/xprintf.c:365:5:xatoi	24	static
