@@ -22,11 +22,11 @@ const float32_t gear_ratio=1.0;
 const float32_t sinM1 = sin(    M_PI/6.0);
 const float32_t sinM2 = sin(7.0*M_PI/4.0);
 const float32_t sinM3 = sin(5.0*M_PI/4.0);
-const float32_t sinM4 = sin(4.0*M_PI/6.0);
+const float32_t sinM4 = sin(5.0*M_PI/6.0);
 const float32_t cosM1 = cos(    M_PI/6.0);
 const float32_t cosM2 = cos(7.0*M_PI/4.0);
 const float32_t cosM3 = cos(5.0*M_PI/4.0);
-const float32_t cosM4 = cos(4.0*M_PI/6.0);
+const float32_t cosM4 = cos(5.0*M_PI/6.0);
 
 void omni_move(float32_t vel_y_omni,float32_t vel_x_omni,float32_t omega_omni,float32_t duty_Limit){
 	v_round=robot_radius*omega_omni;
