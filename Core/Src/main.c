@@ -512,7 +512,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	 if(cnt_time_50Hz>50){
        if(sw_mode>0){
-    	   printf(" kicktime=%d, state=%d ",kick_time,kick_state);
+    	 //printf(" kicktime=%d, state=%d ",kick_time,kick_state);
 		 //printf("data: acc0=%f,acc1=%f,acc2=%f,gyro0=%f,gyro1=%f,gyro2=%f,tmp=%f",acc[0],acc[1],acc[2],gyro[0],gyro[1],gyro[2],IMU_tmp);
 		 //printf(" pich=%f roll=%f yaw=%f",pitchAngle,rollAngle,yawAngle);
     	 printf(" yaw=%f",yawAngle);
@@ -791,20 +791,18 @@ void maintask_run(){
 
 	  actuator_motor5(drible_power,1.0);
 
-	  if(yawAngle<0){
-		  yawAngle_send=(float)(round((yawAngle+359.0)/2.0));
-	  }
-	  else{
-		  yawAngle_send=(float)(round(yawAngle/2.0));
-	  }
+
+      uint8_t yawAngle_send_low = ((int)yawAngle+360) & 0x00FF;
+      uint8_t yawAngle_send_high = (((int)yawAngle+360) & 0xFF00) >> 8;
+
 	  TX_data_UART[0]=254;
-	  TX_data_UART[1]=(uint8_t)yawAngle_send;
-	  TX_data_UART[2]=ball[0];
-	  TX_data_UART[3]=ball[1];
-	  TX_data_UART[4]=ball[2];
-	  TX_data_UART[5]=ball[0];
-	  TX_data_UART[6]=ball[1];
-	  TX_data_UART[7]=ball[2];
+	  TX_data_UART[1]=(uint8_t)yawAngle_send_low;
+	  TX_data_UART[2]=(uint8_t)yawAngle_send_high;
+	  TX_data_UART[3]=ball[0];
+	  TX_data_UART[4]=ball[1];
+	  TX_data_UART[5]=chipEN;
+	  TX_data_UART[6]=kick_state;
+	  TX_data_UART[7]=(uint8_t)Power_voltage[4];
 	  HAL_UART_Transmit(&huart2, TX_data_UART, 8,0xff);
 
 	  yawAngle_temp=yawAngle;
@@ -845,25 +843,23 @@ void maintask_emargency(){
 
 void maintask_state_stop(){
 
-	  if(yawAngle<0){
-		  yawAngle_send=(float)(round((yawAngle+359.0)/2.0));
-	  }
-	  else{
-		  yawAngle_send=(float)(round(yawAngle/2.0));
-	  }
+    uint8_t yawAngle_send_low = ((int)yawAngle+360) & 0x00FF;
+    uint8_t yawAngle_send_high = (((int)yawAngle+360) & 0xFF00) >> 8;
 
 	  omni_move(0.0, 0.0, 0.0,0.0);
 	  actuator_motor5(0.0,0.0);
 
+
 	  TX_data_UART[0]=254;
-	  TX_data_UART[1]=(uint8_t)yawAngle_send;
-	  TX_data_UART[2]=error_No[0];
-	  TX_data_UART[3]=error_No[1];
-	  TX_data_UART[4]=1;
+	  TX_data_UART[1]=(uint8_t)yawAngle_send_low;
+	  TX_data_UART[2]=(uint8_t)yawAngle_send_high;
+	  TX_data_UART[3]=error_No[0];
+	  TX_data_UART[4]=error_No[1];
 	  TX_data_UART[5]=1;
 	  TX_data_UART[6]=1;
-	  TX_data_UART[7]=1;
+	  TX_data_UART[7]=(uint8_t)Power_voltage[4];
 	  HAL_UART_Transmit(&huart2, TX_data_UART, 8,0xff);
+
 
 	  actuator_kicker(1, 0);
 	  actuator_kicker_voltage(0.0);
@@ -873,22 +869,22 @@ void maintask_stop(){
 	  omni_move(0.0, 0.0, 0.0,0.0);
 	  actuator_motor5(0.0,0.0);
 
+      uint8_t yawAngle_send_low = ((int)yawAngle+360) & 0x00FF;
+      uint8_t yawAngle_send_high = (((int)yawAngle+360) & 0xFF00) >> 8;
 
-	  if(yawAngle<0){
-		  yawAngle_send=(float)(round((yawAngle+359.0)/2.0));
-	  }
-	  else{
-		  yawAngle_send=(float)(round(yawAngle/2.0));
-	  }
-	  TX_data_UART[0]=254;
-	  TX_data_UART[1]=(uint8_t)yawAngle_send;
-	  TX_data_UART[2]=0;
-	  TX_data_UART[3]=0;
-	  TX_data_UART[4]=0;
-	  TX_data_UART[5]=0;
-	  TX_data_UART[6]=0;
-	  TX_data_UART[7]=0;
-	  HAL_UART_Transmit(&huart2, TX_data_UART, 8,0xff);
+		  omni_move(0.0, 0.0, 0.0,0.0);
+		  actuator_motor5(0.0,0.0);
+
+
+		  TX_data_UART[0]=254;
+		  TX_data_UART[1]=(uint8_t)yawAngle_send_low;
+		  TX_data_UART[2]=(uint8_t)yawAngle_send_high;
+		  TX_data_UART[3]=error_No[0];
+		  TX_data_UART[4]=error_No[1];
+		  TX_data_UART[5]=0;
+		  TX_data_UART[6]=0;
+		  TX_data_UART[7]=(uint8_t)Power_voltage[4];
+		  HAL_UART_Transmit(&huart2, TX_data_UART, 8,0xff);
 
 	  actuator_kicker(1, 0);
 	  actuator_kicker_voltage(0.0);
