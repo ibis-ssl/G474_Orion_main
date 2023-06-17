@@ -91,7 +91,7 @@ extern float32_t theta_vision;
 extern float32_t theta_target;
 extern uint8_t chipEN;
 extern uint8_t ball[4];
-extern uint16_t mouse[2];
+extern int16_t mouse[2];
 extern uint8_t error_No[4];
 extern float32_t m1,m2,m3,m4;
 extern float32_t v_round;

@@ -21,7 +21,7 @@ void actuator_motor1(float m1,float duty_Limit1){
 	senddata_motor[6]=senddata_motor_Duty[2];
 	senddata_motor[7]=senddata_motor_Duty[3];
 
-	can2_send(0x100, senddata_motor);
+	can1_send(0x100, senddata_motor);
 }
 
 void actuator_motor2(float m2,float duty_Limit2){
@@ -39,7 +39,7 @@ void actuator_motor2(float m2,float duty_Limit2){
 	senddata_motor[6]=senddata_motor_Duty[2];
 	senddata_motor[7]=senddata_motor_Duty[3];
 
-	can2_send(0x101, senddata_motor);
+	can1_send(0x101, senddata_motor);
 }
 
 void actuator_motor3(float m3,float duty_Limit3){
@@ -172,7 +172,7 @@ void actuator_motor_param(uint8_t param1,float m1p,uint8_t param2,float m2p,uint
 	senddata_param[2]=senddata_temp[1];
 	senddata_param[3]=senddata_temp[2];
 	senddata_param[4]=senddata_temp[3];
-	can2_send(0x300, senddata_param);
+	can1_send(0x300, senddata_param);
 
 	float_to_uchar4(senddata_temp,m2p);
 	senddata_param[0]=param2;
@@ -180,7 +180,7 @@ void actuator_motor_param(uint8_t param1,float m1p,uint8_t param2,float m2p,uint
 	senddata_param[2]=senddata_temp[1];
 	senddata_param[3]=senddata_temp[2];
 	senddata_param[4]=senddata_temp[3];
-	can2_send(0x301, senddata_param);
+	can1_send(0x301, senddata_param);
 
 
 	float_to_uchar4(senddata_temp,m3p);
@@ -205,7 +205,7 @@ void actuator_motor_param(uint8_t param1,float m1p,uint8_t param2,float m2p,uint
 	senddata_param[2]=senddata_temp[1];
 	senddata_param[3]=senddata_temp[2];
 	senddata_param[4]=senddata_temp[3];
-	can2_send(0x304, senddata_param);
+	can1_send(0x304, senddata_param);
 }
 
 void actuator_buzzer(uint16_t ontime,uint16_t offtime){
