@@ -190,7 +190,11 @@ void MX_ADC5_Init(void)
   hadc5.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc5.Init.DMAContinuousRequests = ENABLE;
   hadc5.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc5.Init.OversamplingMode = DISABLE;
+  hadc5.Init.OversamplingMode = ENABLE;
+  hadc5.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_4;
+  hadc5.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_2;
+  hadc5.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
+  hadc5.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
   if (HAL_ADC_Init(&hadc5) != HAL_OK)
   {
     Error_Handler();
@@ -204,6 +208,7 @@ void MX_ADC5_Init(void)
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
+  sConfig.OffsetSaturation = DISABLE;
   if (HAL_ADC_ConfigChannel(&hadc5, &sConfig) != HAL_OK)
   {
     Error_Handler();

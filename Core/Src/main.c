@@ -30,19 +30,25 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "management.h"
-#ifdef __GNUC__
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
-void __io_putchar(uint8_t ch) {
-HAL_UART_Transmit(&hlpuart1, &ch, 1, 1);
-}
+#include <math.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#ifdef __GNUC__
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif 
+void __io_putchar(uint8_t ch)
+{
+	HAL_UART_Transmit(&hlpuart1, &ch, 1, 1);
+}
 
+/*int _write(int file, char *ptr, int len){
+return HAL_UART_Transmit(&hlpuart1, (uint8_t*)ptr, len, 100);
+}*/
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -116,6 +122,7 @@ uint8_t RxData[can_RX_data];
 uint32_t TxMailbox;
 float32_t motor_feedback[5];
 float32_t motor_feedback_velocity[5];
+float32_t motor_integral[5];
 float32_t voltage[6];
 float32_t Power_voltage[6];
 float32_t tempercher[6];
@@ -131,6 +138,7 @@ float32_t theta_target;
 uint8_t chipEN;
 uint8_t ball[4];
 int16_t mouse[2];
+int32_t mouse_odom[2];
 uint8_t error_No[4];
 float32_t m1,m2,m3,m4;
 float32_t v_round;
@@ -365,16 +373,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 		break;
 
 	 	 case 1:  //main debug
-	 		if(Ether_connect==1){
-	 			yawAngle=yawAngle*0.999+(theta_vision*180.0/PI)*0.001;
-	 			maintask_run();
-	 		}
-	 		else{
-	 			yawAngle=yawAngle*0.999+(theta_vision*180.0/PI)*0.001;
-	 			//maintask_run();
-	 			maintask_state_stop();
-	 		}
-	 		break;
+			yawAngle = yawAngle * 0.999 + (theta_vision * 180.0 / PI) * 0.001;
+			maintask_run();
+			break;
 
 	 	 case 2:  //calibration motor
 			if(decode_SW(SWdata[0])&0b00010000){
@@ -427,8 +428,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				actuator_motor5(0.0,0.0);
 	 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
 			 }
-				omni_move(0.0, 0.0, 0.0,0.0);
-	 		 break;
+
+			 omni_move(0.0, 0.0, 0.0, 0.0);
+
+			 break;
 
 	 	 case 5:
 	 		 if(decode_SW(SWdata[0])&0b00010000){
@@ -515,18 +518,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     	 //printf(" kicktime=%d, state=%d ",kick_time,kick_state);
 		 //printf("data: acc0=%f,acc1=%f,acc2=%f,gyro0=%f,gyro1=%f,gyro2=%f,tmp=%f",acc[0],acc[1],acc[2],gyro[0],gyro[1],gyro[2],IMU_tmp);
 		 //printf(" pich=%f roll=%f yaw=%f",pitchAngle,rollAngle,yawAngle);
-    	 printf(" yaw=%f",yawAngle);
+    	 printf(" yaw=%+4.2f",yawAngle);
 		 //printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
 		 //printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
 		 //printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",tempercher[0],tempercher[1],tempercher[2],tempercher[3]);
 		 //printf(" A=%.3f",power_amp);
 		 //printf(" ball=%d",ball[0]);
 		 //printf(" yaw=%f",yawAngle/180.0*M_PI);
-		 printf(" connect=%d vel_surge=%.4f vel_sway=%.4f ",Ether_connect,vel_surge,vel_sway);
-		 printf(" theta_vision=%.4f theta_AI=%.4f drible_power=%.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
-    	  printf(" v_power=%.3f",Power_voltage[4]);
+		 //printf(" connect=%d vel_surge=%.4f vel_sway=%.4f ",Ether_connect,vel_surge,vel_sway);
+		 //printf(" theta_vision=%.4f theta_AI=%.4f drible_power=%.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
+    	  //printf(" v_power=%.3f",Power_voltage[4]);
     	 // printf(" v_charge=%.3f",voltage[5]);
-		 printf(" kick_power=%.4f chip=%d",kick_power,chipEN);
+		 //printf(" kick_power=%.4f chip=%d",kick_power,chipEN);
 		 //printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
 		  //printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
 		 //printf(" connect=%d",Ether_connect);
@@ -540,8 +543,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 		 //printf(" C=%d V=%d SW=%d",Csense[0],Vsense[0],SWdata[0]);
 		 //printf(" A=%f",amplitude[4]);
-		 printf(" ball:0=%d",ball[0]);
-		 printf(" mouse:x=%d, y=%d",mouse[0],mouse[1]);
+		 printf("%+8.0f %+8.0f %+8.0f %+8.0f", motor_integral[0], motor_integral[1], motor_integral[2], motor_integral[3]);
+		 //printf(" ball:0=%d",ball[0]);
+		 printf(" mouse:x=%+6ld, y=%+6ld", mouse_odom[0], mouse_odom[1]);
 		 printf("\r\n");
 	 }
 
@@ -687,26 +691,32 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 	//mouseXY
 		case 0x241:
-			mouse[0]=(int16_t)(RxData[0]<<8)|RxData[1];
-			mouse[1]=(int16_t)(RxData[2]<<8)|RxData[3];
-			break;
+	mouse[0] = (int16_t)((RxData[1] << 8) | RxData[0]);
+	mouse[1] = (int16_t)((RxData[3] << 8) | RxData[2]);
+	mouse_odom[0] += mouse[0];
+	mouse_odom[1] += mouse[1];
+	break;
 
-		//motor_feedback
+	// motor_feedback
 		  case 0x200:
 			  motor_feedback[0]=uchar4_to_float(RxData);
 			  motor_feedback_velocity[0]=motor_feedback[0]*rotation_longth;
+			  motor_integral[0] += motor_feedback_velocity[0];
 			  break;
 		  case 0x201:
 			  motor_feedback[1]=uchar4_to_float(RxData);
 			  motor_feedback_velocity[1]=motor_feedback[1]*rotation_longth;
+			  motor_integral[1] += motor_feedback_velocity[1];
 			  break;
 		  case 0x202:
 			  motor_feedback[2]=uchar4_to_float(RxData);
 			  motor_feedback_velocity[2]=motor_feedback[2]*rotation_longth;
+			  motor_integral[2] += motor_feedback_velocity[2];
 			  break;
 		  case 0x203:
 			  motor_feedback[3]=uchar4_to_float(RxData);
 			  motor_feedback_velocity[3]=motor_feedback[3]*rotation_longth;
+			  motor_integral[3] += motor_feedback_velocity[03];
 			  break;
 		  case 0x204:
 			  motor_feedback[4]=uchar4_to_float(RxData);
@@ -755,11 +765,40 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 void maintask_run(){
 	//theta_target=0.0;
-	omega=(getAngleDiff(theta_target,(yawAngle/180.0*M_PI))*20.0)
-			-(getAngleDiff((yawAngle/180.0*M_PI),(yawAngle_temp/180.0*M_PI))*4.5*57.29);
+	omega=(getAngleDiff(theta_target,(yawAngle/180.0*M_PI))*10.0)
+			-(getAngleDiff((yawAngle/180.0*M_PI),(yawAngle_temp/180.0*M_PI))*57.29);
 
 	if(omega>6*M_PI){omega=6*M_PI;}
 	if(omega<-6*M_PI){omega=-6*M_PI;}
+
+	static int32_t pre_mouse_odom[2] = {0, 0};
+	float mouse_vel[2];
+	mouse_vel[0] = mouse_odom[0] - pre_mouse_odom[0];
+	mouse_vel[1] = mouse_odom[1] - pre_mouse_odom[1];
+
+	vel_surge = mouse_odom[0] / 50;
+	vel_sway = mouse_odom[1] / 50;
+
+	if (vel_surge > 1)
+	{
+	vel_surge = 1;
+	}
+	else if (vel_surge < -1)
+	{
+	vel_surge = -1;
+	}
+
+	if (vel_sway > 1)
+	{
+	vel_sway = 1;
+	}
+	else if (vel_sway < -1)
+	{
+	vel_sway = -1;
+	}
+
+	pre_mouse_odom[0] = mouse_odom[0];
+	pre_mouse_odom[1] = mouse_odom[1];
 
 	omni_move(vel_surge, vel_sway, omega,1.0);
 	  if(kick_power>0){

@@ -132,7 +132,7 @@
 #endif
 
 #define IMU_ONE_G 9.80665f
-#define SHRINK_ERROR 0.0001
+#define SHRINK_ERROR 0.0002
 
 extern float aRes, gRes;
 
