@@ -12,7 +12,8 @@
             "defines": [
                 "USE_HAL_DRIVER",
                 "STM32G474xx",
-                "DEBUG"
+                "DEBUG",
+                "M_PI = 3.1415"
             ],
             "cStandard": "c11",
             "cppStandard": "c++11",
