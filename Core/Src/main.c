@@ -355,22 +355,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 switch (sw_mode){
 	 	 case 0:  //main without debug
 	 		if(Ether_connect==1){
-	 			yawAngle=yawAngle*0.999+(theta_vision*180.0/PI)*0.001;
+	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			maintask_run();
 	 		}
 	 		else{
-	 			yawAngle=yawAngle*0.999+(theta_vision*180.0/PI)*0.001;
+	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			maintask_state_stop();
 	 		}
 	 		break;
 
 	 	 case 1:  //main debug
 	 		if(Ether_connect==1){
-	 			yawAngle=yawAngle*0.999+(theta_vision*180.0/PI)*0.001;
+	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			maintask_run();
 	 		}
 	 		else{
-	 			yawAngle=yawAngle*0.999+(theta_vision*180.0/PI)*0.001;
+	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			//maintask_run();
 	 			maintask_state_stop();
 	 		}
@@ -553,9 +553,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 cnt_time_50Hz++;
 	 cnt_time_tim++;
 
-	 if(Power_voltage[4]<22.0){
+	 /*if(Power_voltage[4]<22.0){
 		 actuator_buzzer(100,100);
-	 }
+	 }*/
 
 }
 
@@ -591,104 +591,53 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
-   if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
-	  {
-   if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
-    {
-    Error_Handler();
-    }
-	switch (RxHeader.Identifier){
-	//error
-	case 0x000:
-		error_No[0]=RxData[0];
-		error_No[1]=RxData[1];
+
+	if (hfdcan->Instance == hfdcan1.Instance) {
+	   if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+		  {
+	   if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
+		{
 		Error_Handler();
-		break;
-	case 0x001:
-		error_No[0]=RxData[0];
-		error_No[1]=RxData[1];
-		maintask_stop();
-		break;
-	case 0x002:
-		break;
-	case 0x003:
-		break;
-	case 0x004:
-		break;
-
-	//ball
-	case 0x240:
-		ball[0]=RxData[0];
-		ball[1]=RxData[1];
-		ball[2]=RxData[2];
-		ball[3]=RxData[3];
-		check_FC=1;
-		break;
-
-	//power_Voltage
-	case 0x210:
-		Power_voltage[4]=uchar4_to_float(RxData);
-		break;
-	case 0x215:
-		Power_voltage[5]=uchar4_to_float(RxData);
-		break;
-
-	//temperature
-	case 0x224:
-		tempercher[4]=uchar4_to_float(RxData);
-		break;
-	case 0x225:
-		tempercher[5]=uchar4_to_float(RxData);
-		break;
-
-	//amplitude
-	case 0x234:
-		amplitude[4]=uchar4_to_float(RxData);
-		check_power=1;
-		break;
-
-
-	//ETH data
-	/*case 0x400:
-		data_from_ether[0]=RxData[0];
-		data_from_ether[1]=RxData[1];
-		data_from_ether[2]=RxData[2];
-		data_from_ether[3]=RxData[3];
-		data_from_ether[4]=RxData[4];
-		data_from_ether[5]=RxData[5];
-		data_from_ether[6]=RxData[6];
-		data_from_ether[7]=RxData[7];
-
-		vel_surge=((float32_t)(data_from_ether[0]<<8 | data_from_ether[1])-32767.0)/32767.0*7.0;
-		vel_sway= ((float32_t)(data_from_ether[2]<<8 | data_from_ether[3])-32767.0)/32767.0*7.0;
-		theta_vision=((float32_t)(data_from_ether[4]<<8 | data_from_ether[5])-32767)/32767.0*M_PI;
-		theta_target=((float32_t)(data_from_ether[6]<<8 | data_from_ether[7])-32767)/32767.0*M_PI;*/
-
-	break;
-	//ETH data2
-	case 0x401:
-		data_from_ether[8]=RxData[0];
-		data_from_ether[9]=RxData[1];
-		data_from_ether[10]=RxData[2];
-		data_from_ether[11]=RxData[3];
-		data_from_ether[12]=RxData[4];
-		if(data_from_ether[8]>100){
-			chipEN=1;
-			data_from_ether[8]=data_from_ether[8]-100;
 		}
-		else{
-			chipEN=0;
-		}
-		kick_power=(float32_t)data_from_ether[8]/20.0;
-		drible_power=(float32_t)data_from_ether[9]/20.0;
+		switch (RxHeader.Identifier){
+		//error
+		case 0x000:
+			error_No[0]=RxData[0];
+			error_No[1]=RxData[1];
+			Error_Handler();
+			break;
+		case 0x001:
+			error_No[0]=RxData[0];
+			error_No[1]=RxData[1];
+			maintask_stop();
+			break;
+		case 0x002:
+			break;
+		case 0x003:
+			break;
+		case 0x004:
+			break;
+		//ball
+		case 0x240:
+			ball[0]=RxData[0];
+			ball[1]=RxData[1];
+			ball[2]=RxData[2];
+			ball[3]=RxData[3];
+			check_FC=1;
+			break;
 
-		keeper_EN=data_from_ether[10];
-	break;
+		//temperature
+		case 0x224:
+			tempercher[4]=uchar4_to_float(RxData);
+			break;
+		case 0x225:
+			tempercher[5]=uchar4_to_float(RxData);
+			break;
 
-	//mouseXY
-		case 0x241:
-			mouse[0]=(int16_t)(RxData[0]<<8)|RxData[1];
-			mouse[1]=(int16_t)(RxData[2]<<8)|RxData[3];
+		//amplitude
+		case 0x234:
+			amplitude[4]=uchar4_to_float(RxData);
+			check_power=1;
 			break;
 
 		//motor_feedback
@@ -700,18 +649,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			  motor_feedback[1]=uchar4_to_float(RxData);
 			  motor_feedback_velocity[1]=motor_feedback[1]*rotation_longth;
 			  break;
-		  case 0x202:
-			  motor_feedback[2]=uchar4_to_float(RxData);
-			  motor_feedback_velocity[2]=motor_feedback[2]*rotation_longth;
-			  break;
-		  case 0x203:
-			  motor_feedback[3]=uchar4_to_float(RxData);
-			  motor_feedback_velocity[3]=motor_feedback[3]*rotation_longth;
-			  break;
-		  case 0x204:
-			  motor_feedback[4]=uchar4_to_float(RxData);
-			  motor_feedback_velocity[4]=motor_feedback[3]*rotation_longth;
-			  break;
 
 
 		//temperature
@@ -720,12 +657,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			  break;
 		  case 0x221:
 			  tempercher[1]=uchar4_to_float(RxData);
-			  break;
-		  case 0x222:
-			  tempercher[2]=uchar4_to_float(RxData);
-			  break;
-		  case 0x223:
-			  tempercher[3]=uchar4_to_float(RxData);
 			  break;
 
 	   //amplitude
@@ -737,16 +668,100 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			  amplitude[1]=uchar4_to_float(RxData);
 			  check_motor2=1;
 			  break;
-		  case 0x232:
-			  amplitude[2]=uchar4_to_float(RxData);
-			  check_motor3=1;
-			  break;
-		  case 0x233:
-			  amplitude[3]=uchar4_to_float(RxData);
-			  check_motor4=1;
-			  break;
+
+		}
+
+
+		}
 
 	}
+	else if (hfdcan->Instance == hfdcan2.Instance) {
+		   if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+			  {
+		   if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
+			{
+			Error_Handler();
+			}
+			switch (RxHeader.Identifier){
+			//error
+			case 0x000:
+				error_No[0]=RxData[0];
+				error_No[1]=RxData[1];
+				Error_Handler();
+				break;
+			case 0x001:
+				error_No[0]=RxData[0];
+				error_No[1]=RxData[1];
+				maintask_stop();
+				break;
+			case 0x002:
+				break;
+			case 0x003:
+				break;
+			case 0x004:
+				break;
+
+			//mouseXY
+			case 0x241:
+				mouse[0]=(RxData[0]<<8)|RxData[1];
+				mouse[1]=(RxData[2]<<8)|RxData[3];
+				break;
+
+			//power_Voltage
+			case 0x215:
+				Power_voltage[4]=uchar4_to_float(RxData);
+				break;
+			case 0x216:
+				Power_voltage[5]=uchar4_to_float(RxData);
+				break;
+
+			//temperature
+			case 0x224:
+				tempercher[4]=uchar4_to_float(RxData);
+				break;
+
+			//amplitude
+			case 0x234:
+				amplitude[4]=uchar4_to_float(RxData);
+				check_power=1;
+				break;
+
+
+				//motor_feedback
+				  case 0x202:
+					  motor_feedback[2]=uchar4_to_float(RxData);
+					  motor_feedback_velocity[2]=motor_feedback[2]*rotation_longth;
+					  break;
+				  case 0x203:
+					  motor_feedback[3]=uchar4_to_float(RxData);
+					  motor_feedback_velocity[3]=motor_feedback[3]*rotation_longth;
+					  break;
+
+
+				//temperature
+				  case 0x222:
+					  tempercher[2]=uchar4_to_float(RxData);
+					  break;
+				  case 0x223:
+					  tempercher[3]=uchar4_to_float(RxData);
+					  break;
+
+			   //amplitude
+				  case 0x232:
+					  amplitude[2]=uchar4_to_float(RxData);
+					  check_motor3=1;
+					  break;
+				  case 0x233:
+					  amplitude[3]=uchar4_to_float(RxData);
+					  check_motor4=1;
+					  break;
+
+			}
+
+
+			}
+
+
 	}
 
 
@@ -755,8 +770,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 void maintask_run(){
 	//theta_target=0.0;
-	omega=(getAngleDiff(theta_target,(yawAngle/180.0*M_PI))*20.0)
-			-(getAngleDiff((yawAngle/180.0*M_PI),(yawAngle_temp/180.0*M_PI))*4.5*57.29);
+	omega=(getAngleDiff(theta_target,(yawAngle/180.0*M_PI))*7.0)
+			-(getAngleDiff((yawAngle/180.0*M_PI),(yawAngle_temp/180.0*M_PI))*30.0);
 
 	if(omega>6*M_PI){omega=6*M_PI;}
 	if(omega<-6*M_PI){omega=-6*M_PI;}
