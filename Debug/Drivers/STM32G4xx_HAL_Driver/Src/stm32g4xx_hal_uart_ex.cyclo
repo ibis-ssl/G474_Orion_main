@@ -8,10 +8,8 @@ stm32g4xx_hal_uart_ex.c:480:19:HAL_UARTEx_EnableStopMode	3
 stm32g4xx_hal_uart_ex.c:499:19:HAL_UARTEx_DisableStopMode	3
 stm32g4xx_hal_uart_ex.c:518:19:HAL_UARTEx_EnableFifoMode	2
 stm32g4xx_hal_uart_ex.c:559:19:HAL_UARTEx_DisableFifoMode	2
-stm32g4xx_hal_uart_ex.c:605:19:HAL_UARTEx_SetTxFifoThreshold	2
-stm32g4xx_hal_uart_ex.c:654:19:HAL_UARTEx_SetRxFifoThreshold	2
-stm32g4xx_hal_uart_ex.c:711:19:HAL_UARTEx_ReceiveToIdle	21
-stm32g4xx_hal_uart_ex.c:836:19:HAL_UARTEx_ReceiveToIdle_IT	8
-stm32g4xx_hal_uart_ex.c:898:19:HAL_UARTEx_ReceiveToIdle_DMA	8
-stm32g4xx_hal_uart_ex.c:961:13:UARTEx_Wakeup_AddressConfig	1
-stm32g4xx_hal_uart_ex.c:979:13:UARTEx_SetNbDataToProcess	2
+stm32g4xx_hal_uart_ex.c:605:19:HAL_UARTEx_SetTxFifoThreshold	3
+stm32g4xx_hal_uart_ex.c:654:19:HAL_UARTEx_SetRxFifoThreshold	3
+stm32g4xx_hal_uart_ex.c:711:19:HAL_UARTEx_ReceiveToIdle	28
+stm32g4xx_hal_uart_ex.c:836:19:HAL_UARTEx_ReceiveToIdle_IT	9
+stm32g4xx_hal_uart_ex.c:898:19:HAL_UARTEx_ReceiveToIdle_DMA	9

@@ -1,4 +1,4 @@
-../Core/Src/can_ibis.c:12:6:can1_init_ibis	40	static
+../Core/Src/can_ibis.c:12:6:can1_init_ibis	32	static
 ../Core/Src/can_ibis.c:27:6:can1_send	16	static
-../Core/Src/can_ibis.c:46:6:can2_init_ibis	40	static
+../Core/Src/can_ibis.c:46:6:can2_init_ibis	32	static
 ../Core/Src/can_ibis.c:61:6:can2_send	16	static

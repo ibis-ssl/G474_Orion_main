@@ -52,6 +52,9 @@ default.size.stdout \
 OBJDUMP_LIST += \
 G474_Orion_main.list \
 
+OBJCOPY_BIN += \
+G474_Orion_main.bin \
+
 
 # All Target
 all: main-build
@@ -75,12 +78,17 @@ G474_Orion_main.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+G474_Orion_main.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "G474_Orion_main.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
-	-$(RM) G474_Orion_main.elf G474_Orion_main.list G474_Orion_main.map default.size.stdout
+	-$(RM) G474_Orion_main.bin G474_Orion_main.elf G474_Orion_main.list G474_Orion_main.map default.size.stdout
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'

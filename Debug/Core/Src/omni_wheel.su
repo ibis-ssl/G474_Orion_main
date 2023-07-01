@@ -1,2 +1,2 @@
-../Core/Src/omni_wheel.c:31:6:omni_move	24	static
+../Core/Src/omni_wheel.c:31:6:omni_move	32	static
 ../Core/Src/omni_wheel.c:77:6:stall_move	8	static
