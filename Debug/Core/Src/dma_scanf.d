@@ -1,4 +1,4 @@
-Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
+Core/Src/dma_scanf.o: ../Core/Src/dma_scanf.c ../Core/Inc/main.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h \
  ../Core/Inc/stm32g4xx_hal_conf.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h \
@@ -34,16 +34,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h \
- ../Core/Inc/adc.h ../Core/Inc/main.h ../Core/Inc/dma.h \
- ../Core/Inc/fdcan.h ../Core/Inc/usart.h ../Core/Inc/spi.h \
- ../Core/Inc/tim.h ../Core/Inc/gpio.h ../Core/Inc/management.h \
- ../Core/Inc/adc.h ../Core/Inc/fdcan.h ../Core/Inc/dma.h \
- ../Core/Inc/spi.h ../Core/Inc/usart.h ../Core/Inc/gpio.h \
- ../Core/Inc/tim.h ../Core/Inc/arm_math.h ../Core/Inc/microsectimer.h \
- ../Core/Inc/xprintf.h ../Core/Inc/icm20602_spi.h \
- ../Core/Inc/management.h ../Core/Inc/actuator.h ../Core/Inc/myatan2.h \
- ../Core/Inc/omni_wheel.h ../Core/Inc/can_ibis.h ../Core/Inc/util.h \
- ../Core/Inc/dma_printf.h ../Core/Inc/dma_ring.h ../Core/Inc/dma_scanf.h
+ ../Core/Inc/dma_ring.h ../Core/Inc/main.h ../Core/Inc/dma_scanf.h \
+ ../Core/Inc/dma_ring.h
 ../Core/Inc/main.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
 ../Core/Inc/stm32g4xx_hal_conf.h:
@@ -80,32 +72,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h:
-../Core/Inc/adc.h:
-../Core/Inc/main.h:
-../Core/Inc/dma.h:
-../Core/Inc/fdcan.h:
-../Core/Inc/usart.h:
-../Core/Inc/spi.h:
-../Core/Inc/tim.h:
-../Core/Inc/gpio.h:
-../Core/Inc/management.h:
-../Core/Inc/adc.h:
-../Core/Inc/fdcan.h:
-../Core/Inc/dma.h:
-../Core/Inc/spi.h:
-../Core/Inc/usart.h:
-../Core/Inc/gpio.h:
-../Core/Inc/tim.h:
-../Core/Inc/arm_math.h:
-../Core/Inc/microsectimer.h:
-../Core/Inc/xprintf.h:
-../Core/Inc/icm20602_spi.h:
-../Core/Inc/management.h:
-../Core/Inc/actuator.h:
-../Core/Inc/myatan2.h:
-../Core/Inc/omni_wheel.h:
-../Core/Inc/can_ibis.h:
-../Core/Inc/util.h:
-../Core/Inc/dma_printf.h:
 ../Core/Inc/dma_ring.h:
+../Core/Inc/main.h:
 ../Core/Inc/dma_scanf.h:
+../Core/Inc/dma_ring.h:

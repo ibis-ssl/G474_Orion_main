@@ -30,14 +30,24 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "management.h"
-#ifdef __GNUC__
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
-void __io_putchar(uint8_t ch) {
-HAL_UART_Transmit(&hlpuart1, &ch, 1, 1);
+#include "dma_printf.h"
+#include "dma_scanf.h"
+//#ifdef __GNUC__
+//#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+//#else
+//#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+//#endif /* __GNUC__ */
+int __io_putchar(int ch)
+{
+      dma_printf_putc(ch&0xFF);
+        return ch;
 }
+
+int __io_getchar(void)
+{
+      return dma_scanf_getc_blocking();
+}
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -138,6 +148,7 @@ float32_t ball_x,ball_y,robot_x,robot_y,robot_x_target,robot_y_target;
 uint8_t keeper_EN,stall;
 uint16_t cnt_motor;
 uint8_t check_motor1,check_motor2,check_motor3,check_motor4,check_power,check_FC;
+int32_t mouse_odom[2];
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_RxHeaderTypeDef RxHeader;
 FDCAN_FilterTypeDef  sFilterConfig;
@@ -206,7 +217,13 @@ int main(void)
     for(int i=0;i<3;i++){
       actuator_buzzer(20, 20);
     }
+
+    setbuf(stdin, NULL);
     setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
+    dma_printf_init(&hlpuart1);
+    dma_scanf_init(&hlpuart1);
+
     printf("start\r\n");
     can1_init_ibis(&hfdcan1);
     can2_init_ibis(&hfdcan2);
@@ -287,6 +304,9 @@ int main(void)
     data_from_ether[Rxbufsize_from_Ether-3] = 0;
     HAL_Delay(500);
     HAL_TIM_Base_Start_IT(&htim7);
+
+	mouse_odom[0] = 0;
+	mouse_odom[1] = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -515,18 +535,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     	 //printf(" kicktime=%d, state=%d ",kick_time,kick_state);
 		 //printf("data: acc0=%f,acc1=%f,acc2=%f,gyro0=%f,gyro1=%f,gyro2=%f,tmp=%f",acc[0],acc[1],acc[2],gyro[0],gyro[1],gyro[2],IMU_tmp);
 		 //printf(" pich=%f roll=%f yaw=%f",pitchAngle,rollAngle,yawAngle);
-    	 printf(" yaw=%f",yawAngle);
+      	 printf(" yaw=%+6.1f",yawAngle);
 		 //printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
 		 //printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
 		 //printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",tempercher[0],tempercher[1],tempercher[2],tempercher[3]);
 		 //printf(" A=%.3f",power_amp);
 		 //printf(" ball=%d",ball[0]);
 		 //printf(" yaw=%f",yawAngle/180.0*M_PI);
-		 printf(" connect=%d vel_surge=%.4f vel_sway=%.4f ",Ether_connect,vel_surge,vel_sway);
-		 printf(" theta_vision=%.4f theta_AI=%.4f drible_power=%.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
-    	  printf(" v_power=%.3f",Power_voltage[4]);
+    	 printf(" connect=%d vel_surge=%+6.4f vel_sway=%+6.4f ",Ether_connect,vel_surge,vel_sway);
+		 printf(" theta_vision=%+6.4f theta_AI=%+6.4f drible_power=%+6.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
+    	 printf(" v_power=%4.2f",Power_voltage[4]);
     	 // printf(" v_charge=%.3f",voltage[5]);
-		 printf(" kick_power=%.4f chip=%d",kick_power,chipEN);
+ 		 printf(" kick_power=%3.2f chip=%d",kick_power,chipEN);
 		 //printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
 		  //printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
 		 //printf(" connect=%d",Ether_connect);
@@ -541,7 +561,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		 //printf(" C=%d V=%d SW=%d",Csense[0],Vsense[0],SWdata[0]);
 		 //printf(" A=%f",amplitude[4]);
 		 printf(" ball:0=%d",ball[0]);
-		 printf(" mouse:x=%d, y=%d",mouse[0],mouse[1]);
+		 printf(" mouse:x=%+3d, y=%+3d",mouse[0],mouse[1]);
+		 printf(" mouse:x=%+6d, y=%+6d",(int)mouse_odom[0],(int)mouse_odom[1]);
 		 printf("\r\n");
 	 }
 
@@ -703,8 +724,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 			//mouseXY
 			case 0x241:
-				mouse[0]=(RxData[0]<<8)|RxData[1];
-				mouse[1]=(RxData[2]<<8)|RxData[3];
+				mouse[0] = (int16_t)(((uint16_t)RxData[1] << 8) | RxData[0]);
+				mouse[1] = (int16_t)(((uint16_t)RxData[3] << 8) | RxData[2]);
+				mouse_odom[0] += mouse[0];
+				mouse_odom[1] += mouse[1];
 				break;
 
 			//power_Voltage
@@ -961,51 +984,57 @@ uint8_t decode_SW(uint16_t SW_data){
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	uint8_t j = 0;
 
-	while (Rxbuf_from_Ether[j] != 254 &&  j<sizeof(Rxbuf_from_Ether)) {
-		j++;
-	}
-	if(j>=sizeof(Rxbuf_from_Ether)){
-		for(uint8_t k=0;k<(sizeof(data_from_ether));k++){
-			data_from_ether[k]=0;
+	if (huart->Instance == huart2.Instance) {
+		while (Rxbuf_from_Ether[j] != 254 &&  j<sizeof(Rxbuf_from_Ether)) {
+			j++;
 		}
-	}
-	else{
-		for (uint8_t k = 0; k < sizeof(data_from_ether); k++) {
-			if ((j + k) >= sizeof(data_from_ether)) {
-				data_from_ether[k] = Rxbuf_from_Ether[k - (sizeof(data_from_ether) - j)];
-			}
-			else {
-				data_from_ether[k] = Rxbuf_from_Ether[j + k + 1];
+		if(j>=sizeof(Rxbuf_from_Ether)){
+			for(uint8_t k=0;k<(sizeof(data_from_ether));k++){
+				data_from_ether[k]=0;
 			}
 		}
-	}
-	if(data_from_ether[sizeof(data_from_ether)-1]==253){
-		for(uint8_t k=0;k<sizeof(data_from_ether);k++){
-			Rxbuf_from_Ether_temp[k]=data_from_ether[k];
+		else{
+			for (uint8_t k = 0; k < sizeof(data_from_ether); k++) {
+				if ((j + k) >= sizeof(data_from_ether)) {
+					data_from_ether[k] = Rxbuf_from_Ether[k - (sizeof(data_from_ether) - j)];
+				}
+				else {
+					data_from_ether[k] = Rxbuf_from_Ether[j + k + 1];
+				}
+			}
 		}
-	}
-	else{
-		for(uint8_t k=0;k<sizeof(data_from_ether);k++){
-			data_from_ether[k]=Rxbuf_from_Ether_temp[k];
+		if(data_from_ether[sizeof(data_from_ether)-1]==253){
+			for(uint8_t k=0;k<sizeof(data_from_ether);k++){
+				Rxbuf_from_Ether_temp[k]=data_from_ether[k];
+			}
 		}
-	}
+		else{
+			for(uint8_t k=0;k<sizeof(data_from_ether);k++){
+				data_from_ether[k]=Rxbuf_from_Ether_temp[k];
+			}
+		}
 
-	vel_surge=((float32_t)(data_from_ether[0]<<8 | data_from_ether[1])-32767.0)/32767.0*7.0;
-	vel_sway= ((float32_t)(data_from_ether[2]<<8 | data_from_ether[3])-32767.0)/32767.0*7.0;
-	theta_vision=((float32_t)(data_from_ether[4]<<8 | data_from_ether[5])-32767)/32767.0*M_PI;
-	theta_target=((float32_t)(data_from_ether[6]<<8 | data_from_ether[7])-32767)/32767.0*M_PI;
+		vel_surge=((float32_t)(data_from_ether[0]<<8 | data_from_ether[1])-32767.0)/32767.0*7.0;
+		vel_sway= ((float32_t)(data_from_ether[2]<<8 | data_from_ether[3])-32767.0)/32767.0*7.0;
+		theta_vision=((float32_t)(data_from_ether[4]<<8 | data_from_ether[5])-32767)/32767.0*M_PI;
+		theta_target=((float32_t)(data_from_ether[6]<<8 | data_from_ether[7])-32767)/32767.0*M_PI;
 
-	if(data_from_ether[8]>100){
-		chipEN=1;
-		data_from_ether[8]=data_from_ether[8]-100;
-	}
-	else{
-		chipEN=0;
-	}
-	kick_power=(float32_t)data_from_ether[8]/20.0;
-	drible_power=(float32_t)data_from_ether[9]/20.0;
+		if(data_from_ether[8]>100){
+			chipEN=1;
+			data_from_ether[8]=data_from_ether[8]-100;
+		}
+		else{
+			chipEN=0;
+		}
+		kick_power=(float32_t)data_from_ether[8]/20.0;
+		drible_power=(float32_t)data_from_ether[9]/20.0;
 
-	keeper_EN=data_from_ether[10];
+		keeper_EN=data_from_ether[10];
+	}
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+      dma_printf_send_it(huart);
 }
 
 /* USER CODE END 4 */
