@@ -8,5 +8,5 @@
 ../Core/Src/actuator.c:125:6:actuator_power_ONOFF	16	static
 ../Core/Src/actuator.c:135:6:actuator_system_shutdown	16	static
 ../Core/Src/actuator.c:144:6:actuator_power_param	24	static
-../Core/Src/actuator.c:165:6:actuator_motor_param	56	static
+../Core/Src/actuator.c:165:6:actuator_motor_param	64	static
 ../Core/Src/actuator.c:211:6:actuator_buzzer	16	static

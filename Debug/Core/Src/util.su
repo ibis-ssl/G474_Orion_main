@@ -14,6 +14,6 @@
 ../Core/Src/util.c:96:16:uchar2_to_ushort	0	static
 ../Core/Src/util.c:103:6:ushort_to_uchar2	0	static
 ../Core/Src/util.c:115:7:uchar4_to_float	0	static
-../Core/Src/util.c:124:6:float_to_uchar4	8	static
+../Core/Src/util.c:124:6:float_to_uchar4	0	static
 ../Core/Src/util.c:133:7:deg_to_radian	8	static
 ../Core/Src/util.c:138:7:radian_to_deg	8	static
