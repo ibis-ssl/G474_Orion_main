@@ -1,2 +1,0 @@
-../Core/Src/dma_scanf.c:11:6:dma_scanf_init	1
-../Core/Src/dma_scanf.c:17:5:dma_scanf_getc_blocking	2

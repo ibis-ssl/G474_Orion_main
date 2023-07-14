@@ -1,3 +1,0 @@
-../Core/Src/dma_printf.c:12:6:dma_printf_init	1
-../Core/Src/dma_printf.c:19:6:dma_printf_putc	2
-../Core/Src/dma_printf.c:29:6:dma_printf_send_it	3
