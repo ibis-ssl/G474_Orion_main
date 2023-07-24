@@ -5,7 +5,7 @@
 const char cali = 'c';
 const char coll = ' ';
 
-float imu_dt = 0.001f;
+float imu_dt = 0.002f;
 float acc_cal[6][3];
 float gyro_cal[6][3];
 
@@ -245,9 +245,9 @@ void ICM20602_read_IMU_data() {
     IMU_tmp = (ICM20602_getIMUTemp() / 326.8f) + 25.0f;
     ICM20602_IMU_compensate();
 
-    pitchAngle = pitchAngle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt)*2;//とりあえず変えておく
-    rollAngle  = rollAngle  + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt)*2;
-    yawAngle   = yawAngle   + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt)*2;
+    pitchAngle = pitchAngle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt);//とりあえず変えておく
+    rollAngle  = rollAngle  + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt);
+    yawAngle   = yawAngle   + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt);
 
     pitchAngle = ICM20602_normAngle(pitchAngle);
     rollAngle  = ICM20602_normAngle(rollAngle);

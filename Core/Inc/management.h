@@ -43,7 +43,7 @@ extern TIM_MasterConfigTypeDef sMasterConfig;
 extern TIM_OC_InitTypeDef sConfigOC;
 extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
-#define can_RX_data 8
+#define can_RX_data 64
 #define can_TX_data 8
 #define omni_diameter 0.056
 #define robot_radius  0.080
