@@ -137,6 +137,7 @@ float omni_travel[2];
 float32_t floor_odom_diff[2] = {0, 0}, robot_pos_diff[2] = {0, 0};
 float32_t robot_rotation_adj;
 float32_t tar_pos[2] = {0, 0};
+float32_t tar_vel[2] = {0, 0};	// m/s
 float32_t motor_feedback[5];
 float32_t motor_feedback_velocity[5];
 float32_t motor_enc_angle[5];
@@ -601,20 +602,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			// printf("ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
 			// printf("Diff %+4.1f %+4.1f %+4.1f %+4.1f ", omni_angle_diff[0], omni_angle_diff[1], omni_angle_diff[2], omni_angle_diff[3]);
 			// printf("Sin %+4.1f %+4.1f", sin(yaw_angle_rad + M_PI * 3 / 4), sin(yaw_angle_rad + M_PI * 5 / 4));
-			//printf("Adj %+5.3f TT %+5.3f ", robot_rotation_adj * 1000, (omni_travel[0] + omni_travel[1]) * 1000);
-			//printf("travel %+6.2f %+6.2f ", omni_travel[0] * 1000, omni_travel[1] * 1000);
-			printf("omni X%+8.0f Y%+8.0f ", omni_odom[0], omni_odom[1]);
-			//printf("imu %+5.2f result %+5.2f ", rotation_integral,spin_adjusted_result);
-			printf("tar X%+8.0f Y%+8.0f ", tar_pos[0], tar_pos[1]);
+			// printf("Adj %+5.3f TT %+5.3f ", robot_rotation_adj * 1000, (omni_travel[0] + omni_travel[1]) * 1000);
+			// printf("travel %+6.2f %+6.2f ", omni_travel[0] * 1000, omni_travel[1] * 1000);
+			// printf("omni X%+8.0f Y%+8.0f ", omni_odom[0], omni_odom[1]);
+			// printf("imu %+5.2f result %+5.2f ", rotation_integral,spin_adjusted_result);
+			// printf("tar X%+8.0f Y%+8.0f ", tar_pos[0], tar_pos[1]);
+			printf("tar X%+8.0f Y%+8.0f ", tar_vel[0]*1000, tar_vel[1]*1000);
 			// printf("tar %+7.1f real %+7.2f %+7.2f ", target_move_speed*500, omni_odom_speed[0], omni_odom_speed[1]);
 			printf("real %+7.2f %+7.2f ", omni_odom_speed[0], omni_odom_speed[1]);
 
 			//printf("vX %+8.3f vY %+8.3f vW %+8.3f ", vel_surge, vel_sway, omega);
-			// printf("robot X%+8.0f Y%+8.0f ", robot_pos_diff[0], robot_pos_diff[1]);
+			//  printf("robot X%+8.0f Y%+8.0f ", robot_pos_diff[0], robot_pos_diff[1]);
 
 			// printf(" ball:0=%d",ball[0]);
-			//printf("%+2d %+2d ",mouse[0],mouse[1]);
-			//printf(" mouse:x=%+6ld, y=%+6ld", -mouse_odom[0], -mouse_odom[1]);
+			// printf("%+2d %+2d ",mouse[0],mouse[1]);
+			// printf(" mouse:x=%+6ld, y=%+6ld", -mouse_odom[0], -mouse_odom[1]);
 			printf("\r\n");
 		}
 
@@ -845,6 +847,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 void maintask_run()
 {
+	static uint32_t moving_timeout = 0;
 	theta_target = 0.0;
 	static uint32_t run_cnt = 0;
 	static float32_t pre_yaw_angle_rad = 0;
@@ -879,10 +882,11 @@ void maintask_run()
 	//
 
 	// angleはradなので直径そのままかければいい
-	omni_travel[0] = omni_angle_diff[1] * omni_diameter/2 + robot_rotation_adj;
-	omni_travel[1] = omni_angle_diff[2] * omni_diameter/2 + robot_rotation_adj;
+	omni_travel[0] = omni_angle_diff[1] * omni_diameter / 2 + robot_rotation_adj;
+	omni_travel[1] = omni_angle_diff[2] * omni_diameter / 2 + robot_rotation_adj;
 	spin_adjusted_result += (omni_travel[0] +
-						  omni_travel[1])/2;
+							 omni_travel[1]) /
+							2;
 
 	pre_omni_odom[0] = omni_odom[0];
 	pre_omni_odom[1] = omni_odom[1];
@@ -916,14 +920,18 @@ void maintask_run()
 		// 0-250
 		target_move_speed = 1;
 	}
-	//tar_pos[1] += target_move_speed;
+	// tar_pos[1] += target_move_speed;
 
-	speed_radian += M_PI / 500;
-	if(speed_radian > M_PI){
+	speed_radian += M_PI / 250;
+	if (speed_radian > M_PI)
+	{
 		speed_radian = -M_PI;
 	}
-	tar_pos[0] += sin(speed_radian) * 0.5;
-	tar_pos[1] += cos(speed_radian) * 0.5;
+	tar_vel[0] = sin(speed_radian) * 0.5;
+	tar_vel[1] = cos(speed_radian) * 0.5;
+	// [m/s] -> [mm/ms]
+	tar_pos[0] += tar_vel[0] * 2;
+	tar_pos[1] += tar_vel[1] * 2;
 
 	// 絶対座標系
 	floor_odom_diff[0] = omni_odom[0] - tar_pos[0];
@@ -968,9 +976,16 @@ void maintask_run()
 	pre_mouse_odom[0] = mouse_odom[0];
 	pre_mouse_odom[1] = mouse_odom[1];
 	pre_yaw_angle_rad = yaw_angle_rad;
+	moving_timeout++;
+	if (moving_timeout < 5000)
+	{
+		omni_move(vel_surge, vel_sway, omega, 1.0);
+	}
+	else
+	{
 
-	//omni_move(0, 0, 0, 1.0);
-	omni_move(vel_surge, vel_sway, omega, 1.0);
+		omni_move(0, 0, 0, 1.0);
+	}
 	if (kick_power > 0)
 	{
 		if (ball[0] == 1)
@@ -1018,7 +1033,7 @@ void maintask_run()
 	TX_data_UART[5] = chipEN;
 	TX_data_UART[6] = kick_state;
 	TX_data_UART[7] = (uint8_t)Power_voltage[4];
-	//HAL_UART_Transmit(&huart2, TX_data_UART, 8, 0xff);
+	// HAL_UART_Transmit(&huart2, TX_data_UART, 8, 0xff);
 
 	pre_yaw_angle = yawAngle;
 }
@@ -1039,7 +1054,7 @@ void maintask_emargency()
 	TX_data_UART[5] = 252;
 	TX_data_UART[6] = 122;
 	TX_data_UART[7] = 200;
-	//HAL_UART_Transmit(&huart2, TX_data_UART, 8, 0xff);
+	// HAL_UART_Transmit(&huart2, TX_data_UART, 8, 0xff);
 
 	actuator_buzzer(150, 150);
 
@@ -1071,7 +1086,7 @@ void maintask_state_stop()
 	TX_data_UART[5] = 1;
 	TX_data_UART[6] = 1;
 	TX_data_UART[7] = (uint8_t)Power_voltage[4];
-	//HAL_UART_Transmit(&huart2, TX_data_UART, 8, 0xff);
+	// HAL_UART_Transmit(&huart2, TX_data_UART, 8, 0xff);
 
 	actuator_kicker(1, 0);
 	actuator_kicker_voltage(0.0);
