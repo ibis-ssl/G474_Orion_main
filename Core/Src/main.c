@@ -70,11 +70,11 @@ return HAL_UART_Transmit(&hlpuart1, (uint8_t*)ptr, len, 100);
 uint8_t Rxbuf_from_Ether[Rxbufsize_from_Ether];
 uint8_t Rxbuf_from_Ether_UART[Rxbufsize_from_Ether];
 uint8_t Rxbuf_from_Ether_temp[Rxbufsize_from_Ether - 1] = {0};
-uint8_t Ether_connect = 0, Ether_connect_check = 0;
+uint8_t ether_connect = 0, ether_connect_check = 0;
 uint16_t cnt_time_tim;
 const float32_t OMNI_DIR_LENGTH = omni_diameter * M_PI;
 uint8_t sw_mode;
-float yawAngle_temp;
+float pre_yaw_angle;
 uint16_t cnt_time_50Hz;
 uint16_t yawAngle_send;
 
@@ -107,9 +107,9 @@ uint8_t decode_SW(uint16_t SW_data);
 float pitchAngle;
 float rollAngle;
 float yawAngle;
-float pitchAngle_rad;
-float rollAngle_rad;
-float yawAngle_rad;
+float pitch_angle_rad;
+float roll_angle_rad;
+float yaw_angle_rad;
 float acc[3];
 float gyro[3];
 float acc_comp[3];
@@ -387,23 +387,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	case 0: // main without debug
 		omni_odom[0] = 0;
 		omni_odom[1] = 0;
-		if (Ether_connect == 1)
+		if (ether_connect == 1)
 		{
 			yawAngle = yawAngle * 0.999 + (theta_vision * 180.0 / PI) * 0.001;
-			yawAngle_rad = yawAngle * M_PI / 180;
+			yaw_angle_rad = yawAngle * M_PI / 180;
 			maintask_run();
 		}
 		else
 		{
 			yawAngle = yawAngle * 0.999 + (theta_vision * 180.0 / PI) * 0.001;
-			yawAngle_rad = yawAngle * M_PI / 180;
+			yaw_angle_rad = yawAngle * M_PI / 180;
 			maintask_state_stop();
 		}
 		break;
 
 	case 1: // main debug
 		// yawAngle = yawAngle * 0.999 + (theta_vision * 180.0 / PI) * 0.001;
-		yawAngle_rad = yawAngle * M_PI / 180;
+		yaw_angle_rad = yawAngle * M_PI / 180;
 		maintask_run();
 		break;
 
@@ -552,17 +552,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	if (cnt_time_tim > 50)
 	{
-		if (Ether_connect_check != data_from_ether[Rxbufsize_from_Ether - 3])
+		if (ether_connect_check != data_from_ether[Rxbufsize_from_Ether - 3])
 		{
-			Ether_connect = 1;
+			ether_connect = 1;
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
 		}
 		else
 		{
-			Ether_connect = 0;
+			ether_connect = 0;
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
 		}
-		Ether_connect_check = data_from_ether[Rxbufsize_from_Ether - 3];
+		ether_connect_check = data_from_ether[Rxbufsize_from_Ether - 3];
 		cnt_time_tim = 0;
 	}
 
@@ -573,21 +573,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			// printf(" kicktime=%d, state=%d ",kick_time,kick_state);
 			// printf("data: acc0=%f,acc1=%f,acc2=%f,gyro0=%f,gyro1=%f,gyro2=%f,tmp=%f",acc[0],acc[1],acc[2],gyro[0],gyro[1],gyro[2],IMU_tmp);
 			// printf(" pich=%f roll=%f yaw=%f",pitchAngle,rollAngle,yawAngle);
-			printf("yaw=%+4.1f ", yawAngle_rad);
+			printf("yaw=%+4.1f ", yaw_angle_rad);
 			// printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
 			// printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
 			// printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",tempercher[0],tempercher[1],tempercher[2],tempercher[3]);
 			// printf(" A=%.3f",power_amp);
 			// printf(" ball=%d",ball[0]);
 			// printf(" yaw=%f",yawAngle/180.0*M_PI);
-			// printf(" connect=%d vel_surge=%.4f vel_sway=%.4f ",Ether_connect,vel_surge,vel_sway);
+			// printf(" connect=%d vel_surge=%.4f vel_sway=%.4f ",ether_connect,vel_surge,vel_sway);
 			// printf(" theta_vision=%.4f theta_AI=%.4f drible_power=%.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
 			// printf(" v_power=%.3f",Power_voltage[4]);
 			// printf(" v_charge=%.3f",voltage[5]);
 			// printf(" kick_power=%.4f chip=%d",kick_power,chipEN);
 			// printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
 			// printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
-			// printf(" connect=%d",Ether_connect);
+			// printf(" connect=%d",ether_connect);
 			/*printf(" AI=%x %x %x %x %x %x %x %x %x %x %x %x %x",data_from_ether[0],data_from_ether[1],data_from_ether[2],
 			 data_from_ether[3],data_from_ether[4], data_from_ether[5],data_from_ether[6],data_from_ether[7],
 			 data_from_ether[8] ,data_from_ether[9],data_from_ether[10],data_from_ether[11],data_from_ether[12]);*/
@@ -600,7 +600,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			// printf(" A=%f",amplitudemotor_integral[1] - motor_integral[2][4]);
 			// printf("ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
 			// printf("Diff %+4.1f %+4.1f %+4.1f %+4.1f ", omni_angle_diff[0], omni_angle_diff[1], omni_angle_diff[2], omni_angle_diff[3]);
-			// printf("Sin %+4.1f %+4.1f", sin(yawAngle_rad + M_PI * 3 / 4), sin(yawAngle_rad + M_PI * 5 / 4));
+			// printf("Sin %+4.1f %+4.1f", sin(yaw_angle_rad + M_PI * 3 / 4), sin(yaw_angle_rad + M_PI * 5 / 4));
 			//printf("Adj %+5.3f TT %+5.3f ", robot_rotation_adj * 1000, (omni_travel[0] + omni_travel[1]) * 1000);
 			//printf("travel %+6.2f %+6.2f ", omni_travel[0] * 1000, omni_travel[1] * 1000);
 			printf("omni X%+8.0f Y%+8.0f ", omni_odom[0], omni_odom[1]);
@@ -847,9 +847,9 @@ void maintask_run()
 {
 	theta_target = 0.0;
 	static uint32_t run_cnt = 0;
-	static float32_t pre_yawAngle_rad = 0;
+	static float32_t pre_yaw_angle_rad = 0;
 	static float speed_radian = 0;
-	omega = (getAngleDiff(theta_target, (yawAngle / 180.0 * M_PI)) * 120.0) - (getAngleDiff((yawAngle / 180.0 * M_PI), (yawAngle_temp / 180.0 * M_PI)) * 1600);
+	omega = (getAngleDiff(theta_target, (yawAngle / 180.0 * M_PI)) * 60.0) - (getAngleDiff((yawAngle / 180.0 * M_PI), (pre_yaw_angle / 180.0 * M_PI)) * 1600);
 	if (omega > 6 * M_PI)
 	{
 		omega = 6 * M_PI;
@@ -874,7 +874,7 @@ void maintask_run()
 		pre_motor_enc_angle[i] = motor_enc_angle[i];
 	}
 
-	robot_rotation_adj = normalizeAngle(yawAngle_rad - pre_yawAngle_rad) * OMNI_ROTATION_LENGTH; // mm
+	robot_rotation_adj = normalizeAngle(yaw_angle_rad - pre_yaw_angle_rad) * OMNI_ROTATION_LENGTH; // mm
 	rotation_integral += robot_rotation_adj;
 	//
 
@@ -886,9 +886,9 @@ void maintask_run()
 
 	pre_omni_odom[0] = omni_odom[0];
 	pre_omni_odom[1] = omni_odom[1];
-	// pre_yawAngle_rad
-	omni_odom[0] += (omni_travel[0] * cos(yawAngle_rad + M_PI * 3 / 4) - omni_travel[1] * cos(yawAngle_rad + M_PI * 5 / 4)) * 1000;
-	omni_odom[1] += (omni_travel[0] * sin(yawAngle_rad + M_PI * 3 / 4) - omni_travel[1] * sin(yawAngle_rad + M_PI * 5 / 4)) * 1000;
+	// pre_yaw_angle_rad
+	omni_odom[0] += (omni_travel[0] * cos(yaw_angle_rad + M_PI * 3 / 4) - omni_travel[1] * cos(yaw_angle_rad + M_PI * 5 / 4)) * 1000;
+	omni_odom[1] += (omni_travel[0] * sin(yaw_angle_rad + M_PI * 3 / 4) - omni_travel[1] * sin(yaw_angle_rad + M_PI * 5 / 4)) * 1000;
 
 	omni_odom_speed[0] = (omni_odom[0] - pre_omni_odom[0]) * 500;
 	omni_odom_speed[1] = (omni_odom[1] - pre_omni_odom[1]) * 500;
@@ -931,9 +931,9 @@ void maintask_run()
 
 	// ロボット座標系
 	// X
-	robot_pos_diff[0] = floor_odom_diff[0] * cos(yawAngle_rad) + floor_odom_diff[1] * sin(yawAngle_rad);
+	robot_pos_diff[0] = floor_odom_diff[0] * cos(yaw_angle_rad) + floor_odom_diff[1] * sin(yaw_angle_rad);
 	// Y
-	robot_pos_diff[1] = floor_odom_diff[0] * sin(yawAngle_rad) + floor_odom_diff[1] * cos(yawAngle_rad);
+	robot_pos_diff[1] = floor_odom_diff[0] * sin(yaw_angle_rad) + floor_odom_diff[1] * cos(yaw_angle_rad);
 	vel_surge = robot_pos_diff[0] * OMNI_OUTPUT_GAIN;
 	vel_sway = robot_pos_diff[1] * OMNI_OUTPUT_GAIN;
 	//+target_move_speed * 2;
@@ -967,7 +967,7 @@ void maintask_run()
 
 	pre_mouse_odom[0] = mouse_odom[0];
 	pre_mouse_odom[1] = mouse_odom[1];
-	pre_yawAngle_rad = yawAngle_rad;
+	pre_yaw_angle_rad = yaw_angle_rad;
 
 	//omni_move(0, 0, 0, 1.0);
 	omni_move(vel_surge, vel_sway, omega, 1.0);
@@ -1020,7 +1020,7 @@ void maintask_run()
 	TX_data_UART[7] = (uint8_t)Power_voltage[4];
 	//HAL_UART_Transmit(&huart2, TX_data_UART, 8, 0xff);
 
-	yawAngle_temp = yawAngle;
+	pre_yaw_angle = yawAngle;
 }
 
 void maintask_emargency()
