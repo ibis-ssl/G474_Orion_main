@@ -137,7 +137,8 @@ float omni_travel[2];
 float32_t floor_odom_diff[2] = {0, 0}, robot_pos_diff[2] = {0, 0};
 float32_t robot_rotation_adj;
 float32_t tar_pos[2] = {0, 0};
-float32_t tar_vel[2] = {0, 0};	// m/s
+float32_t tar_vel[2] = {0, 0}; // m/s
+
 float32_t motor_feedback[5];
 float32_t motor_feedback_velocity[5];
 float32_t motor_enc_angle[5];
@@ -163,6 +164,8 @@ int32_t mouse_odom[2];
 float32_t omni_odom[2];
 float32_t pre_omni_odom[2];
 float32_t omni_odom_speed[2];
+#define SPEED_LOG_BUF_SIZE 100
+float32_t omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0}; // 2ms * 100cycle = 200ms
 uint8_t error_No[4];
 float32_t m1, m2, m3, m4;
 float32_t v_round;
@@ -581,7 +584,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			// printf(" A=%.3f",power_amp);
 			// printf(" ball=%d",ball[0]);
 			// printf(" yaw=%f",yawAngle/180.0*M_PI);
-			// printf(" connect=%d vel_surge=%.4f vel_sway=%.4f ",ether_connect,vel_surge,vel_sway);
+			// printf(" connect=%d output_vel_surge=%.4f output_vel_sway=%.4f ",ether_connect,output_vel_surge,output_vel_sway);
 			// printf(" theta_vision=%.4f theta_AI=%.4f drible_power=%.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
 			// printf(" v_power=%.3f",Power_voltage[4]);
 			// printf(" v_charge=%.3f",voltage[5]);
@@ -604,15 +607,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			// printf("Sin %+4.1f %+4.1f", sin(yaw_angle_rad + M_PI * 3 / 4), sin(yaw_angle_rad + M_PI * 5 / 4));
 			// printf("Adj %+5.3f TT %+5.3f ", robot_rotation_adj * 1000, (omni_travel[0] + omni_travel[1]) * 1000);
 			// printf("travel %+6.2f %+6.2f ", omni_travel[0] * 1000, omni_travel[1] * 1000);
-			// printf("omni X%+8.0f Y%+8.0f ", omni_odom[0], omni_odom[1]);
+			printf("omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
 			// printf("imu %+5.2f result %+5.2f ", rotation_integral,spin_adjusted_result);
-			// printf("tar X%+8.0f Y%+8.0f ", tar_pos[0], tar_pos[1]);
-			printf("tar X%+8.0f Y%+8.0f ", tar_vel[0]*1000, tar_vel[1]*1000);
+			printf("tarPos X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
+			printf("tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
 			// printf("tar %+7.1f real %+7.2f %+7.2f ", target_move_speed*500, omni_odom_speed[0], omni_odom_speed[1]);
-			printf("real %+7.2f %+7.2f ", omni_odom_speed[0], omni_odom_speed[1]);
+			printf("real %+4.2f %+4.2f ", omni_odom_speed[0], omni_odom_speed[1]);
 
-			//printf("vX %+8.3f vY %+8.3f vW %+8.3f ", vel_surge, vel_sway, omega);
-			//  printf("robot X%+8.0f Y%+8.0f ", robot_pos_diff[0], robot_pos_diff[1]);
+			float odom_log_sum[2] = {0};
+
+			for (int i = 0; i < SPEED_LOG_BUF_SIZE; i++)
+			{
+				odom_log_sum[0] += omni_odom_speed_log[0][i];
+				odom_log_sum[1] += omni_odom_speed_log[1][i];
+			}
+			odom_log_sum[0] /= SPEED_LOG_BUF_SIZE;
+			odom_log_sum[1] /= SPEED_LOG_BUF_SIZE;
+			printf("log %8.2f %8.2f", odom_log_sum[0], odom_log_sum[1]);
+
+			// printf("vX %+8.3f vY %+8.3f vW %+8.3f ", output_vel_surge, output_vel_sway, omega);
+			//   printf("robot X%+8.0f Y%+8.0f ", robot_pos_diff[0], robot_pos_diff[1]);
 
 			// printf(" ball:0=%d",ball[0]);
 			// printf("%+2d %+2d ",mouse[0],mouse[1]);
@@ -743,8 +757,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 				data_from_ether[6]=RxData[6];
 				data_from_ether[7]=RxData[7];
 
-				vel_surge=((float32_t)(data_from_ether[0]<<8 | data_from_ether[1])-32767.0)/32767.0*7.0;
-				vel_sway= ((float32_t)(data_from_ether[2]<<8 | data_from_ether[3])-32767.0)/32767.0*7.0;
+				output_vel_surge=((float32_t)(data_from_ether[0]<<8 | data_from_ether[1])-32767.0)/32767.0*7.0;
+				output_vel_sway= ((float32_t)(data_from_ether[2]<<8 | data_from_ether[3])-32767.0)/32767.0*7.0;
 				theta_vision=((float32_t)(data_from_ether[4]<<8 | data_from_ether[5])-32767)/32767.0*M_PI;
 				theta_target=((float32_t)(data_from_ether[6]<<8 | data_from_ether[7])-32767)/32767.0*M_PI;*/
 
@@ -851,7 +865,6 @@ void maintask_run()
 	theta_target = 0.0;
 	static uint32_t run_cnt = 0;
 	static float32_t pre_yaw_angle_rad = 0;
-	static float speed_radian = 0;
 	omega = (getAngleDiff(theta_target, (yawAngle / 180.0 * M_PI)) * 60.0) - (getAngleDiff((yawAngle / 180.0 * M_PI), (pre_yaw_angle / 180.0 * M_PI)) * 1600);
 	if (omega > 6 * M_PI)
 	{
@@ -882,56 +895,33 @@ void maintask_run()
 	//
 
 	// angleはradなので直径そのままかければいい
-	omni_travel[0] = omni_angle_diff[1] * omni_diameter / 2 + robot_rotation_adj;
-	omni_travel[1] = omni_angle_diff[2] * omni_diameter / 2 + robot_rotation_adj;
-	spin_adjusted_result += (omni_travel[0] +
-							 omni_travel[1]) /
-							2;
+	omni_travel[0] = omni_angle_diff[1] * omni_diameter + robot_rotation_adj * 2;
+	omni_travel[1] = omni_angle_diff[2] * omni_diameter + robot_rotation_adj * 2;
+	spin_adjusted_result += (omni_travel[0] + omni_travel[1]) / 2;
 
 	pre_omni_odom[0] = omni_odom[0];
 	pre_omni_odom[1] = omni_odom[1];
 	// pre_yaw_angle_rad
-	omni_odom[0] += (omni_travel[0] * cos(yaw_angle_rad + M_PI * 3 / 4) - omni_travel[1] * cos(yaw_angle_rad + M_PI * 5 / 4)) * 1000;
-	omni_odom[1] += (omni_travel[0] * sin(yaw_angle_rad + M_PI * 3 / 4) - omni_travel[1] * sin(yaw_angle_rad + M_PI * 5 / 4)) * 1000;
+	// 500Hzなので500で割る
+	omni_odom[0] += (omni_travel[0] * cos(yaw_angle_rad + M_PI * 3 / 4) - omni_travel[1] * cos(yaw_angle_rad + M_PI * 5 / 4)) / 2;
+	omni_odom[1] += (omni_travel[0] * sin(yaw_angle_rad + M_PI * 3 / 4) - omni_travel[1] * sin(yaw_angle_rad + M_PI * 5 / 4)) / 2;
 
-	omni_odom_speed[0] = (omni_odom[0] - pre_omni_odom[0]) * 500;
-	omni_odom_speed[1] = (omni_odom[1] - pre_omni_odom[1]) * 500;
+	omni_odom_speed[0] = (omni_odom[0] - pre_omni_odom[0]);
+	omni_odom_speed[1] = (omni_odom[1] - pre_omni_odom[1]);
 
-	// vel_surge = mouse_odom[0] / 50;
-	// vel_sway = mouse_odom[1] / 50;
-	run_cnt++;
-	if (run_cnt > 3500)
+	static uint32_t odom_speed_index = 0;
+	odom_speed_index++;
+	if (odom_speed_index > SPEED_LOG_BUF_SIZE)
 	{
-		target_move_speed = 0;
-		run_cnt = 0;
+		odom_speed_index = 0;
 	}
-	else if (run_cnt > 1500)
-	{
-		// 1000-1250
-		target_move_speed = -0.25;
-	}
-	else if (run_cnt > 500)
-	{
-		// 250-1000
-		target_move_speed = 0;
-	}
-	else
-	{
-		// 0-250
-		target_move_speed = 1;
-	}
-	// tar_pos[1] += target_move_speed;
+	omni_odom_speed_log[0][odom_speed_index] = omni_odom_speed[0];
+	omni_odom_speed_log[1][odom_speed_index] = omni_odom_speed[1];
 
-	speed_radian += M_PI / 250;
-	if (speed_radian > M_PI)
-	{
-		speed_radian = -M_PI;
-	}
-	tar_vel[0] = sin(speed_radian) * 0.5;
-	tar_vel[1] = cos(speed_radian) * 0.5;
-	// [m/s] -> [mm/ms]
-	tar_pos[0] += tar_vel[0] * 2;
-	tar_pos[1] += tar_vel[1] * 2;
+	// 500Hz, m/s -> m / cycle
+	tar_vel[0] = 0.05;
+	tar_pos[0] += tar_vel[0] / 500;
+	tar_pos[1] += tar_vel[1] / 500;
 
 	// 絶対座標系
 	floor_odom_diff[0] = omni_odom[0] - tar_pos[0];
@@ -942,35 +932,35 @@ void maintask_run()
 	robot_pos_diff[0] = floor_odom_diff[0] * cos(yaw_angle_rad) + floor_odom_diff[1] * sin(yaw_angle_rad);
 	// Y
 	robot_pos_diff[1] = floor_odom_diff[0] * sin(yaw_angle_rad) + floor_odom_diff[1] * cos(yaw_angle_rad);
-	vel_surge = robot_pos_diff[0] * OMNI_OUTPUT_GAIN;
-	vel_sway = robot_pos_diff[1] * OMNI_OUTPUT_GAIN;
+	float output_vel_surge = robot_pos_diff[0] * OMNI_OUTPUT_GAIN * 1000;
+	float output_vel_sway = robot_pos_diff[1] * OMNI_OUTPUT_GAIN * 1000;
 	//+target_move_speed * 2;
 
 	float limit_gain = 0;
-	if (vel_surge > OMNI_OUTPUT_LIMIT)
+	if (output_vel_surge > OMNI_OUTPUT_LIMIT)
 	{
-		limit_gain = vel_surge / OMNI_OUTPUT_LIMIT;
-		vel_surge = OMNI_OUTPUT_LIMIT;
-		vel_sway /= limit_gain;
+		limit_gain = output_vel_surge / OMNI_OUTPUT_LIMIT;
+		output_vel_surge = OMNI_OUTPUT_LIMIT;
+		output_vel_sway /= limit_gain;
 	}
-	else if (vel_surge < -OMNI_OUTPUT_LIMIT)
+	else if (output_vel_surge < -OMNI_OUTPUT_LIMIT)
 	{
-		limit_gain = -vel_surge / OMNI_OUTPUT_LIMIT;
-		vel_surge = -OMNI_OUTPUT_LIMIT;
-		vel_sway /= limit_gain;
+		limit_gain = -output_vel_surge / OMNI_OUTPUT_LIMIT;
+		output_vel_surge = -OMNI_OUTPUT_LIMIT;
+		output_vel_sway /= limit_gain;
 	}
 
-	if (vel_sway > OMNI_OUTPUT_LIMIT)
+	if (output_vel_sway > OMNI_OUTPUT_LIMIT)
 	{
-		limit_gain = vel_sway / OMNI_OUTPUT_LIMIT;
-		vel_sway = OMNI_OUTPUT_LIMIT;
-		vel_surge /= limit_gain;
+		limit_gain = output_vel_sway / OMNI_OUTPUT_LIMIT;
+		output_vel_sway = OMNI_OUTPUT_LIMIT;
+		output_vel_surge /= limit_gain;
 	}
-	else if (vel_sway < -OMNI_OUTPUT_LIMIT)
+	else if (output_vel_sway < -OMNI_OUTPUT_LIMIT)
 	{
-		limit_gain = -vel_sway / OMNI_OUTPUT_LIMIT;
-		vel_sway = -OMNI_OUTPUT_LIMIT;
-		vel_surge /= limit_gain;
+		limit_gain = -output_vel_sway / OMNI_OUTPUT_LIMIT;
+		output_vel_sway = -OMNI_OUTPUT_LIMIT;
+		output_vel_surge /= limit_gain;
 	}
 
 	pre_mouse_odom[0] = mouse_odom[0];
@@ -979,7 +969,7 @@ void maintask_run()
 	moving_timeout++;
 	if (moving_timeout < 5000)
 	{
-		omni_move(vel_surge, vel_sway, omega, 1.0);
+		omni_move(output_vel_surge, output_vel_sway, omega, 1.0);
 	}
 	else
 	{
