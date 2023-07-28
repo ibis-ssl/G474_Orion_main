@@ -7466,32 +7466,32 @@ LOAD C:/ST/STM32CubeIDE_1.9.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
  .bss.pitchAngle
                 0x0000000020000f78        0x4 ./Core/Src/main.o
                 0x0000000020000f78                pitchAngle
- .bss.robot_x   0x0000000020000f7c        0x4 ./Core/Src/main.o
-                0x0000000020000f7c                robot_x
- .bss.robot_y   0x0000000020000f80        0x4 ./Core/Src/main.o
-                0x0000000020000f80                robot_y
  .bss.rollAngle
-                0x0000000020000f84        0x4 ./Core/Src/main.o
-                0x0000000020000f84                rollAngle
- .bss.sw_mode   0x0000000020000f88        0x1 ./Core/Src/main.o
-                0x0000000020000f88                sw_mode
- *fill*         0x0000000020000f89        0x3 
+                0x0000000020000f7c        0x4 ./Core/Src/main.o
+                0x0000000020000f7c                rollAngle
+ .bss.sw_mode   0x0000000020000f80        0x1 ./Core/Src/main.o
+                0x0000000020000f80                sw_mode
+ *fill*         0x0000000020000f81        0x3 
  .bss.tempercher
-                0x0000000020000f8c       0x18 ./Core/Src/main.o
-                0x0000000020000f8c                tempercher
+                0x0000000020000f84       0x18 ./Core/Src/main.o
+                0x0000000020000f84                tempercher
  .bss.theta_target
-                0x0000000020000fa4        0x4 ./Core/Src/main.o
-                0x0000000020000fa4                theta_target
+                0x0000000020000f9c        0x4 ./Core/Src/main.o
+                0x0000000020000f9c                theta_target
  .bss.theta_vision
-                0x0000000020000fa8        0x4 ./Core/Src/main.o
-                0x0000000020000fa8                theta_vision
- .bss.v_round   0x0000000020000fac        0x4 ./Core/Src/main.o
-                0x0000000020000fac                v_round
+                0x0000000020000fa0        0x4 ./Core/Src/main.o
+                0x0000000020000fa0                theta_vision
+ .bss.v_round   0x0000000020000fa4        0x4 ./Core/Src/main.o
+                0x0000000020000fa4                v_round
  .bss.vel_surge
-                0x0000000020000fb0        0x4 ./Core/Src/main.o
-                0x0000000020000fb0                vel_surge
- .bss.vel_sway  0x0000000020000fb4        0x4 ./Core/Src/main.o
-                0x0000000020000fb4                vel_sway
+                0x0000000020000fa8        0x4 ./Core/Src/main.o
+                0x0000000020000fa8                vel_surge
+ .bss.vel_sway  0x0000000020000fac        0x4 ./Core/Src/main.o
+                0x0000000020000fac                vel_sway
+ .bss.vision_x  0x0000000020000fb0        0x4 ./Core/Src/main.o
+                0x0000000020000fb0                vision_x
+ .bss.vision_y  0x0000000020000fb4        0x4 ./Core/Src/main.o
+                0x0000000020000fb4                vision_y
  .bss.yawAngle  0x0000000020000fb8        0x4 ./Core/Src/main.o
                 0x0000000020000fb8                yawAngle
  .bss.yawAngle_temp
@@ -8289,7 +8289,7 @@ LOAD C:/ST/STM32CubeIDE_1.9.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
  .debug_line    0x000000000002e368     0x6ee1 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart.o
  .debug_line    0x0000000000035249     0x14f5 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart_ex.o
 
-.debug_str      0x0000000000000000   0x11e25c
+.debug_str      0x0000000000000000   0x11e25e
  .debug_str     0x0000000000000000   0x112cbc ./Core/Src/actuator.o
                                      0x11331d (size before relaxing)
  .debug_str     0x0000000000112cbc      0x77f ./Core/Src/adc.o
@@ -8310,59 +8310,59 @@ LOAD C:/ST/STM32CubeIDE_1.9.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
                                      0x10e484 (size before relaxing)
  .debug_str     0x0000000000114493      0x687 ./Core/Src/icm20602_spi.o
                                      0x113580 (size before relaxing)
- .debug_str     0x0000000000114b1a      0xc4d ./Core/Src/main.o
-                                     0x114b16 (size before relaxing)
- .debug_str     0x0000000000115767       0x6b ./Core/Src/microsectimer.o
+ .debug_str     0x0000000000114b1a      0xc4f ./Core/Src/main.o
+                                     0x114b18 (size before relaxing)
+ .debug_str     0x0000000000115769       0x6b ./Core/Src/microsectimer.o
                                      0x110c2b (size before relaxing)
- .debug_str     0x00000000001157d2       0xa0 ./Core/Src/omni_wheel.o
+ .debug_str     0x00000000001157d4       0xa0 ./Core/Src/omni_wheel.o
                                      0x1131d6 (size before relaxing)
- .debug_str     0x0000000000115872       0x4b ./Core/Src/spi.o
+ .debug_str     0x0000000000115874       0x4b ./Core/Src/spi.o
                                      0x10e35f (size before relaxing)
- .debug_str     0x00000000001158bd       0x4d ./Core/Src/stm32g4xx_hal_msp.o
+ .debug_str     0x00000000001158bf       0x4d ./Core/Src/stm32g4xx_hal_msp.o
                                      0x10dd80 (size before relaxing)
- .debug_str     0x000000000011590a      0x2c2 ./Core/Src/stm32g4xx_it.o
+ .debug_str     0x000000000011590c      0x2c2 ./Core/Src/stm32g4xx_it.o
                                      0x10ea7a (size before relaxing)
- .debug_str     0x0000000000115bcc     0x1fda ./Core/Src/syscalls.o
+ .debug_str     0x0000000000115bce     0x1fda ./Core/Src/syscalls.o
                                        0x98e6 (size before relaxing)
- .debug_str     0x0000000000117ba6       0x9e ./Core/Src/system_stm32g4xx.o
+ .debug_str     0x0000000000117ba8       0x9e ./Core/Src/system_stm32g4xx.o
                                      0x10dc35 (size before relaxing)
- .debug_str     0x0000000000117c44      0x106 ./Core/Src/tim.o
+ .debug_str     0x0000000000117c46      0x106 ./Core/Src/tim.o
                                      0x10ec82 (size before relaxing)
- .debug_str     0x0000000000117d4a       0xa1 ./Core/Src/usart.o
+ .debug_str     0x0000000000117d4c       0xa1 ./Core/Src/usart.o
                                      0x10ed0a (size before relaxing)
- .debug_str     0x0000000000117deb      0x10a ./Core/Src/util.o
+ .debug_str     0x0000000000117ded      0x10a ./Core/Src/util.o
                                        0x75bb (size before relaxing)
- .debug_str     0x0000000000117ef5       0x34 ./Core/Startup/startup_stm32g474retx.o
+ .debug_str     0x0000000000117ef7       0x34 ./Core/Startup/startup_stm32g474retx.o
                                          0x7f (size before relaxing)
- .debug_str     0x0000000000117f29      0x57c ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal.o
+ .debug_str     0x0000000000117f2b      0x57c ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal.o
                                      0x10e909 (size before relaxing)
- .debug_str     0x00000000001184a5      0xb0e ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc.o
+ .debug_str     0x00000000001184a7      0xb0e ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc.o
                                      0x10ec6f (size before relaxing)
- .debug_str     0x0000000000118fb3      0x65d ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc_ex.o
+ .debug_str     0x0000000000118fb5      0x65d ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc_ex.o
                                      0x10ebe5 (size before relaxing)
- .debug_str     0x0000000000119610      0x30d ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cortex.o
+ .debug_str     0x0000000000119612      0x30d ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cortex.o
                                      0x10e5b4 (size before relaxing)
- .debug_str     0x000000000011991d      0x275 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma.o
+ .debug_str     0x000000000011991f      0x275 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma.o
                                      0x10dff8 (size before relaxing)
- .debug_str     0x0000000000119b92     0x112a ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_fdcan.o
+ .debug_str     0x0000000000119b94     0x112a ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_fdcan.o
                                      0x10f1b7 (size before relaxing)
- .debug_str     0x000000000011acbc       0xc6 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_gpio.o
+ .debug_str     0x000000000011acbe       0xc6 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_gpio.o
                                      0x10dda9 (size before relaxing)
- .debug_str     0x000000000011ad82      0x495 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr_ex.o
+ .debug_str     0x000000000011ad84      0x495 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr_ex.o
                                      0x10e10c (size before relaxing)
- .debug_str     0x000000000011b217      0x4ee ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc.o
+ .debug_str     0x000000000011b219      0x4ee ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc.o
                                      0x10e33d (size before relaxing)
- .debug_str     0x000000000011b705      0x40b ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc_ex.o
+ .debug_str     0x000000000011b707      0x40b ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc_ex.o
                                      0x10e367 (size before relaxing)
- .debug_str     0x000000000011bb10      0x559 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi.o
+ .debug_str     0x000000000011bb12      0x559 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi.o
                                      0x10e556 (size before relaxing)
- .debug_str     0x000000000011c069      0xe60 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim.o
+ .debug_str     0x000000000011c06b      0xe60 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim.o
                                      0x10f10c (size before relaxing)
- .debug_str     0x000000000011cec9      0x822 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim_ex.o
+ .debug_str     0x000000000011cecb      0x822 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim_ex.o
                                      0x10ed90 (size before relaxing)
- .debug_str     0x000000000011d6eb      0x927 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart.o
+ .debug_str     0x000000000011d6ed      0x927 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart.o
                                      0x10ebc2 (size before relaxing)
- .debug_str     0x000000000011e012      0x24a ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart_ex.o
+ .debug_str     0x000000000011e014      0x24a ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart_ex.o
                                      0x10e395 (size before relaxing)
 
 .debug_frame    0x0000000000000000     0x5f2c

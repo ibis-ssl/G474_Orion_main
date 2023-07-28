@@ -94,7 +94,7 @@ extern int16_t mouse[2];
 extern uint8_t error_No[4];
 extern float32_t m1,m2,m3,m4;
 extern float32_t v_round;
-extern int ball_x,ball_y,robot_x,robot_y;
+extern int ball_x,ball_y,vision_x,vision_y;
 extern float32_t robot_x_target,robot_y_target;
 extern uint8_t keeper_EN,stall;
 extern uint16_t cnt_motor;
