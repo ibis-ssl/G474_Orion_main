@@ -19,7 +19,7 @@ void dma_printf_init(UART_HandleTypeDef *printf_huart){
 void dma_printf_putc(uint8_t c){
     dma_ring_putc(&dmi.tx_ring, c);
     if(!dmi.sending){
-        uint16_t len = (uint16_t)dma_ring_available_linear(&dmi.tx_ring);
+       volatile uint16_t len = (uint16_t)dma_ring_available_linear(&dmi.tx_ring);
         dmi.previous_send_len = len;
         dmi.sending = true;
         HAL_UART_Transmit_DMA(dmi.huart, dmi.tx_ring.buf+dma_ring_get_r_ptr(&dmi.tx_ring), len);

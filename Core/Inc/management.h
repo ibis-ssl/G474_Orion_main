@@ -25,7 +25,6 @@
 #define ARM_MATH_CM4
 #include "arm_math.h"
 #include "microsectimer.h"
-#include "xprintf.h"
 #include "icm20602_spi.h"
 #include "actuator.h"
 #include "myatan2.h"
@@ -47,7 +46,7 @@ extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 #define can_TX_data 8
 #define omni_diameter 0.056
 #define robot_radius  0.080
-#define Rxbufsize_from_Ether 14
+#define Rxbufsize_from_Ether 18
 
 
 extern float pitchAngle;

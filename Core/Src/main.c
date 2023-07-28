@@ -32,12 +32,18 @@
 #include "management.h"
 #include "dma_printf.h"
 #include "dma_scanf.h"
-//#ifdef __GNUC__
-//#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-//#else
-//#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-//#endif /* __GNUC__ */
-int __io_putchar(int ch)
+
+#ifdef __GNUC__
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
+void __io_putchar(uint8_t ch) {
+HAL_UART_Transmit(&hlpuart1, &ch, 1, 1);
+}
+
+/*int __io_putchar(int ch)
 {
       dma_printf_putc(ch&0xFF);
         return ch;
@@ -46,7 +52,7 @@ int __io_putchar(int ch)
 int __io_getchar(void)
 {
       return dma_scanf_getc_blocking();
-}
+}*/
 
 /* USER CODE END Includes */
 
@@ -218,6 +224,7 @@ int main(void)
       actuator_buzzer(20, 20);
     }
 
+    HAL_UART_Init(&hlpuart1);
     setbuf(stdin, NULL);
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
@@ -239,9 +246,6 @@ int main(void)
     {
       Error_Handler();
     }
-
-    HAL_UART_Init(&hlpuart1);
-    xprintf_init(&hlpuart1);
 
 
     HAL_UART_Init(&huart2);
@@ -542,13 +546,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		 //printf(" A=%.3f",power_amp);
 		 //printf(" ball=%d",ball[0]);
 		 //printf(" yaw=%f",yawAngle/180.0*M_PI);
-    	 printf(" connect=%d vel_surge=%+6.4f vel_sway=%+6.4f ",Ether_connect,vel_surge,vel_sway);
+    	 printf(" connect=%d v_surge=%+6.4f v_sway=%+6.4f ",Ether_connect,vel_surge,vel_sway);
 		 printf(" theta_vision=%+6.4f theta_AI=%+6.4f drible_power=%+6.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
-    	 printf(" v_power=%4.2f",Power_voltage[4]);
+    	 //printf(" v_power=%4.2f",Power_voltage[4]);
     	 // printf(" v_charge=%.3f",voltage[5]);
  		 printf(" kick_power=%3.2f chip=%d",kick_power,chipEN);
 		 //printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
-		  //printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
+		  printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
 		 //printf(" connect=%d",Ether_connect);
 		   /*printf(" AI=%x %x %x %x %x %x %x %x %x %x %x %x %x",data_from_ether[0],data_from_ether[1],data_from_ether[2],
 		 	data_from_ether[3],data_from_ether[4], data_from_ether[5],data_from_ether[6],data_from_ether[7],
@@ -560,6 +564,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 		 //printf(" C=%d V=%d SW=%d",Csense[0],Vsense[0],SWdata[0]);
 		 //printf(" A=%f",amplitude[4]);
+		 printf(" ball_x=%+6.2f ball_y=%+6.4f ",ball_x,ball_y);
 		 printf(" ball:0=%d",ball[0]);
 		 printf(" mouse:x=%+3d, y=%+3d",mouse[0],mouse[1]);
 		 printf(" mouse:x=%+6d, y=%+6d",(int)mouse_odom[0],(int)mouse_odom[1]);
@@ -1030,11 +1035,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		drible_power=(float32_t)data_from_ether[9]/20.0;
 
 		keeper_EN=data_from_ether[10];
+
+		ball_x = (float32_t)(data_from_ether[12]<<8 | data_from_ether[13]);
+		ball_y = (float32_t)(data_from_ether[14]<<8 | data_from_ether[15]);
 	}
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-      dma_printf_send_it(huart);
+	if (huart->Instance == hlpuart1.Instance) {
+		dma_printf_send_it(huart);
+	}
 }
 
 /* USER CODE END 4 */
