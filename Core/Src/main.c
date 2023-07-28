@@ -1037,8 +1037,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 		keeper_EN=data_from_ether[10];
 
-		ball_x = ((int)(data_from_ether[12]<<8 | data_from_ether[13])-32767.0);
-		ball_y = ((int)(data_from_ether[14]<<8 | data_from_ether[15])-32767.0);
+		ball_x = ((int)(data_from_ether[12]<<8 | data_from_ether[13])-32767);
+		ball_y = ((int)(data_from_ether[14]<<8 | data_from_ether[15])-32767);
 	}
 }
 
