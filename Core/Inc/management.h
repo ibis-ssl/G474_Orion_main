@@ -46,7 +46,7 @@ extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 #define can_TX_data 8
 #define omni_diameter 0.056
 #define robot_radius  0.080
-#define Rxbufsize_from_Ether 18
+#define Rxbufsize_from_Ether 22
 
 
 extern float pitchAngle;
@@ -94,8 +94,8 @@ extern int16_t mouse[2];
 extern uint8_t error_No[4];
 extern float32_t m1,m2,m3,m4;
 extern float32_t v_round;
-extern int ball_x,ball_y;
-extern float32_t robot_x,robot_y,robot_x_target,robot_y_target;
+extern int ball_x,ball_y,robot_x,robot_y;
+extern float32_t robot_x_target,robot_y_target;
 extern uint8_t keeper_EN,stall;
 extern uint16_t cnt_motor;
 extern uint8_t check_motor1,check_motor2,check_motor3,check_motor4,check_power,check_FC;

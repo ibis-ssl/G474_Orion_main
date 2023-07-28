@@ -150,8 +150,8 @@ int16_t mouse[2];
 uint8_t error_No[4];
 float32_t m1,m2,m3,m4;
 float32_t v_round;
-int ball_x,ball_y;
-float32_t robot_x,robot_y,robot_x_target,robot_y_target;
+int ball_x,ball_y,robot_x,robot_y;
+float32_t robot_x_target,robot_y_target;
 uint8_t keeper_EN,stall;
 uint16_t cnt_motor;
 uint8_t check_motor1,check_motor2,check_motor3,check_motor4,check_power,check_FC;
@@ -565,7 +565,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 		 //printf(" C=%d V=%d SW=%d",Csense[0],Vsense[0],SWdata[0]);
 		 //printf(" A=%f",amplitude[4]);
-		 printf(" ball_x=%d ball_y=%d ",ball_x,ball_y);
+		 printf(" ball_x=%d _y=%d ",ball_x,ball_y);
+		 printf(" robot_x=%d _y=%d ",robot_x,robot_y);
 		 printf(" ball:0=%d",ball[0]);
 		 printf(" mouse:x=%+3d, y=%+3d",mouse[0],mouse[1]);
 		 printf(" mouse:x=%+6d, y=%+6d",(int)mouse_odom[0],(int)mouse_odom[1]);
@@ -1039,6 +1040,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 		ball_x = ((int)(data_from_ether[12]<<8 | data_from_ether[13])-32767);
 		ball_y = ((int)(data_from_ether[14]<<8 | data_from_ether[15])-32767);
+		robot_x = ((int)(data_from_ether[16]<<8 | data_from_ether[17])-32767);
+		robot_y = ((int)(data_from_ether[18]<<8 | data_from_ether[19])-32767);
 	}
 }
 
