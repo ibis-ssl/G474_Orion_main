@@ -5,7 +5,7 @@
 const char cali = 'c';
 const char coll = ' ';
 
-float imu_dt = 0.001f;
+float imu_dt = 0.002f;
 float acc_cal[6][3];
 float gyro_cal[6][3];
 
