@@ -49,11 +49,11 @@ extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 #define Rxbufsize_from_Ether 22
 
 
-extern float pitchAngle;
-extern float rollAngle;
-extern float yawAngle;
-extern float pitchAngle_rad;
-extern float rollAngle_rad;
+extern float pitch_angle;
+extern float roll_angle;
+extern float yaw_angle;
+extern float pitch_angle_rad;
+extern float roll_angle_rad;
 extern float yawAngle_rad;
 extern float acc[3];
 extern float gyro[3];

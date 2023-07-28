@@ -245,13 +245,13 @@ void ICM20602_read_IMU_data() {
     IMU_tmp = (ICM20602_getIMUTemp() / 326.8f) + 25.0f;
     ICM20602_IMU_compensate();
 
-    pitchAngle = pitchAngle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt)*1;//とりあえず変えておく
-    rollAngle  = rollAngle  + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt)*1;
-    yawAngle   = yawAngle   + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt)*1;
+    pitch_angle = pitch_angle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt)*1;//とりあえず変えておく
+    roll_angle  = roll_angle  + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt)*1;
+    yaw_angle   = yaw_angle   + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt)*1;
 
-    pitchAngle = ICM20602_normAngle(pitchAngle);
-    rollAngle  = ICM20602_normAngle(rollAngle);
-    yawAngle   = ICM20602_normAngle(yawAngle);
+    pitch_angle = ICM20602_normAngle(pitch_angle);
+    roll_angle  = ICM20602_normAngle(roll_angle);
+    yaw_angle   = ICM20602_normAngle(yaw_angle);
 
     gyro_prv[0] = gyro_comp[0];
     gyro_prv[1] = gyro_comp[1];
@@ -267,16 +267,16 @@ float ICM20602_integral(float val, float val_prv, float dt)
 
 void ICM20602_clearAngle(void)
 {
-    pitchAngle = 0.0f;
-    rollAngle  = 0.0f;
-    yawAngle   = 0.0f;
+    pitch_angle = 0.0f;
+    roll_angle  = 0.0f;
+    yaw_angle   = 0.0f;
 }
 
 void ICM20602_setAngle(float pitch, float roll, float yaw)
 {
-    pitchAngle = pitch;
-    rollAngle  = roll;
-    yawAngle   = yaw;
+    pitch_angle = pitch;
+    roll_angle  = roll;
+    yaw_angle   = yaw;
 }
 
 float ICM20602_normAngle(float deg)
@@ -294,21 +294,21 @@ float ICM20602_complementaryWeight(float first, float second)
     weight[0] = first  * weights_ratio;
     weight[1] = second * weights_ratio;
 
-    return yawAngle;
+    return yaw_angle;
 }
 
 float ICM20602_complementaryFilter(float val)
 {
-    float yaw_temp = yawAngle;
+    float yaw_temp = yaw_angle;
 
     if     (yaw_temp - val >= 180.0f)  val      += 360.0f;
     else if(yaw_temp - val < -180.0f)  yaw_temp += 360.0f;
 
     yaw_temp = val * weight[0] + yaw_temp * weight[1];
 
-    yawAngle = ICM20602_normAngle(yaw_temp);
+    yaw_angle = ICM20602_normAngle(yaw_temp);
 
-    return yawAngle;
+    return yaw_angle;
 }
 
 // filter length : 3-only

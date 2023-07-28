@@ -1,5 +1,5 @@
 {
     "files.autoSave": "afterDelay",
-    "editor.formatOnPaste": false,
+    "editor.formatOnPaste": true,
     "editor.formatOnSave": false
 }

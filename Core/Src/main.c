@@ -76,13 +76,19 @@ int __io_getchar(void)
 uint8_t Rxbuf_from_Ether[Rxbufsize_from_Ether];
 uint8_t Rxbuf_from_Ether_UART[Rxbufsize_from_Ether];
 uint8_t Rxbuf_from_Ether_temp[Rxbufsize_from_Ether-1]={0};
-uint8_t Ether_connect=0,Ether_connect_check=0;
+uint8_t ether_connect=0,ether_connect_check=0;
 uint16_t cnt_time_tim;
-const float32_t rotation_longth=omni_diameter*M_PI;
 uint8_t sw_mode;
-float yawAngle_temp;
+float yaw_angle_temp;
 uint16_t cnt_time_50Hz;
-uint16_t yawAngle_send;
+uint16_t yaw_angle_send;
+
+const float32_t OMNI_DIR_LENGTH = omni_diameter * M_PI;
+
+#define OMNI_OUTPUT_LIMIT (4)
+#define OMNI_OUTPUT_GAIN (-0.5)
+const float32_t OMNI_ROTATION_LENGTH = (0.07575);
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -105,12 +111,12 @@ uint32_t HAL_GetTick(void)
  }
 uint8_t decode_SW(uint16_t SW_data);
 
-float pitchAngle;
-float rollAngle;
-float yawAngle;
-float pitchAngle_rad;
-float rollAngle_rad;
-float yawAngle_rad;
+float pitch_angle;
+float roll_angle;
+float yaw_angle;
+float pitch_angle_rad;
+float roll_angle_rad;
+float yaw_angle_rad;
 float acc[3];
 float gyro[3];
 float acc_comp[3];
@@ -126,14 +132,13 @@ uint8_t TX_data_UART[9];
 uint16_t Csense[1];
 uint16_t Vsense[1];
 uint16_t SWdata[1];
-uint8_t Emargency;
+uint8_t emergency_flag;
 uint8_t TxData[can_TX_data];
-uint8_t RxData[can_RX_data];
 uint32_t TxMailbox;
 float32_t motor_feedback[5];
 float32_t motor_feedback_velocity[5];
 float32_t voltage[6];
-float32_t Power_voltage[6];
+float32_t power_voltage[6];
 float32_t tempercher[6];
 float32_t amplitude[5];
 float32_t power_amp;
@@ -146,7 +151,7 @@ float32_t theta_vision;
 float32_t theta_target;
 uint8_t chipEN;
 uint8_t ball[4];
-int16_t mouse[2];
+
 uint8_t error_No[4];
 float32_t m1,m2,m3,m4;
 float32_t v_round;
@@ -155,15 +160,26 @@ float32_t robot_x_target,robot_y_target;
 uint8_t keeper_EN,stall;
 uint16_t cnt_motor;
 uint8_t check_motor1,check_motor2,check_motor3,check_motor4,check_power,check_FC;
-int32_t mouse_odom[2];
 FDCAN_TxHeaderTypeDef TxHeader;
-FDCAN_RxHeaderTypeDef RxHeader;
 FDCAN_FilterTypeDef  sFilterConfig;
 
 TIM_MasterConfigTypeDef sMasterConfig;
 TIM_OC_InitTypeDef sConfigOC;
 TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 UART_HandleTypeDef *huart_xprintf;
+
+int16_t mouse[2];
+int32_t mouse_odom[2];
+
+float32_t motor_enc_angle[5];
+float32_t pre_motor_enc_angle[5];
+float32_t omni_angle_diff[4];
+
+float32_t omni_odom[2];
+float32_t pre_omni_odom[2];
+float32_t omni_odom_speed[2];
+#define SPEED_LOG_BUF_SIZE 100
+float32_t omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0}; // 2ms * 100cycle = 200ms
 
 /* USER CODE END PFP */
 
@@ -379,23 +395,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	 switch (sw_mode){
 	 	 case 0:  //main without debug
-	 		if(Ether_connect==1){
-	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
+	 		if(ether_connect==1){
+	 			yaw_angle=yaw_angle-(getAngleDiff(yaw_angle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			maintask_run();
 	 		}
 	 		else{
-	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
+	 			yaw_angle=yaw_angle-(getAngleDiff(yaw_angle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			maintask_state_stop();
 	 		}
 	 		break;
 
 	 	 case 1:  //main debug
-	 		if(Ether_connect==1){
-	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
+	 		if(ether_connect==1){
+	 			yaw_angle=yaw_angle-(getAngleDiff(yaw_angle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			maintask_run();
 	 		}
 	 		else{
-	 			yawAngle=yawAngle-(getAngleDiff(yawAngle*PI/180.0, theta_vision)*180.0/PI)*0.001;
+	 			//yaw_angle=yaw_angle-(getAngleDiff(yaw_angle*PI/180.0, theta_vision)*180.0/PI)*0.001;
 	 			//maintask_run();
 	 			maintask_state_stop();
 	 		}
@@ -522,15 +538,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 
 	 if(cnt_time_tim>50){
-	 if(Ether_connect_check != data_from_ether[Rxbufsize_from_Ether-3]){
-		 Ether_connect=1;
+	 if(ether_connect_check != data_from_ether[Rxbufsize_from_Ether-3]){
+		 ether_connect=1;
 		 HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,1);
 	 }
 	 else{
-		 Ether_connect=0;
+		 ether_connect=0;
 		 HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,0);
 	 }
-	 Ether_connect_check=data_from_ether[Rxbufsize_from_Ether-3];
+	 ether_connect_check=data_from_ether[Rxbufsize_from_Ether-3];
 	 cnt_time_tim=0;
 
 	 }
@@ -539,22 +555,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
        if(sw_mode>0){
     	 //printf(" kicktime=%d, state=%d ",kick_time,kick_state);
 		 //printf("data: acc0=%f,acc1=%f,acc2=%f,gyro0=%f,gyro1=%f,gyro2=%f,tmp=%f",acc[0],acc[1],acc[2],gyro[0],gyro[1],gyro[2],IMU_tmp);
-		 //printf(" pich=%f roll=%f yaw=%f",pitchAngle,rollAngle,yawAngle);
-      	 printf(" yaw=%+6.1f",yawAngle);
+		 //printf(" pich=%f roll=%f yaw=%f",pitch_angle,roll_angle,yaw_angle);
+      	 printf(" yaw=%+6.1f",yaw_angle);
 		 //printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
 		 //printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
 		 //printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",tempercher[0],tempercher[1],tempercher[2],tempercher[3]);
 		 //printf(" A=%.3f",power_amp);
 		 //printf(" ball=%d",ball[0]);
-		 //printf(" yaw=%f",yawAngle/180.0*M_PI);
-    	 printf(" connect=%d v_surge=%+6.4f v_sway=%+6.4f ",Ether_connect,vel_surge,vel_sway);
+		 //printf(" yaw=%f",yaw_angle/180.0*M_PI);
+    	 printf(" connect=%d v_surge=%+6.4f v_sway=%+6.4f ",ether_connect,vel_surge,vel_sway);
 		 printf(" theta_vision=%+6.4f theta_AI=%+6.4f drible_power=%+6.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),drible_power);
-    	 //printf(" v_power=%4.2f",Power_voltage[4]);
+    	 //printf(" v_power=%4.2f",power_voltage[4]);
     	 // printf(" v_charge=%.3f",voltage[5]);
  		 printf(" kick_power=%3.2f chip=%d",kick_power,chipEN);
 		 //printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
 		  printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
-		 //printf(" connect=%d",Ether_connect);
+		 //printf(" connect=%d",ether_connect);
 		   /*printf(" AI=%x %x %x %x %x %x %x %x %x %x %x %x %x",data_from_ether[0],data_from_ether[1],data_from_ether[2],
 		 	data_from_ether[3],data_from_ether[4], data_from_ether[5],data_from_ether[6],data_from_ether[7],
 		 	data_from_ether[8] ,data_from_ether[9],data_from_ether[10],data_from_ether[11],data_from_ether[12]);*/
@@ -581,7 +597,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 cnt_time_50Hz++;
 	 cnt_time_tim++;
 
-	 /*if(Power_voltage[4]<22.0){
+	 /*if(power_voltage[4]<22.0){
 		 actuator_buzzer(100,100);
 	 }*/
 
@@ -602,23 +618,25 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		}
 
 		if(cnt>=100){
-			Emargency=1;
-			printf("Emargency Stop !!!!!!!!!!!!!");
+			emergency_flag=1;
+			printf("Emergency Stop !!!!!!!!!!!!!");
 			for(int i=0;i<50;i++){
 				maintask_emargency();
 			}
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14,0);
 			NVIC_SystemReset();
-			Emargency=0;
+			emergency_flag=0;
 		}
 		else{
-			Emargency=0;
+			emergency_flag=0;
 		}
 	}
 }
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
+uint8_t RxData[can_RX_data];
+FDCAN_RxHeaderTypeDef RxHeader;
 
 	if (hfdcan->Instance == hfdcan1.Instance) {
 	   if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
@@ -668,34 +686,35 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 			check_power=1;
 			break;
 
-		//motor_feedback
-		  case 0x200:
-			  motor_feedback[0]=uchar4_to_float(RxData);
-			  motor_feedback_velocity[0]=motor_feedback[0]*rotation_longth;
-			  break;
-		  case 0x201:
-			  motor_feedback[1]=uchar4_to_float(RxData);
-			  motor_feedback_velocity[1]=motor_feedback[1]*rotation_longth;
-			  break;
+			// motor_feedback
+		case 0x200:
+			motor_enc_angle[0] = uchar4_to_float(&RxData[4]);
+			motor_feedback[0] = uchar4_to_float(RxData);
+			motor_feedback_velocity[0] = motor_feedback[0] * OMNI_DIR_LENGTH;
+			break;
+		case 0x201:
+			motor_enc_angle[1] = uchar4_to_float(&RxData[4]);
+			motor_feedback[1] = uchar4_to_float(RxData);
+			motor_feedback_velocity[1] = motor_feedback[1] * OMNI_DIR_LENGTH;
+			break;
 
+			// temperature
+		case 0x220:
+			tempercher[0] = uchar4_to_float(RxData);
+			break;
+		case 0x221:
+			tempercher[1] = uchar4_to_float(RxData);
+			break;
 
-		//temperature
-		  case 0x220:
-			  tempercher[0]=uchar4_to_float(RxData);
-			  break;
-		  case 0x221:
-			  tempercher[1]=uchar4_to_float(RxData);
-			  break;
-
-	   //amplitude
-		  case 0x230:
-			  amplitude[0]=uchar4_to_float(RxData);
-			  check_motor1=1;
-			  break;
-		  case 0x231:
-			  amplitude[1]=uchar4_to_float(RxData);
-			  check_motor2=1;
-			  break;
+			// amplitude
+		case 0x230:
+			amplitude[0] = uchar4_to_float(RxData);
+			check_motor1 = 1;
+			break;
+		case 0x231:
+			amplitude[1] = uchar4_to_float(RxData);
+			check_motor2 = 1;
+			break;
 
 		}
 
@@ -731,18 +750,18 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 			//mouseXY
 			case 0x241:
-				mouse[0] = (int16_t)(((uint16_t)RxData[1] << 8) | RxData[0]);
-				mouse[1] = (int16_t)(((uint16_t)RxData[3] << 8) | RxData[2]);
+				mouse[0] = (int16_t)((RxData[1] << 8) | RxData[0]);
+				mouse[1] = (int16_t)((RxData[3] << 8) | RxData[2]);
 				mouse_odom[0] += mouse[0];
 				mouse_odom[1] += mouse[1];
 				break;
 
 			//power_Voltage
 			case 0x215:
-				Power_voltage[4]=uchar4_to_float(RxData);
+				power_voltage[4]=uchar4_to_float(RxData);
 				break;
 			case 0x216:
-				Power_voltage[5]=uchar4_to_float(RxData);
+				power_voltage[5]=uchar4_to_float(RxData);
 				break;
 
 			//temperature
@@ -759,16 +778,17 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 				//motor_feedback
 				  case 0x202:
-					  motor_feedback[2]=uchar4_to_float(RxData);
-					  motor_feedback_velocity[2]=motor_feedback[2]*rotation_longth;
+					  motor_enc_angle[2] = uchar4_to_float(&RxData[4]);
+					  motor_feedback[2] = uchar4_to_float(RxData);
+					  motor_feedback_velocity[2] = motor_feedback[2] * OMNI_DIR_LENGTH;
 					  break;
 				  case 0x203:
-					  motor_feedback[3]=uchar4_to_float(RxData);
-					  motor_feedback_velocity[3]=motor_feedback[3]*rotation_longth;
+					  motor_enc_angle[3] = uchar4_to_float(&RxData[4]);
+					  motor_feedback[3] = uchar4_to_float(RxData);
+					  motor_feedback_velocity[3] = motor_feedback[3] * OMNI_DIR_LENGTH;
 					  break;
 
-
-				//temperature
+					  // temperature
 				  case 0x222:
 					  tempercher[2]=uchar4_to_float(RxData);
 					  break;
@@ -800,8 +820,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 void maintask_run(){
 	//theta_target=0.0;
-	omega=(getAngleDiff(theta_target,(yawAngle/180.0*M_PI))*7.0)
-			-(getAngleDiff((yawAngle/180.0*M_PI),(yawAngle_temp/180.0*M_PI))*30.0);
+	omega=(getAngleDiff(theta_target,(yaw_angle/180.0*M_PI))*7.0)
+			-(getAngleDiff((yaw_angle/180.0*M_PI),(yaw_angle_temp/180.0*M_PI))*30.0);
 
 	if(omega>6*M_PI){omega=6*M_PI;}
 	if(omega<-6*M_PI){omega=-6*M_PI;}
@@ -837,20 +857,20 @@ void maintask_run(){
 	  actuator_motor5(drible_power,1.0);
 
 
-      uint8_t yawAngle_send_low = ((int)yawAngle+360) & 0x00FF;
-      uint8_t yawAngle_send_high = (((int)yawAngle+360) & 0xFF00) >> 8;
+      uint8_t yaw_angle_send_low = ((int)yaw_angle+360) & 0x00FF;
+      uint8_t yaw_angle_send_high = (((int)yaw_angle+360) & 0xFF00) >> 8;
 
 	  TX_data_UART[0]=254;
-	  TX_data_UART[1]=(uint8_t)yawAngle_send_low;
-	  TX_data_UART[2]=(uint8_t)yawAngle_send_high;
+	  TX_data_UART[1]=(uint8_t)yaw_angle_send_low;
+	  TX_data_UART[2]=(uint8_t)yaw_angle_send_high;
 	  TX_data_UART[3]=ball[0];
 	  TX_data_UART[4]=ball[1];
 	  TX_data_UART[5]=chipEN;
 	  TX_data_UART[6]=kick_state;
-	  TX_data_UART[7]=(uint8_t)Power_voltage[4];
+	  TX_data_UART[7]=(uint8_t)power_voltage[4];
 	  HAL_UART_Transmit(&huart2, TX_data_UART, 8,0xff);
 
-	  yawAngle_temp=yawAngle;
+	  yaw_angle_temp=yaw_angle;
 }
 
 
@@ -888,21 +908,21 @@ void maintask_emargency(){
 
 void maintask_state_stop(){
 
-    uint8_t yawAngle_send_low = ((int)yawAngle+360) & 0x00FF;
-    uint8_t yawAngle_send_high = (((int)yawAngle+360) & 0xFF00) >> 8;
+    uint8_t yaw_angle_send_low = ((int)yaw_angle+360) & 0x00FF;
+    uint8_t yaw_angle_send_high = (((int)yaw_angle+360) & 0xFF00) >> 8;
 
 	  omni_move(0.0, 0.0, 0.0,0.0);
 	  actuator_motor5(0.0,0.0);
 
 
 	  TX_data_UART[0]=254;
-	  TX_data_UART[1]=(uint8_t)yawAngle_send_low;
-	  TX_data_UART[2]=(uint8_t)yawAngle_send_high;
+	  TX_data_UART[1]=(uint8_t)yaw_angle_send_low;
+	  TX_data_UART[2]=(uint8_t)yaw_angle_send_high;
 	  TX_data_UART[3]=error_No[0];
 	  TX_data_UART[4]=error_No[1];
 	  TX_data_UART[5]=1;
 	  TX_data_UART[6]=1;
-	  TX_data_UART[7]=(uint8_t)Power_voltage[4];
+	  TX_data_UART[7]=(uint8_t)power_voltage[4];
 	  HAL_UART_Transmit(&huart2, TX_data_UART, 8,0xff);
 
 
@@ -914,21 +934,21 @@ void maintask_stop(){
 	  omni_move(0.0, 0.0, 0.0,0.0);
 	  actuator_motor5(0.0,0.0);
 
-      uint8_t yawAngle_send_low = ((int)yawAngle+360) & 0x00FF;
-      uint8_t yawAngle_send_high = (((int)yawAngle+360) & 0xFF00) >> 8;
+      uint8_t yaw_angle_send_low = ((int)yaw_angle+360) & 0x00FF;
+      uint8_t yaw_angle_send_high = (((int)yaw_angle+360) & 0xFF00) >> 8;
 
 		  omni_move(0.0, 0.0, 0.0,0.0);
 		  actuator_motor5(0.0,0.0);
 
 
 		  TX_data_UART[0]=254;
-		  TX_data_UART[1]=(uint8_t)yawAngle_send_low;
-		  TX_data_UART[2]=(uint8_t)yawAngle_send_high;
+		  TX_data_UART[1]=(uint8_t)yaw_angle_send_low;
+		  TX_data_UART[2]=(uint8_t)yaw_angle_send_high;
 		  TX_data_UART[3]=error_No[0];
 		  TX_data_UART[4]=error_No[1];
 		  TX_data_UART[5]=0;
 		  TX_data_UART[6]=0;
-		  TX_data_UART[7]=(uint8_t)Power_voltage[4];
+		  TX_data_UART[7]=(uint8_t)power_voltage[4];
 		  HAL_UART_Transmit(&huart2, TX_data_UART, 8,0xff);
 
 	  actuator_kicker(1, 0);
