@@ -52,19 +52,6 @@ extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 extern float pitch_angle;
 extern float roll_angle;
 extern float yaw_angle;
-extern float pitch_angle_rad;
-extern float roll_angle_rad;
-extern float yawAngle_rad;
-extern float acc[3];
-extern float gyro[3];
-extern float acc_comp[3];
-extern float gyro_comp[3];
-extern float IMU_tmp;
-extern char orientation;
-extern float gyro_prv[3];
-extern float acc_prv[3];
-extern float acc_off[3];
-extern float gyro_off[3];
 
 //extern float32_t voltage[6];
 

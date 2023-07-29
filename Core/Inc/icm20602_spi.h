@@ -134,8 +134,6 @@
 #define IMU_ONE_G 9.80665f
 #define SHRINK_ERROR 0.0001
 
-extern float aRes, gRes;
-
 
 uint16_t ICM20602_getWhoAmI();
 void    ICM20602_init();
@@ -148,7 +146,6 @@ int16_t ICM20602_getGyrZvalue();
 int16_t ICM20602_getIMUTemp();
 float   ICM20602_setAccRange(int Ascale);
 float   ICM20602_setGyroRange(int Gscale);
-float   ICM20602_setDeltaTime(float dt);
 
 int     ICM20602_getAccRange(void);
 int     ICM20602_getGyroRange(void);
@@ -156,7 +153,7 @@ int     ICM20602_getGyroRange(void);
 void ICM20602_writeByte(uint8_t, uint8_t);
 uint8_t ICM20602_readByte(uint8_t);
 
-void ICM20602_read_IMU_data();
+void ICM20602_read_IMU_data(float imu_dt_sec);
 void ICM20602_IMU_calibration();
 void ICM20602_IMU_calibration2();
 void ICM20602_IMU_compensate();

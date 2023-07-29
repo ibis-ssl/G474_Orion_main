@@ -2,24 +2,20 @@
 #include "icm20602_spi.h"
 
 
-const char cali = 'c';
-const char coll = ' ';
 
-float imu_dt = 0.002f;
-float acc_cal[6][3];
-float gyro_cal[6][3];
 
-float gyro_prv[3] = {0.0f};
-float acc_prv[3]  = {0.0f};
 
 float weight[2]   = {0.5f, 0.5f};
-float gyro_mdat[3][3]  = {{0.0f}};
-float acc_mdat[3][3]   = {{0.0f}};
-float gyro_tmp[3]  = {0.0f};
-float acc_tmp[3]   = {0.0f};
 
+float acc[3];
+float acc_comp[3];
+float gyro_comp[3];
 
+float imu_temperature;
 
+float gyro[3];
+float gyro_off[3];
+float acc_off[3];
 
 // Acc Full Scale Range  +-2G 4G 8G 16G 
 enum Ascale
@@ -40,11 +36,10 @@ enum Gscale
 };
 
 // Scale resolutions per LSB for the sensors
-float aRes, gRes; 
 int Ascale = AFS_2G;
 int Gscale = GFS_1000DPS;
 
-
+float aRes,gRes;
 
 void ICM20602_writeByte(uint8_t reg, uint8_t data)
 {
@@ -159,6 +154,7 @@ int16_t ICM20602_getIMUTemp()
 // Calculates Acc resolution
 float ICM20602_setAccRange(int Ascale)
 {
+
     switch(Ascale)
     {
         case AFS_2G:
@@ -183,8 +179,7 @@ float ICM20602_setAccRange(int Ascale)
 // Calculates Gyro resolution
 float ICM20602_setGyroRange(int Gscale)
 {
-    switch(Gscale)
-    {
+    switch (Gscale) {
         case GFS_250DPS:
             gRes = 250.0/32768.0;
             break;
@@ -198,17 +193,10 @@ float ICM20602_setGyroRange(int Gscale)
             gRes = 2000.0/32768.0;
             break;
     }
-    
+
     ICM20602_writeByte(ICM20602_GYRO_CONFIG, Gscale<<3); // bit[4:3] 0=+-250d/s,1=+-500d/s,2=+-1000d/s,3=+-2000d/s
     
     return gRes;
-}
-
-float ICM20602_setDeltaTime(float dt)
-{
-    imu_dt = dt;
-
-    return dt;
 }
 
 int ICM20602_getAccRange(void)
@@ -231,9 +219,11 @@ int ICM20602_getGyroRange(void)
     return Gscale;
 }
 
-void ICM20602_read_IMU_data() {
+void ICM20602_read_IMU_data(float imu_dt_sec)
+{
+    static float gyro_prv[3] = {0.0f};
 
-	acc[0] = ICM20602_getAccXvalue() * IMU_ONE_G * aRes;
+    acc[0] = ICM20602_getAccXvalue() * IMU_ONE_G * aRes;
     acc[1] = ICM20602_getAccYvalue() * IMU_ONE_G * aRes;
     acc[2] = ICM20602_getAccZvalue() * IMU_ONE_G * aRes;
     gyro[0] = ICM20602_getGyrXvalue() * gRes;
@@ -242,12 +232,12 @@ void ICM20602_read_IMU_data() {
 
     ICM20602_medianFilter();
 
-    IMU_tmp = (ICM20602_getIMUTemp() / 326.8f) + 25.0f;
+    imu_temperature = (ICM20602_getIMUTemp() / 326.8f) + 25.0f;
     ICM20602_IMU_compensate();
 
-    pitch_angle = pitch_angle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt)*1;//とりあえず変えておく
-    roll_angle  = roll_angle  + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt)*1;
-    yaw_angle   = yaw_angle   + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt)*1;
+    pitch_angle = pitch_angle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt_sec) * 1;  //とりあえず変えておく
+    roll_angle = roll_angle + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt_sec) * 1;
+    yaw_angle = yaw_angle + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt_sec) * 1;
 
     pitch_angle = ICM20602_normAngle(pitch_angle);
     roll_angle  = ICM20602_normAngle(roll_angle);
@@ -257,8 +247,6 @@ void ICM20602_read_IMU_data() {
     gyro_prv[1] = gyro_comp[1];
     gyro_prv[2] = gyro_comp[2];
 }
-
-
 
 float ICM20602_integral(float val, float val_prv, float dt)
 {
@@ -314,6 +302,11 @@ float ICM20602_complementaryFilter(float val)
 // filter length : 3-only
 void ICM20602_medianFilter(void)
 {
+    static float acc_mdat[3][3] = {{0.0f}};
+    static float gyro_mdat[3][3] = {{0.0f}};
+    float gyro_tmp[3] = {0.0f};
+    float acc_tmp[3] = {0.0f};
+
     float tmp;
     int8_t i, j, a, b;
 

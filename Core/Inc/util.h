@@ -22,6 +22,8 @@
 #ifdef __cplusplus
  extern "C" {
 #endif
+#include <stdint.h>
+
 float dtor(float x);
 float rtod(float x);
 __attribute__ ((weak)) int sign(int val);
@@ -46,6 +48,14 @@ void float_to_uchar4(unsigned char *value,float float_value);
 //added
 float deg_to_radian(float deg);
 float radian_to_deg(float radian);
+
+// add(2)
+long map(long x, long in_min, long in_max, long out_min, long out_max);
+float getAngleDiff(float angle_rad1, float angle_rad2);
+float normalizeAngle(float angle_rad);
+uint8_t decode_SW(uint16_t sw_raw_data);
+float two_to_float(uint8_t data[2]);
+float two_to_int(uint8_t data[2]);
 
 #ifdef __cplusplus
 }
