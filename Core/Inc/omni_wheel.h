@@ -14,5 +14,4 @@
 #include <string.h>
 
 void omni_move(float32_t vel_x_omni,float32_t vel_y_omni,float32_t omega_omni,float32_t duty_Limit);
-void stall_move();
 #endif /* OMNI_WHEEL_H_ */

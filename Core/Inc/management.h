@@ -42,11 +42,11 @@ extern TIM_MasterConfigTypeDef sMasterConfig;
 extern TIM_OC_InitTypeDef sConfigOC;
 extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
-#define can_RX_data 8
-#define can_TX_data 8
-#define omni_diameter 0.056
-#define robot_radius  0.080
-#define Rxbufsize_from_Ether 22
+#define CAN_RX_DATA_SIZE 8
+#define CAN_TX_DATA_SIZE 8
+#define OMNI_DIAMETER 0.056
+#define ROBOT_RADIUS  0.080
+#define RX_BUF_SIZE_ETHER 32
 
 
 extern float pitch_angle;
@@ -66,38 +66,6 @@ extern float acc_prv[3];
 extern float acc_off[3];
 extern float gyro_off[3];
 
-extern uint8_t data_from_ether[Rxbufsize_from_Ether-1];
-extern uint8_t TX_data_UART[9];
-extern uint16_t Csense[1];
-extern uint16_t Vsense[1];
-extern uint16_t SWdata[1];
-extern uint8_t Emargency;
-extern uint8_t TxData[can_TX_data];
-extern uint8_t RxData[can_RX_data];
-extern uint32_t TxMailbox;
-extern float32_t motor_feedback[5];
-extern float32_t motor_feedback_velocity[5];
-extern float32_t voltage[6];
-extern float32_t tempercher[6];
-extern float32_t amplitude[5];
-extern float32_t power_amp;
-extern float32_t vel_surge;
-extern float32_t vel_sway;
-extern float32_t omega;
-extern float32_t drible_power;
-extern float32_t kick_power;
-extern float32_t theta_vision;
-extern float32_t theta_target;
-extern uint8_t chipEN;
-extern uint8_t ball[4];
-extern int16_t mouse[2];
-extern uint8_t error_No[4];
-extern float32_t m1,m2,m3,m4;
-extern float32_t v_round;
-extern int ball_x,ball_y,vision_x,vision_y;
-extern float32_t robot_x_target,robot_y_target;
-extern uint8_t keeper_EN,stall;
-extern uint16_t cnt_motor;
-extern uint8_t check_motor1,check_motor2,check_motor3,check_motor4,check_power,check_FC;
+//extern float32_t voltage[6];
 
 #endif /* MANAGEMENT_H_ */
