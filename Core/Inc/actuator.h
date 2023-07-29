@@ -21,7 +21,9 @@ void actuator_kicker(uint8_t id,uint8_t param);
 void actuator_power_ONOFF(uint8_t power_on);
 void actuator_system_shutdown();
 void actuator_power_param(uint8_t id,float param);
-void actuator_buzzer(uint16_t ontime,uint16_t offtime);
+void actuator_buzzer(uint16_t ontime, uint16_t offtime);
+void actuator_buzzer_on();
+void actuator_buzzer_off();
 void actuator_kicker_voltage(float voltage);
 
 #endif /* ACTUATOR_H_ */

@@ -217,3 +217,6 @@ void actuator_buzzer(uint16_t ontime,uint16_t offtime){
 	HAL_Delay(offtime);
 
 }
+
+void actuator_buzzer_on() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 250); }
+void actuator_buzzer_off() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0); }
