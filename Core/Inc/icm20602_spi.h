@@ -132,8 +132,7 @@
 #endif
 
 #define IMU_ONE_G 9.80665f
-#define SHRINK_ERROR 0.0001
-
+#define SHRINK_ERROR 0.0002 // 0.001 -> 0.002 : calibration speed up
 
 uint16_t ICM20602_getWhoAmI();
 void    ICM20602_init();

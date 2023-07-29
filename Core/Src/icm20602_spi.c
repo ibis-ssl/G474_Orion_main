@@ -397,7 +397,7 @@ void ICM20602_IMU_calibration2(void)
     double gyro_ave[3][10] = {{0.0}};
 
     printf("put the IMU still!\n");
-    HAL_Delay(1000);
+    HAL_Delay(200);
 
     while ((fabs(acc_ave[0][9] - acc_ave[0][0]) > SHRINK_ERROR)
 		|| (fabs(acc_ave[1][9] - acc_ave[1][0]) > SHRINK_ERROR)

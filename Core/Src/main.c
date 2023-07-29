@@ -280,7 +280,7 @@ int main(void)
     actuator_buzzer(40, 40);
   }
 
-  HAL_Delay(500);
+  HAL_Delay(100);
   HAL_TIM_Base_Start_IT(&htim7);
 
   mouse_odom[0] = 0;
