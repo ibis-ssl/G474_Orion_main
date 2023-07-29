@@ -775,7 +775,7 @@ void maintask_run(){
 	static float32_t pre_yaw_angle_rad = 0;
 	static uint32_t moving_timeout = 0;
 // PID
-	omega = (getAngleDiff(theta_target, yaw_angle_rad) * 10.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 100.0);
+	omega = (getAngleDiff(theta_target, yaw_angle_rad) * 160.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 4000.0);
 
 	if(omega>6*M_PI){omega=6*M_PI;}
 	if(omega<-6*M_PI){omega=-6*M_PI;}
