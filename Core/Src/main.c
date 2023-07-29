@@ -161,7 +161,7 @@ TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 UART_HandleTypeDef * huart_xprintf;
 
 int16_t mouse[2];
-int32_t mouse_odom[2];
+float mouse_odom[2];
 
 float32_t motor_enc_angle[5];
 float32_t pre_motor_enc_angle[5];
@@ -358,29 +358,26 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
+  static uint8_t pre_sw_mode;
   ICM20602_read_IMU_data();
+  pre_sw_mode = sw_mode;
   sw_mode = 15 - (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) + (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1) + (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) << 3) + (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2) << 2));
 
+  if (sw_mode != pre_sw_mode) {
+    omni_odom[0] = tar_pos[1];
+    omni_odom[1] = tar_pos[1];
+    ai_cmd.local_target_speed[0] = 0;
+    ai_cmd.local_target_speed[1] = 0;
+    }
   switch (sw_mode) {
     case 0:  // main without debug
-      if (ether_connect == 1) {
-        yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;
-        maintask_run();
-      } else {
-        yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;
-        maintask_state_stop();
-      }
+      yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;
+      maintask_run();
       break;
 
     case 1:  // main debug
-      if (ether_connect == 1) {
-        yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;
-        maintask_run();
-      } else {
-        //yaw_angle=yaw_angle-(getAngleDiff(yaw_angle*PI/180.0, theta_vision)*180.0/PI)*0.001;
-        maintask_run();
-        //maintask_state_stop();
-      }
+      yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;
+      maintask_run();
       break;
 
     case 2:  // calibration motor
@@ -517,60 +514,59 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (cnt_time_100Hz > 10) {
     cnt_time_100Hz = 0;
 
-    if (sw_mode > 0) {
-      // printf(" kicktime=%d, state=%d ",kick_time,kick_state);
-      // printf("data: acc0=%f,acc1=%f,acc2=%f,gyro0=%f,gyro1=%f,gyro2=%f,tmp=%f",acc[0],acc[1],acc[2],gyro[0],gyro[1],gyro[2],IMU_tmp);
-      // printf(" pich=%f roll=%f yaw=%f",pitch_angle,roll_angle,yaw_angle);
-      printf("yaw=%+6.1f", yaw_angle);
-      // printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
-      // printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
-      // printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",tempercher[0],tempercher[1],tempercher[2],tempercher[3]);
-      // printf(" A=%.3f",power_amp);
-      // printf(" ball_detection=%d",ball_detection[0]);
-      // printf(" yaw=%f",yaw_angle/180.0*M_PI);
-      // printf(" theta_vision=%+6.4f theta_AI=%+6.4f ai_cmd.drible_power=%+6.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),ai_cmd.drible_power);
-      printf(" Batt=%3.1f ", power_voltage[0]);
-      //  printf(" v_charge=%.3f",voltage[5]);
-      // printf(" ai_cmd.kick_power=%3.2f chip=%d",ai_cmd.kick_power,ai_cmd.chip_en);
-      // printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
-      // printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
-      // printf(" connect=%d",ether_connect);
-      /*printf(" AI=%x %x %x %x %x %x %x %x %x %x %x %x %x",data_from_ether[0],data_from_ether[1],data_from_ether[2],
+    // printf(" kicktime=%d, state=%d ",kick_time,kick_state);
+    // printf("data: acc0=%f,acc1=%f,acc2=%f,gyro0=%f,gyro1=%f,gyro2=%f,tmp=%f",acc[0],acc[1],acc[2],gyro[0],gyro[1],gyro[2],IMU_tmp);
+    // printf(" pich=%f roll=%f yaw=%f",pitch_angle,roll_angle,yaw_angle);
+    printf("yaw=%+6.1f", yaw_angle);
+    // printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
+    // printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
+    // printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",tempercher[0],tempercher[1],tempercher[2],tempercher[3]);
+    // printf(" A=%.3f",power_amp);
+    // printf(" ball_detection=%d",ball_detection[0]);
+    // printf(" yaw=%f",yaw_angle/180.0*M_PI);
+    // printf(" theta_vision=%+6.4f theta_AI=%+6.4f ai_cmd.drible_power=%+6.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),ai_cmd.drible_power);
+    printf(" Batt=%3.1f ", power_voltage[0]);
+    //  printf(" v_charge=%.3f",voltage[5]);
+    // printf(" ai_cmd.kick_power=%3.2f chip=%d",ai_cmd.kick_power,ai_cmd.chip_en);
+    // printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
+    // printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
+    // printf(" connect=%d",ether_connect);
+    /*printf(" AI=%x %x %x %x %x %x %x %x %x %x %x %x %x",data_from_ether[0],data_from_ether[1],data_from_ether[2],
 			 data_from_ether[3],data_from_ether[4], data_from_ether[5],data_from_ether[6],data_from_ether[7],
 			 data_from_ether[8] ,data_from_ether[9],data_from_ether[10],data_from_ether[11],data_from_ether[12]);*/
-      // printf(" data=%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x",rxbuf_from_ether[0],rxbuf_from_ether[1],rxbuf_from_ether[2],
-      //		 rxbuf_from_ether[3],rxbuf_from_ether[4], rxbuf_from_ether[5],rxbuf_from_ether[6],rxbuf_from_ether[7],
-      //		 rxbuf_from_ether[8] ,rxbuf_from_ether[9],rxbuf_from_ether[10],rxbuf_from_ether[11],rxbuf_from_ether[12]
-      //		,rxbuf_from_ether[13],rxbuf_from_ether[14]);
+    // printf(" data=%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x",rxbuf_from_ether[0],rxbuf_from_ether[1],rxbuf_from_ether[2],
+    //		 rxbuf_from_ether[3],rxbuf_from_ether[4], rxbuf_from_ether[5],rxbuf_from_ether[6],rxbuf_from_ether[7],
+    //		 rxbuf_from_ether[8] ,rxbuf_from_ether[9],rxbuf_from_ether[10],rxbuf_from_ether[11],rxbuf_from_ether[12]
+    //		,rxbuf_from_ether[13],rxbuf_from_ether[14]);
 
-      // printf(" C=%d V=%d SW=%d",Csense[0],Vsense[0],SWdata[0]);
-      // printf(" A=%f",amplitude[4]);
-      // printf(" ball_x=%d _y=%d ",ball_x,ball_y);
-      // printf(" vision_x=%d _y=%d ",vision_x,vision_y);
-      // printf(" ball_detection:0=%d",ball_detection[0]);
-      // printf(" mouse:x=%+3d, y=%+3d",mouse[0],mouse[1]);
-      // printf(" mouse:x=%+6d, y=%+6d",(int)mouse_odom[0],(int)mouse_odom[1]);
-      // printf("ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
-      
-//      printf("AI %d ", ether_connect);
-      printf("con %3d ", connection_check_cnt);
+    // printf(" C=%d V=%d SW=%d",Csense[0],Vsense[0],SWdata[0]);
+    // printf(" A=%f",amplitude[4]);
+    // printf(" ball_x=%d _y=%d ",ball_x,ball_y);
+    // printf(" vision_x=%d _y=%d ",vision_x,vision_y);
+    // printf(" ball_detection:0=%d",ball_detection[0]);
+    // printf(" mouse:x=%+3d, y=%+3d",mouse[0],mouse[1]);
+    // printf("ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
 
-      printf("vel X %+4.1f Y %+4.1f tharW %+4.1f",ai_cmd.local_target_speed[0],ai_cmd.local_target_speed[1],ai_cmd.target_theta);
-      printf("grbl robot X %+5d Y %+5d W %+4.1f",ai_cmd.global_robot_position[0],ai_cmd.global_robot_position[1],ai_cmd.global_vision_theta);
-      printf("ball X %+5d Y %+5d ",ai_cmd.global_ball_position[0],ai_cmd.global_ball_position[1]);
-      printf("tar X %+5d Y %+5d ",ai_cmd.global_target_position[0],ai_cmd.global_target_position[1]);
-      /*
+    //      printf("AI %d ", ether_connect);
+    printf("con %3d ", connection_check_cnt);
+
+    printf("vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
+    printf("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
+    printf("ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+    printf("tar X %+5d Y %+5d ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+    /*
       for (int i = 0; i < 30; i++) {
         printf("%02x ", data_from_ether[i]);
       }*/
 
-      //printf("PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
-      printf("omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
-      // printf("imu %+5.2f result %+5.2f ", rotation_integral,spin_adjusted_result);
-      printf("local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
-      //printf("tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
-      printf("\r\n");
-    }
+    //printf("PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
+    printf("omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
+    printf(" mouse X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
+
+    // printf("imu %+5.2f result %+5.2f ", rotation_integral,spin_adjusted_result);
+    printf("local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
+    //printf("tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
+    printf("\r\n");
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 
@@ -581,10 +577,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (connection_check_cnt > 200) {
     ether_connect = 0;
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-    omni_odom[0] = tar_pos[1];
-    omni_odom[1] = tar_pos[1];
-    ai_cmd.local_target_speed[0] = 0;
-    ai_cmd.local_target_speed[1] = 0;
 
   } else {
     ether_connect = 1;
@@ -744,8 +736,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
       case 0x241:
         mouse[0] = (int16_t)((RxData[1] << 8) | RxData[0]);
         mouse[1] = (int16_t)((RxData[3] << 8) | RxData[2]);
-        mouse_odom[0] += mouse[0];
-        mouse_odom[1] += mouse[1];
+        mouse_odom[0] += (float)mouse[0] / 1000;
+        mouse_odom[1] += (float)mouse[1] / 1000;
         break;
     }
   }
@@ -756,10 +748,9 @@ void maintask_run()
   // theta_target=0.0;
   yaw_angle_rad = yaw_angle * M_PI / 180;
   static float32_t pre_yaw_angle_rad = 0;
-  static uint32_t moving_timeout = 0;
   // PID
-  //float32_t omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 160.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 4000.0);
-  float32_t omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 16.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 400.0);
+  float32_t omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 160.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 4000.0);
+  //float32_t omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 16.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 400.0);
 
   if (omega > 6 * M_PI) {
     omega = 6 * M_PI;
@@ -769,7 +760,7 @@ void maintask_run()
   }
   // omega = 0;
 
-  static int32_t pre_mouse_odom[2] = {0, 0};
+  static float pre_mouse_odom[2] = {0, 0};
   float mouse_vel[2];
   mouse_vel[0] = mouse_odom[0] - pre_mouse_odom[0];
   mouse_vel[1] = mouse_odom[1] - pre_mouse_odom[1];
@@ -850,14 +841,13 @@ void maintask_run()
   pre_yaw_angle_rad = yaw_angle_rad;
   pre_yaw_angle = yaw_angle;
 
-  //return;
-
-  //moving_timeout++;
-  if (moving_timeout < 5000) {
-    omni_move(output_vel_surge, output_vel_sway, omega, 1.0);
-  } else {
-    omni_move(0, 0, 0, 1.0);
+  if (!ether_connect && sw_mode == 0) {
+    ai_cmd.local_target_speed[0] = 0;
+    ai_cmd.local_target_speed[1] = 0;
+    maintask_state_stop();
+    return;  // without move
   }
+  omni_move(output_vel_surge, output_vel_sway, omega, 1.0);
 
   if (ai_cmd.kick_power > 0) {
     if (ball_detection[0] == 1) {
