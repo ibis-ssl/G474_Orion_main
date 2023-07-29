@@ -104,7 +104,8 @@ uint8_t decode_SW(uint16_t sw_raw_data);
 
 float pitch_angle;
 float roll_angle;
-float yaw_angle;
+float yaw_angle, pre_yaw_angle;
+float yaw_angle_rad, pre_yaw_angle_rad;
 
 volatile int kick_state, kick_time;
 uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
@@ -133,7 +134,7 @@ struct
   uint8_t chip_en;
   float local_target_speed[2];
   int global_robot_position[2];
-  int global_target_position[2];
+  int global_global_target_position[2];
   int global_ball_position[2];
   uint8_t allow_local_feedback;
 } ai_cmd;
@@ -501,38 +502,20 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (cnt_time_100Hz > 10) {
     cnt_time_100Hz = 0;
 
-    // printf(" kicktime=%d, state=%d ",kick_time,kick_state);
-    // printf(" pich=%f roll=%f yaw=%f",pitch_angle,roll_angle,yaw_angle);
     printf("yaw=%+6.1f", yaw_angle);
     // printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
     // printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
     // printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
-    // printf(" A=%.3f",power_amp);
-    // printf(" ball_detection=%d",ball_detection[0]);
-    // printf(" yaw=%f",yaw_angle/180.0*M_PI);
-    // printf(" theta_vision=%+6.4f theta_AI=%+6.4f ai_cmd.drible_power=%+6.4f",(theta_vision*180.0/PI),(theta_target*180.0/PI),ai_cmd.drible_power);
     printf(" Batt=%3.1f ", power_voltage[0]);
-    //  printf(" v_charge=%.3f",voltage[5]);
-    // printf(" ai_cmd.kick_power=%3.2f chip=%d",ai_cmd.kick_power,ai_cmd.chip_en);
-    // printf(" m1=%.5f m2=%.5f m3=%.5f m4=%.5f", m1,m2,m3,m4);
-    // printf(" sw=%d sw=%d",sw_mode,decode_SW(SWdata[0]));
-    // printf(" connect=%d",ether_connect);
-
-    // printf(" C=%d V=%d SW=%d",Csense[0],Vsense[0],SWdata[0]);
-    // printf(" A=%f",amplitude[4]);
-    // printf(" ball_x=%d _y=%d ",ball_x,ball_y);
-    // printf(" vision_x=%d _y=%d ",vision_x,vision_y);
-    // printf(" ball_detection:0=%d",ball_detection[0]);
     // printf(" mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
     // printf("ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
 
-    //      printf("AI %d ", ether_connect);
-    printf("con %3d ", connection_check_cnt);
+    /*printf("con %3d ", connection_check_cnt);
 
     printf("vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
     printf("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
     printf("ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-    printf("tar X %+5d Y %+5d ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+    printf("tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);*/
 
     //printf("PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
     printf("omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
@@ -557,10 +540,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     ether_connect = 1;
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
   }
-
-  /*if(power_voltage[4]<22.0){
-		actuator_buzzer(100,100);
-	}*/
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -595,12 +574,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 {
   uint8_t RxData[CAN_RX_DATA_SIZE];
   FDCAN_RxHeaderTypeDef RxHeader;
+  uint16_t rx_can_id;
 
   if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK) {
       Error_Handler();
     }
-    switch (RxHeader.Identifier) {
+    rx_can_id = RxHeader.Identifier;
+    switch (rx_can_id) {
       // error
       case 0x000:
         error_no[0] = RxData[0];
@@ -621,82 +602,42 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 
       // motor_feedback
       case 0x200:
-        motor_enc_angle[0] = uchar4_to_float(&RxData[4]);
-        motor_feedback[0] = uchar4_to_float(RxData);
-        motor_feedback_velocity[0] = motor_feedback[0] * OMNI_DIR_LENGTH;
-        break;
       case 0x201:
-        motor_enc_angle[1] = uchar4_to_float(&RxData[4]);
-        motor_feedback[1] = uchar4_to_float(RxData);
-        motor_feedback_velocity[1] = motor_feedback[1] * OMNI_DIR_LENGTH;
-        break;
       case 0x202:
-        motor_enc_angle[2] = uchar4_to_float(&RxData[4]);
-        motor_feedback[2] = uchar4_to_float(RxData);
-        motor_feedback_velocity[2] = motor_feedback[2] * OMNI_DIR_LENGTH;
-        break;
       case 0x203:
-        motor_enc_angle[3] = uchar4_to_float(&RxData[4]);
-        motor_feedback[3] = uchar4_to_float(RxData);
-        motor_feedback_velocity[3] = motor_feedback[3] * OMNI_DIR_LENGTH;
+        motor_enc_angle[rx_can_id - 0x200] = uchar4_to_float(&RxData[4]);
+        motor_feedback[rx_can_id - 0x200] = uchar4_to_float(RxData);
+        motor_feedback_velocity[rx_can_id - 0x200] = motor_feedback[3] * OMNI_DIR_LENGTH;
         break;
 
         // power_Voltage
       case 0x210:
-        power_voltage[0] = uchar4_to_float(RxData);
-        break;
       case 0x211:
-        power_voltage[1] = uchar4_to_float(RxData);
-        break;
       case 0x212:
-        power_voltage[2] = uchar4_to_float(RxData);
-        break;
       case 0x213:
-        power_voltage[3] = uchar4_to_float(RxData);
-        break;
-
+      case 0x214:
       case 0x215:
-        power_voltage[4] = uchar4_to_float(RxData);
-        break;
       case 0x216:
-        power_voltage[5] = uchar4_to_float(RxData);
+        power_voltage[rx_can_id - 0x210] = uchar4_to_float(RxData);
         break;
 
       // temperature
       case 0x220:
-        temperature[0] = uchar4_to_float(RxData);
-        break;
       case 0x221:
-        temperature[1] = uchar4_to_float(RxData);
-        break;
       case 0x222:
-        temperature[2] = uchar4_to_float(RxData);
-        break;
       case 0x223:
-        temperature[3] = uchar4_to_float(RxData);
-        break;
       case 0x224:
-        temperature[4] = uchar4_to_float(RxData);
-        break;
       case 0x225:
-        temperature[5] = uchar4_to_float(RxData);
+        temperature[rx_can_id - 0x220] = uchar4_to_float(RxData);
         break;
 
       // amplitude
       case 0x230:
-        amplitude[0] = uchar4_to_float(RxData);
-        break;
       case 0x231:
-        amplitude[1] = uchar4_to_float(RxData);
-        break;
       case 0x232:
-        amplitude[2] = uchar4_to_float(RxData);
-        break;
       case 0x233:
-        amplitude[3] = uchar4_to_float(RxData);
-        break;
       case 0x234:
-        amplitude[4] = uchar4_to_float(RxData);
+        amplitude[rx_can_id - 0x230] = uchar4_to_float(RxData);
         break;
 
       // ball_detection
@@ -718,16 +659,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
   }
 }
 
-void maintask_run()
-{
-  // theta_target=0.0;
-  float yaw_angle_rad = yaw_angle * M_PI / 180;
-  static float pre_yaw_angle;
-
-  static float32_t pre_yaw_angle_rad = 0;
-
+float omega;
+void theta_control(/*float global_target_thera,float robot_gyro_theta*/){
   // PID
-  float32_t omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 160.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 4000.0);
+  omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 160.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 4000.0);
   //float32_t omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 16.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 400.0);
 
   if (omega > 6 * M_PI) {
@@ -738,10 +673,23 @@ void maintask_run()
   }
   // omega = 0;
 
+  // out : omega
+}
+
+void mouse_odometory()
+{
   static float pre_mouse_odom[2] = {0, 0};
   float mouse_vel[2];
   mouse_vel[0] = mouse_odom[0] - pre_mouse_odom[0];
   mouse_vel[1] = mouse_odom[1] - pre_mouse_odom[1];
+
+  pre_mouse_odom[0] = mouse_odom[0];
+  pre_mouse_odom[1] = mouse_odom[1];
+}
+
+void omni_odometory(/*float motor_angle[4],float yaw_rad*/)
+{
+  // motor_enc_angle,/yaw_angle_rad
 
   for (int i = 0; i < 4; i++) {
     omni_angle_diff[i] = getAngleDiff(motor_enc_angle[i], pre_motor_enc_angle[i]);
@@ -771,11 +719,12 @@ void maintask_run()
   }
   omni_odom_speed_log[0][odom_speed_index] = omni_odom_speed[0];
   omni_odom_speed_log[1][odom_speed_index] = omni_odom_speed[1];
+}
 
-  // 1000Hz, m/s -> m / cycle
-  //tar_vel[0] = 0.05;
-  tar_vel[0] = ai_cmd.local_target_speed[0];
-  tar_vel[1] = ai_cmd.local_target_speed[1];
+float output_vel_surge, output_vel_sway;
+
+void speed_control(/*float global_target_position[2],float global_robot_odom_position[2],float robot_theta*/)
+{
   tar_pos[0] += tar_vel[0] / 500;
   tar_pos[1] += tar_vel[1] / 500;
 
@@ -788,8 +737,8 @@ void maintask_run()
   robot_pos_diff[0] = floor_odom_diff[0] * cos(yaw_angle_rad) + floor_odom_diff[1] * sin(yaw_angle_rad);
   // Y
   robot_pos_diff[1] = floor_odom_diff[0] * sin(yaw_angle_rad) + floor_odom_diff[1] * cos(yaw_angle_rad);
-  float output_vel_surge = robot_pos_diff[0] * OMNI_OUTPUT_GAIN * 500;
-  float output_vel_sway = robot_pos_diff[1] * OMNI_OUTPUT_GAIN * 500;
+  output_vel_surge = robot_pos_diff[0] * OMNI_OUTPUT_GAIN * 500;
+  output_vel_sway = robot_pos_diff[1] * OMNI_OUTPUT_GAIN * 500;
   //+target_move_speed * 2;
 
   float limit_gain = 0;
@@ -813,8 +762,23 @@ void maintask_run()
     output_vel_surge /= limit_gain;
   }
 
-  pre_mouse_odom[0] = mouse_odom[0];
-  pre_mouse_odom[1] = mouse_odom[1];
+  // output vel X/Y
+}
+
+void maintask_run()
+{
+  // theta_target=0.0;
+  yaw_angle_rad = yaw_angle * M_PI / 180;
+
+  omni_odometory();
+
+  // 1000Hz, m/s -> m / cycle
+  //tar_vel[0] = 0.05;
+  tar_vel[0] = ai_cmd.local_target_speed[0];
+  tar_vel[1] = ai_cmd.local_target_speed[1];
+
+  speed_control();
+  theta_control();
 
   pre_yaw_angle_rad = yaw_angle_rad;
   pre_yaw_angle = yaw_angle;
@@ -993,16 +957,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     ai_cmd.global_robot_position[0] = ((int)(data_from_ether[15] << 8 | data_from_ether[16]) - 32767);
     ai_cmd.global_robot_position[1] = ((int)(data_from_ether[17] << 8 | data_from_ether[18]) - 32767);
 
-    ai_cmd.global_target_position[0] = ((int)(data_from_ether[19] << 8 | data_from_ether[20]) - 32767);
-    ai_cmd.global_target_position[1] = ((int)(data_from_ether[21] << 8 | data_from_ether[22]) - 32767);
+    ai_cmd.global_global_target_position[0] = ((int)(data_from_ether[19] << 8 | data_from_ether[20]) - 32767);
+    ai_cmd.global_global_target_position[1] = ((int)(data_from_ether[21] << 8 | data_from_ether[22]) - 32767);
     */
 
     ai_cmd.global_ball_position[0] = two_to_int(&data_from_ether[11]);
     ai_cmd.global_ball_position[1] = two_to_int(&data_from_ether[13]);
     ai_cmd.global_robot_position[0] = two_to_int(&data_from_ether[15]);
     ai_cmd.global_robot_position[1] = two_to_int(&data_from_ether[18]);
-    ai_cmd.global_target_position[0] = two_to_int(&data_from_ether[19]);
-    ai_cmd.global_target_position[1] = two_to_int(&data_from_ether[21]);
+    ai_cmd.global_global_target_position[0] = two_to_int(&data_from_ether[19]);
+    ai_cmd.global_global_target_position[1] = two_to_int(&data_from_ether[21]);
 
     ai_cmd.allow_local_feedback = data_from_ether[23];
 
