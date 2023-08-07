@@ -71,6 +71,7 @@ void TIM7_DAC_IRQHandler(void);
 void FDCAN2_IT0_IRQHandler(void);
 void FDCAN2_IT1_IRQHandler(void);
 void LPUART1_IRQHandler(void);
+void DMA1_Channel8_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

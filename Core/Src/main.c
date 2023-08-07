@@ -19,14 +19,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "gpio.h"
+#include "usart.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -164,6 +163,8 @@ float32_t pre_omni_odom[2] = {0};
 float32_t omni_odom_speed[2] = {0};
 #define SPEED_LOG_BUF_SIZE 100
 float32_t omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200ms
+
+char Tx_printf_data[100];
 
 /* USER CODE END PFP */
 
@@ -325,19 +326,22 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
     Error_Handler();
   }
 }
@@ -477,6 +481,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
   }
 
+  /*
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
   buzzer_cnt++;
@@ -496,36 +501,34 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuator_buzzer_off();
     }
   }
-
+*/
   static uint16_t cnt_time_100Hz;
   cnt_time_100Hz++;
   if (cnt_time_100Hz > 10) {
     cnt_time_100Hz = 0;
 
-    printf("yaw=%+6.1f", yaw_angle);
-    // printf(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
-    // printf(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
-    // printf(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
-    printf(" Batt=%3.1f ", power_voltage[0]);
-    // printf(" mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
-    // printf("ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
 
-    /*printf("con %3d ", connection_check_cnt);
+	sprintf(Tx_printf_data,"yaw=%+6.1f ", yaw_angle);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
+	sprintf(Tx_printf_data + strlen(Tx_printf_data)," Batt=%3.1f ", power_voltage[0]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," con %3d ", connection_check_cnt);
+	sprintf(Tx_printf_data + strlen(Tx_printf_data)," vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
+	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," );
+	sprintf(Tx_printf_data + strlen(Tx_printf_data),"\r\n");
 
-    printf("vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
-    printf("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
-    printf("ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-    printf("tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);*/
-
-    //printf("PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
-    printf("omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
-    printf(" mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
-
-    // printf("imu %+5.2f result %+5.2f ", rotation_integral,spin_adjusted_result);
-    printf("local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
-    //printf("tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
-    printf("\r\n");
-
+    HAL_UART_Transmit_DMA(&hlpuart1,(uint8_t *) Tx_printf_data, 100);
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 
     actuator_power_ONOFF(1);
@@ -770,7 +773,7 @@ void maintask_run()
   // theta_target=0.0;
   yaw_angle_rad = yaw_angle * M_PI / 180;
 
-  omni_odometory();
+  //omni_odometory();
 
   // 1000Hz, m/s -> m / cycle
   //tar_vel[0] = 0.05;
@@ -830,7 +833,7 @@ void maintask_run()
   tx_data_uart[5] = ai_cmd.chip_en;
   tx_data_uart[6] = kick_state;
   tx_data_uart[7] = (uint8_t)power_voltage[4];
-  // HAL_UART_Transmit(&huart2, tx_data_uart, 8,0xff);
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
 }
 
 void maintask_emargency()
@@ -849,7 +852,7 @@ void maintask_emargency()
   tx_data_uart[5] = 252;
   tx_data_uart[6] = 122;
   tx_data_uart[7] = 200;
-  // HAL_UART_Transmit(&huart2, tx_data_uart, 8,0xff);
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
 
   actuator_buzzer(150, 150);
 
@@ -880,7 +883,7 @@ void maintask_state_stop()
   tx_data_uart[5] = 1;
   tx_data_uart[6] = 1;
   tx_data_uart[7] = (uint8_t)power_voltage[4];
-  // HAL_UART_Transmit(&huart2, tx_data_uart, 8,0xff);
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
 
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
@@ -905,7 +908,7 @@ void maintask_stop()
   tx_data_uart[5] = 0;
   tx_data_uart[6] = 0;
   tx_data_uart[7] = (uint8_t)power_voltage[4];
-  // HAL_UART_Transmit(&huart2, tx_data_uart, 8,0xff);
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
 
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
@@ -923,7 +926,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         data_from_ether[k] = 0;
       }
       return;
-      //受信なし、データクリア
+      //受信なしデータクリア
     } else {
       for (int i = 0; i < RX_BUF_SIZE_ETHER - 1; i++) {
         data_from_ether[i] = rxbuf_from_ether[i + 1];
@@ -1000,7 +1003,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1008,7 +1011,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t * file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
