@@ -164,7 +164,8 @@ float32_t omni_odom_speed[2] = {0};
 #define SPEED_LOG_BUF_SIZE 100
 float32_t omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200ms
 
-char Tx_printf_data[100];
+#define printf_LOG_BUF_SIZE 500
+char Tx_printf_data[printf_LOG_BUF_SIZE];
 
 /* USER CODE END PFP */
 
@@ -502,36 +503,37 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
   }
 */
-  static uint16_t cnt_time_100Hz;
-  cnt_time_100Hz++;
-  if (cnt_time_100Hz > 10) {
-    cnt_time_100Hz = 0;
+  if(sw_mode>0){
+	  static uint16_t cnt_time_100Hz;
+	  cnt_time_100Hz++;
+	  if (cnt_time_100Hz > 10) {
+		cnt_time_100Hz = 0;
 
+		sprintf(Tx_printf_data,"yaw=%+6.1f ", yaw_angle);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
+		sprintf(Tx_printf_data + strlen(Tx_printf_data)," Batt=%3.1f ", power_voltage[0]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," con %3d ", connection_check_cnt);
+		sprintf(Tx_printf_data + strlen(Tx_printf_data)," vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
+		//sprintf(Tx_printf_data + strlen(Tx_printf_data)," );
+		sprintf(Tx_printf_data + strlen(Tx_printf_data),"\r\n");
 
-	sprintf(Tx_printf_data,"yaw=%+6.1f ", yaw_angle);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
-	sprintf(Tx_printf_data + strlen(Tx_printf_data)," Batt=%3.1f ", power_voltage[0]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," con %3d ", connection_check_cnt);
-	sprintf(Tx_printf_data + strlen(Tx_printf_data)," vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
-	//sprintf(Tx_printf_data + strlen(Tx_printf_data)," );
-	sprintf(Tx_printf_data + strlen(Tx_printf_data),"\r\n");
+		HAL_UART_Transmit_DMA(&hlpuart1,(uint8_t *) Tx_printf_data, printf_LOG_BUF_SIZE);
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 
-    HAL_UART_Transmit_DMA(&hlpuart1,(uint8_t *) Tx_printf_data, 100);
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-
-    actuator_power_ONOFF(1);
+		actuator_power_ONOFF(1);
+	  }
   }
 
   connection_check_cnt++;
@@ -834,7 +836,7 @@ void maintask_run()
   tx_data_uart[6] = ai_cmd.chip_en;
   tx_data_uart[7] = kick_state;
   tx_data_uart[8] = (uint8_t)power_voltage[4];
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 }
 
 void maintask_emargency()
@@ -854,7 +856,7 @@ void maintask_emargency()
   tx_data_uart[6] = 252;
   tx_data_uart[7] = 122;
   tx_data_uart[8] = 200;
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 
   actuator_buzzer(150, 150);
 
@@ -886,7 +888,7 @@ void maintask_state_stop()
   tx_data_uart[6] = 1;
   tx_data_uart[7] = 1;
   tx_data_uart[8] = (uint8_t)power_voltage[4];
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
