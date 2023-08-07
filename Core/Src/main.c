@@ -108,7 +108,7 @@ float yaw_angle_rad, pre_yaw_angle_rad;
 
 volatile int kick_state, kick_time;
 uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
-uint8_t tx_data_uart[9];
+uint8_t tx_data_uart[32];
 
 uint16_t Csense[1];
 uint16_t Vsense[1];
@@ -825,15 +825,16 @@ void maintask_run()
   uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
   uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
 
-  tx_data_uart[0] = 254;
-  tx_data_uart[1] = (uint8_t)yaw_angle_send_low;
-  tx_data_uart[2] = (uint8_t)yaw_angle_send_high;
-  tx_data_uart[3] = ball_detection[0];
-  tx_data_uart[4] = ball_detection[1];
-  tx_data_uart[5] = ai_cmd.chip_en;
-  tx_data_uart[6] = kick_state;
-  tx_data_uart[7] = (uint8_t)power_voltage[4];
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
+  tx_data_uart[0] = 0xFE;
+  tx_data_uart[1] = 0xFC;
+  tx_data_uart[2] = (uint8_t)yaw_angle_send_low;
+  tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
+  tx_data_uart[4] = ball_detection[0];
+  tx_data_uart[5] = ball_detection[1];
+  tx_data_uart[6] = ai_cmd.chip_en;
+  tx_data_uart[7] = kick_state;
+  tx_data_uart[8] = (uint8_t)power_voltage[4];
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
 }
 
 void maintask_emargency()
@@ -844,15 +845,16 @@ void maintask_emargency()
   actuator_motor4(0.0, 0.0);
   actuator_motor5(0.0, 0.0);
 
-  tx_data_uart[0] = 254;
-  tx_data_uart[1] = error_no[0];
-  tx_data_uart[2] = error_no[1];
-  tx_data_uart[3] = error_no[2];
-  tx_data_uart[4] = error_no[3];
-  tx_data_uart[5] = 252;
-  tx_data_uart[6] = 122;
-  tx_data_uart[7] = 200;
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
+  tx_data_uart[0] = 0xFE;
+  tx_data_uart[1] = 0xFC;
+  tx_data_uart[2] = error_no[0];
+  tx_data_uart[3] = error_no[1];
+  tx_data_uart[4] = error_no[2];
+  tx_data_uart[5] = error_no[3];
+  tx_data_uart[6] = 252;
+  tx_data_uart[7] = 122;
+  tx_data_uart[8] = 200;
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
 
   actuator_buzzer(150, 150);
 
@@ -875,15 +877,16 @@ void maintask_state_stop()
   omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
 
-  tx_data_uart[0] = 254;
-  tx_data_uart[1] = (uint8_t)yaw_angle_send_low;
-  tx_data_uart[2] = (uint8_t)yaw_angle_send_high;
-  tx_data_uart[3] = error_no[0];
-  tx_data_uart[4] = error_no[1];
-  tx_data_uart[5] = 1;
+  tx_data_uart[0] = 0xFE;
+  tx_data_uart[1] = 0xFC;
+  tx_data_uart[2] = (uint8_t)yaw_angle_send_low;
+  tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
+  tx_data_uart[4] = error_no[0];
+  tx_data_uart[5] = error_no[1];
   tx_data_uart[6] = 1;
-  tx_data_uart[7] = (uint8_t)power_voltage[4];
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
+  tx_data_uart[7] = 1;
+  tx_data_uart[8] = (uint8_t)power_voltage[4];
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
 
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
@@ -900,15 +903,16 @@ void maintask_stop()
   omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
 
-  tx_data_uart[0] = 254;
-  tx_data_uart[1] = (uint8_t)yaw_angle_send_low;
-  tx_data_uart[2] = (uint8_t)yaw_angle_send_high;
-  tx_data_uart[3] = error_no[0];
-  tx_data_uart[4] = error_no[1];
-  tx_data_uart[5] = 0;
+  tx_data_uart[0] = 0xFE;
+  tx_data_uart[1] = 0xFC;
+  tx_data_uart[2] = (uint8_t)yaw_angle_send_low;
+  tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
+  tx_data_uart[4] = error_no[0];
+  tx_data_uart[5] = error_no[1];
   tx_data_uart[6] = 0;
-  tx_data_uart[7] = (uint8_t)power_voltage[4];
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 8);
+  tx_data_uart[7] = 0;
+  tx_data_uart[8] = (uint8_t)power_voltage[4];
+  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
 
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
