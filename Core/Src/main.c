@@ -75,6 +75,8 @@ uint8_t rxbuf_from_ether[RX_BUF_SIZE_ETHER];
 uint8_t sw_mode;
 uint8_t ether_connect = 0;
 uint32_t connection_check_cnt = 0;
+uint32_t connection_check_pre = 0;
+uint32_t connection_check_ver = 0;
 
 const float32_t OMNI_DIR_LENGTH = OMNI_DIAMETER * M_PI;
 
@@ -167,6 +169,9 @@ float32_t omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle =
 #define printf_LOG_BUF_SIZE 500
 char Tx_printf_data[printf_LOG_BUF_SIZE];
 
+int ball_local_x,ball_local_y,ball_local_radius,ball_local_FPS;
+uint8_t start_byte_idx;
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -245,9 +250,9 @@ int main(void)
   HAL_UART_Init(&huart2);
   HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxbuf_from_ether, RX_BUF_SIZE_ETHER);
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)Vsense, 1);
-  HAL_ADC_Start_DMA(&hadc3, (uint32_t *)Csense, 1);
-  HAL_ADC_Start_DMA(&hadc5, (uint32_t *)SWdata, 1);
+  //HAL_ADC_Start_DMA(&hadc1, (uint32_t *)Vsense, 1);
+  //HAL_ADC_Start_DMA(&hadc3, (uint32_t *)Csense, 1);
+ //HAL_ADC_Start_DMA(&hadc5, (uint32_t *)SWdata, 1);
 
   actuator_power_ONOFF(0);
   HAL_Delay(20);
@@ -526,7 +531,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
 			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
 			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," );
+			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," start_byte_idx=%d ", start_byte_idx);
+			sprintf(Tx_printf_data + strlen(Tx_printf_data), " ball_local x=%d y=%d radius=%d FPS=%d ",ball_local_x,ball_local_y,ball_local_radius,ball_local_FPS);
 			sprintf(Tx_printf_data + strlen(Tx_printf_data),"\r\n");
 		}
 
@@ -538,12 +544,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   connection_check_cnt++;
   if (connection_check_cnt > 200) {
-    ether_connect = 0;
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-
-  } else {
-    ether_connect = 1;
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+    if(connection_check_ver != connection_check_pre){
+        ether_connect = 1;
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+    }
+    else{
+        ether_connect = 0;
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+    }
+    connection_check_cnt=0;
+    connection_check_pre = connection_check_ver;
   }
 }
 
@@ -921,7 +931,7 @@ void maintask_stop()
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
-  uint8_t start_byte_idx = 0;
+	 start_byte_idx = 0;
 
   if (huart->Instance == huart2.Instance) {
     while (rxbuf_from_ether[start_byte_idx] != 254 && start_byte_idx < sizeof(rxbuf_from_ether)) {
@@ -934,9 +944,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       return;
       //受信なしデータクリア
     } else {
-      for (int i = 0; i < RX_BUF_SIZE_ETHER - 1; i++) {
+     /* for (int i = 0; i < RX_BUF_SIZE_ETHER - 1; i++) {
         data_from_ether[i] = rxbuf_from_ether[i + 1];
-      }
+      }*/
+    	for (uint8_t k = 0; k < RX_BUF_SIZE_ETHER - 1; k++) {
+			if ((start_byte_idx + k) >= RX_BUF_SIZE_ETHER - 1) {
+				data_from_ether[k] = rxbuf_from_ether[k - (sizeof(data_from_ether) - start_byte_idx)];
+			}
+			else {
+				data_from_ether[k] = rxbuf_from_ether[start_byte_idx + k ];
+			}
+		  }
     }
     /*
     ai_cmd.local_target_speed[0] = ((float32_t)(data_from_ether[0] << 8 | data_from_ether[1]) - 32767.0) / 32767.0 * 7.0;
@@ -944,21 +962,21 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     ai_cmd.global_vision_theta = ((float32_t)(data_from_ether[4] << 8 | data_from_ether[5]) - 32767) / 32767.0 * M_PI;
     ai_cmd.target_theta = ((float32_t)(data_from_ether[6] << 8 | data_from_ether[7]) - 32767) / 32767.0 * M_PI;
     */
-    ai_cmd.local_target_speed[0] = two_to_float(&data_from_ether[0]) * 7.0;
-    ai_cmd.local_target_speed[1] = two_to_float(&data_from_ether[2]) * 7.0;
-    ai_cmd.global_vision_theta = two_to_float(&data_from_ether[4]) * M_PI;
-    ai_cmd.target_theta = two_to_float(&data_from_ether[5]) * M_PI;
+    ai_cmd.local_target_speed[0] = two_to_float(&data_from_ether[2]) * 7.0;
+    ai_cmd.local_target_speed[1] = two_to_float(&data_from_ether[4]) * 7.0;
+    ai_cmd.global_vision_theta = two_to_float(&data_from_ether[6]) * M_PI;
+    ai_cmd.target_theta = two_to_float(&data_from_ether[8]) * M_PI;
 
-    if (data_from_ether[8] > 100) {
+    if (data_from_ether[10] > 100) {
       ai_cmd.chip_en = 1;
-      data_from_ether[8] = data_from_ether[8] - 100;
+      data_from_ether[10] = data_from_ether[10] - 100;
     } else {
       ai_cmd.chip_en = 0;
     }
-    ai_cmd.kick_power = (float32_t)data_from_ether[8] / 20.0;
-    ai_cmd.drible_power = (float32_t)data_from_ether[9] / 20.0;
+    ai_cmd.kick_power = (float32_t)data_from_ether[10] / 20.0;
+    ai_cmd.drible_power = (float32_t)data_from_ether[11] / 20.0;
 
-    ai_cmd.keeper_en = data_from_ether[10];
+    ai_cmd.keeper_en = data_from_ether[12];
 
     /* ai_cmd.global_ball_position[0] = ((int)(data_from_ether[11] << 8 | data_from_ether[12]) - 32767);
     ai_cmd.global_ball_position[1] = ((int)(data_from_ether[13] << 8 | data_from_ether[14]) - 32767);
@@ -970,16 +988,41 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     ai_cmd.global_global_target_position[1] = ((int)(data_from_ether[21] << 8 | data_from_ether[22]) - 32767);
     */
 
-    ai_cmd.global_ball_position[0] = two_to_int(&data_from_ether[11]);
-    ai_cmd.global_ball_position[1] = two_to_int(&data_from_ether[13]);
-    ai_cmd.global_robot_position[0] = two_to_int(&data_from_ether[15]);
-    ai_cmd.global_robot_position[1] = two_to_int(&data_from_ether[18]);
-    ai_cmd.global_global_target_position[0] = two_to_int(&data_from_ether[19]);
-    ai_cmd.global_global_target_position[1] = two_to_int(&data_from_ether[21]);
+    ai_cmd.global_ball_position[0] = two_to_int(&data_from_ether[13]);
+    ai_cmd.global_ball_position[1] = two_to_int(&data_from_ether[15]);
+    ai_cmd.global_robot_position[0] = two_to_int(&data_from_ether[17]);
+    ai_cmd.global_robot_position[1] = two_to_int(&data_from_ether[19]);
+    ai_cmd.global_global_target_position[0] = two_to_int(&data_from_ether[21]);
+    ai_cmd.global_global_target_position[1] = two_to_int(&data_from_ether[23]);
 
-    ai_cmd.allow_local_feedback = data_from_ether[23];
+    ai_cmd.allow_local_feedback = data_from_ether[25];
 
-    connection_check_cnt = 0;
+    //AIからのデータがない時は全部0にする
+    if(ether_connect == 0){
+        ai_cmd.local_target_speed[0] = 0;
+        ai_cmd.local_target_speed[1] = 0;
+        ai_cmd.global_vision_theta = 0;
+        ai_cmd.target_theta = 0;
+        ai_cmd.chip_en = 0;
+        ai_cmd.kick_power = 0;
+        ai_cmd.drible_power = 0;
+        ai_cmd.keeper_en = 0;
+        ai_cmd.global_ball_position[0] = 0;
+        ai_cmd.global_ball_position[1] = 0;
+        ai_cmd.global_robot_position[0] = 0;
+        ai_cmd.global_robot_position[1] = 0;
+        ai_cmd.global_global_target_position[0] = 0;
+        ai_cmd.global_global_target_position[1] =0;
+        ai_cmd.allow_local_feedback = 0;
+    }
+
+    ball_local_x=data_from_ether[RX_BUF_SIZE_ETHER-8]<< 8 |data_from_ether[RX_BUF_SIZE_ETHER-7];
+    ball_local_y=data_from_ether[RX_BUF_SIZE_ETHER-6]<< 8 |data_from_ether[RX_BUF_SIZE_ETHER-5];
+    ball_local_radius=data_from_ether[RX_BUF_SIZE_ETHER-4]<< 8 |data_from_ether[RX_BUF_SIZE_ETHER-3];
+    ball_local_FPS=data_from_ether[RX_BUF_SIZE_ETHER-2];
+
+
+    connection_check_ver = data_from_ether[1];
   }
 }
 
