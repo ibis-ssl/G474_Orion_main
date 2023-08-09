@@ -19,13 +19,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "usart.h"
+#include "gpio.h"
 #include "spi.h"
 #include "tim.h"
-#include "gpio.h"
+#include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -112,9 +113,7 @@ volatile int kick_state, kick_time;
 uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
 uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
-uint16_t Csense[1];
-uint16_t Vsense[1];
-uint16_t SWdata[1];
+uint32_t adc_sw_data;
 uint8_t emergency_flag;
 float32_t motor_feedback[5];
 float32_t motor_feedback_velocity[5];
@@ -169,7 +168,7 @@ float32_t omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle =
 #define printf_LOG_BUF_SIZE 500
 char Tx_printf_data[printf_LOG_BUF_SIZE];
 
-int ball_local_x,ball_local_y,ball_local_radius,ball_local_FPS;
+int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
 uint8_t start_byte_idx;
 
 /* USER CODE END PFP */
@@ -250,9 +249,7 @@ int main(void)
   HAL_UART_Init(&huart2);
   HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxbuf_from_ether, RX_BUF_SIZE_ETHER);
 
-  //HAL_ADC_Start_DMA(&hadc1, (uint32_t *)Vsense, 1);
-  //HAL_ADC_Start_DMA(&hadc3, (uint32_t *)Csense, 1);
- //HAL_ADC_Start_DMA(&hadc5, (uint32_t *)SWdata, 1);
+  HAL_ADC_Start_DMA(&hadc5, (uint32_t *)adc_sw_data, 1);
 
   actuator_power_ONOFF(0);
   HAL_Delay(20);
@@ -332,22 +329,19 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -378,7 +372,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case 2:  // calibration motor
-      if (decode_SW(SWdata[0]) & 0b00010000) {
+      if (decode_SW(adc_sw_data) & 0b00010000) {
         uint8_t senddata_calib[8];
         can1_send(0x310, senddata_calib);  // calibration
         can2_send(0x310, senddata_calib);  // calibration
@@ -391,19 +385,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case 3:  // motor test
-      if (decode_SW(SWdata[0]) & 0b00000001) {
+      if (decode_SW(adc_sw_data) & 0b00000001) {
         omni_move(1.0, 0.0, 0.0, 1.0);  // fwd
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-      } else if (decode_SW(SWdata[0]) & 0b00000010) {
+      } else if (decode_SW(adc_sw_data) & 0b00000010) {
         omni_move(-1.0, 0.0, 0.0, 1.0);  // back
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-      } else if (decode_SW(SWdata[0]) & 0b00000100) {
+      } else if (decode_SW(adc_sw_data) & 0b00000100) {
         omni_move(0.0, -1.0, 0.0, 1.0);  // left
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-      } else if (decode_SW(SWdata[0]) & 0b00001000) {
+      } else if (decode_SW(adc_sw_data) & 0b00001000) {
         omni_move(0.0, 1.0, 0.0, 1.0);  // right
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-      } else if (decode_SW(SWdata[0]) & 0b00010000) {
+      } else if (decode_SW(adc_sw_data) & 0b00010000) {
         omni_move(0.0, 0.0, 7.0, 1.0);  // spin
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
       } else {
@@ -414,7 +408,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case 4:  // drible test
-      if (decode_SW(SWdata[0]) & 0b00010000) {
+      if (decode_SW(adc_sw_data) & 0b00010000) {
         actuator_motor5(0.5, 1.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
       } else {
@@ -425,7 +419,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case 5:
-      if (decode_SW(SWdata[0]) & 0b00010000) {
+      if (decode_SW(adc_sw_data) & 0b00010000) {
         actuator_motor5(0.5, 1.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
         if (ball_detection[0] == 1) {
@@ -454,7 +448,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case 6:
-      if (decode_SW(SWdata[0]) & 0b00010000) {
+      if (decode_SW(adc_sw_data) & 0b00010000) {
         actuator_motor5(0.5, 1.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
         if (ball_detection[0] == 1) {
@@ -508,51 +502,50 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
   }
 */
-	  static uint16_t cnt_time_100Hz;
-	  cnt_time_100Hz++;
-	  if (cnt_time_100Hz > 10) {
-		cnt_time_100Hz = 0;
+  static uint16_t cnt_time_100Hz;
+  cnt_time_100Hz++;
+  if (cnt_time_100Hz > 10) {
+    cnt_time_100Hz = 0;
 
-		if(sw_mode>0){
-			sprintf(Tx_printf_data,"yaw=%+6.1f ", yaw_angle);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
-			sprintf(Tx_printf_data + strlen(Tx_printf_data)," Batt=%3.1f ", power_voltage[0]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," con %3d ", connection_check_cnt);
-			sprintf(Tx_printf_data + strlen(Tx_printf_data)," vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
-			//sprintf(Tx_printf_data + strlen(Tx_printf_data)," start_byte_idx=%d ", start_byte_idx);
-			sprintf(Tx_printf_data + strlen(Tx_printf_data), " ball_local x=%d y=%d radius=%d FPS=%d ",ball_local_x,ball_local_y,ball_local_radius,ball_local_FPS);
-			sprintf(Tx_printf_data + strlen(Tx_printf_data),"\r\n");
-		}
+    if (sw_mode > 0) {
+      sprintf(Tx_printf_data, "yaw=%+6.1f ", yaw_angle);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
+      sprintf(Tx_printf_data + strlen(Tx_printf_data), " Batt=%3.1f ", power_voltage[0]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," con %3d ", connection_check_cnt);
+      sprintf(Tx_printf_data + strlen(Tx_printf_data), " vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
+      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," start_byte_idx=%d ", start_byte_idx);
+      sprintf(Tx_printf_data + strlen(Tx_printf_data), " ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
+      sprintf(Tx_printf_data + strlen(Tx_printf_data), "\r\n");
+    }
 
-		HAL_UART_Transmit_DMA(&hlpuart1,(uint8_t *) Tx_printf_data, printf_LOG_BUF_SIZE);
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+    HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)Tx_printf_data, printf_LOG_BUF_SIZE);
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 
-		actuator_power_ONOFF(1);
+    actuator_power_ONOFF(1);
   }
 
   connection_check_cnt++;
   if (connection_check_cnt > 200) {
-    if(connection_check_ver != connection_check_pre){
-        ether_connect = 1;
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+    if (connection_check_ver != connection_check_pre) {
+      ether_connect = 1;
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+    } else {
+      ether_connect = 0;
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
     }
-    else{
-        ether_connect = 0;
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-    }
-    connection_check_cnt=0;
+    connection_check_cnt = 0;
     connection_check_pre = connection_check_ver;
   }
 }
@@ -675,7 +668,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 }
 
 float omega;
-void theta_control(/*float global_target_thera,float robot_gyro_theta*/){
+void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
+{
   // PID
   omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 160.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 4000.0);
   //float32_t omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 16.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 400.0);
@@ -729,7 +723,7 @@ void omni_odometory(/*float motor_angle[4],float yaw_rad*/)
 
   static uint32_t odom_speed_index = 0;
   odom_speed_index++;
-  if (odom_speed_index > SPEED_LOG_BUF_SIZE) {
+  if (odom_speed_index >= SPEED_LOG_BUF_SIZE) {
     odom_speed_index = 0;
   }
   omni_odom_speed_log[0][odom_speed_index] = omni_odom_speed[0];
@@ -785,7 +779,7 @@ void maintask_run()
   // theta_target=0.0;
   yaw_angle_rad = yaw_angle * M_PI / 180;
 
-  //omni_odometory();
+  omni_odometory();
 
   // 1000Hz, m/s -> m / cycle
   //tar_vel[0] = 0.05;
@@ -931,7 +925,7 @@ void maintask_stop()
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
-	 start_byte_idx = 0;
+  start_byte_idx = 0;
 
   if (huart->Instance == huart2.Instance) {
     while (rxbuf_from_ether[start_byte_idx] != 254 && start_byte_idx < sizeof(rxbuf_from_ether)) {
@@ -944,17 +938,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       return;
       //受信なしデータクリア
     } else {
-     /* for (int i = 0; i < RX_BUF_SIZE_ETHER - 1; i++) {
+      /* for (int i = 0; i < RX_BUF_SIZE_ETHER - 1; i++) {
         data_from_ether[i] = rxbuf_from_ether[i + 1];
       }*/
-    	for (uint8_t k = 0; k < RX_BUF_SIZE_ETHER - 1; k++) {
-			if ((start_byte_idx + k) >= RX_BUF_SIZE_ETHER - 1) {
-				data_from_ether[k] = rxbuf_from_ether[k - (sizeof(data_from_ether) - start_byte_idx)];
-			}
-			else {
-				data_from_ether[k] = rxbuf_from_ether[start_byte_idx + k ];
-			}
-		  }
+      for (uint8_t k = 0; k < RX_BUF_SIZE_ETHER - 1; k++) {
+        if ((start_byte_idx + k) >= RX_BUF_SIZE_ETHER - 1) {
+          data_from_ether[k] = rxbuf_from_ether[k - (sizeof(data_from_ether) - start_byte_idx)];
+        } else {
+          data_from_ether[k] = rxbuf_from_ether[start_byte_idx + k];
+        }
+      }
     }
     /*
     ai_cmd.local_target_speed[0] = ((float32_t)(data_from_ether[0] << 8 | data_from_ether[1]) - 32767.0) / 32767.0 * 7.0;
@@ -998,29 +991,28 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     ai_cmd.allow_local_feedback = data_from_ether[25];
 
     //AIからのデータがない時は全部0にする
-    if(ether_connect == 0){
-        ai_cmd.local_target_speed[0] = 0;
-        ai_cmd.local_target_speed[1] = 0;
-        ai_cmd.global_vision_theta = 0;
-        ai_cmd.target_theta = 0;
-        ai_cmd.chip_en = 0;
-        ai_cmd.kick_power = 0;
-        ai_cmd.drible_power = 0;
-        ai_cmd.keeper_en = 0;
-        ai_cmd.global_ball_position[0] = 0;
-        ai_cmd.global_ball_position[1] = 0;
-        ai_cmd.global_robot_position[0] = 0;
-        ai_cmd.global_robot_position[1] = 0;
-        ai_cmd.global_global_target_position[0] = 0;
-        ai_cmd.global_global_target_position[1] =0;
-        ai_cmd.allow_local_feedback = 0;
+    if (ether_connect == 0) {
+      ai_cmd.local_target_speed[0] = 0;
+      ai_cmd.local_target_speed[1] = 0;
+      ai_cmd.global_vision_theta = 0;
+      ai_cmd.target_theta = 0;
+      ai_cmd.chip_en = 0;
+      ai_cmd.kick_power = 0;
+      ai_cmd.drible_power = 0;
+      ai_cmd.keeper_en = 0;
+      ai_cmd.global_ball_position[0] = 0;
+      ai_cmd.global_ball_position[1] = 0;
+      ai_cmd.global_robot_position[0] = 0;
+      ai_cmd.global_robot_position[1] = 0;
+      ai_cmd.global_global_target_position[0] = 0;
+      ai_cmd.global_global_target_position[1] = 0;
+      ai_cmd.allow_local_feedback = 0;
     }
 
-    ball_local_x=data_from_ether[RX_BUF_SIZE_ETHER-8]<< 8 |data_from_ether[RX_BUF_SIZE_ETHER-7];
-    ball_local_y=data_from_ether[RX_BUF_SIZE_ETHER-6]<< 8 |data_from_ether[RX_BUF_SIZE_ETHER-5];
-    ball_local_radius=data_from_ether[RX_BUF_SIZE_ETHER-4]<< 8 |data_from_ether[RX_BUF_SIZE_ETHER-3];
-    ball_local_FPS=data_from_ether[RX_BUF_SIZE_ETHER-2];
-
+    ball_local_x = data_from_ether[RX_BUF_SIZE_ETHER - 8] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 7];
+    ball_local_y = data_from_ether[RX_BUF_SIZE_ETHER - 6] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 5];
+    ball_local_radius = data_from_ether[RX_BUF_SIZE_ETHER - 4] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 3];
+    ball_local_FPS = data_from_ether[RX_BUF_SIZE_ETHER - 2];
 
     connection_check_ver = data_from_ether[1];
   }
@@ -1052,7 +1044,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1060,7 +1052,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t * file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,

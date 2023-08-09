@@ -6,18 +6,24 @@
  */
 #include "actuator.h"
 
-static void motor_cmd(uint16_t motor_id, float duty)
+static void motor_cmd_can1(uint16_t motor_id, float duty)
 {
   uint8_t senddata_motor[8];
   float_to_uchar4(senddata_motor, duty);
   can1_send(motor_id, senddata_motor);
 }
+static void motor_cmd_can2(uint16_t motor_id, float duty)
+{
+  uint8_t senddata_motor[8];
+  float_to_uchar4(senddata_motor, duty);
+  can2_send(motor_id, senddata_motor);
+}
 
-void actuator_motor1(float duty, float duty_Limit1) { motor_cmd(0x100, duty); }
-void actuator_motor2(float duty, float duty_Limit2) { motor_cmd(0x101, duty); }
-void actuator_motor3(float duty, float duty_Limit3) { motor_cmd(0x102, duty); }
-void actuator_motor4(float duty, float duty_Limit4) { motor_cmd(0x103, duty); }
-void actuator_motor5(float duty, float duty_Limit5) { motor_cmd(0x104, duty); }
+void actuator_motor1(float duty, float duty_Limit1) { motor_cmd_can1(0x100, duty); }
+void actuator_motor2(float duty, float duty_Limit2) { motor_cmd_can1(0x101, duty); }
+void actuator_motor3(float duty, float duty_Limit3) { motor_cmd_can2(0x102, duty); }
+void actuator_motor4(float duty, float duty_Limit4) { motor_cmd_can2(0x103, duty); }
+void actuator_motor5(float duty, float duty_Limit5) { motor_cmd_can1(0x104, duty); }
 
 void actuator_kicker_voltage(float voltage)
 {
