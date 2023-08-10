@@ -223,11 +223,11 @@ void ICM20602_read_IMU_data(float imu_dt_sec)
 {
     static float gyro_prv[3] = {0.0f};
 
-    acc[0] = ICM20602_getAccXvalue() * IMU_ONE_G * aRes;
-    acc[1] = ICM20602_getAccYvalue() * IMU_ONE_G * aRes;
-    acc[2] = ICM20602_getAccZvalue() * IMU_ONE_G * aRes;
-    gyro[0] = ICM20602_getGyrXvalue() * gRes;
-    gyro[1] = ICM20602_getGyrYvalue() * gRes;
+    //acc[0] = ICM20602_getAccXvalue() * IMU_ONE_G * aRes;
+    //acc[1] = ICM20602_getAccYvalue() * IMU_ONE_G * aRes;
+    //acc[2] = ICM20602_getAccZvalue() * IMU_ONE_G * aRes;
+   // gyro[0] = ICM20602_getGyrXvalue() * gRes;
+    //gyro[1] = ICM20602_getGyrYvalue() * gRes;
     gyro[2] = ICM20602_getGyrZvalue() * gRes;
 
     ICM20602_medianFilter();
@@ -235,12 +235,12 @@ void ICM20602_read_IMU_data(float imu_dt_sec)
     imu_temperature = (ICM20602_getIMUTemp() / 326.8f) + 25.0f;
     ICM20602_IMU_compensate();
 
-    pitch_angle = pitch_angle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt_sec) * 1;  //とりあえず変えておく
-    roll_angle = roll_angle + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt_sec) * 1;
+    //pitch_angle = pitch_angle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt_sec) * 1;  //とりあえず変えておく
+    //roll_angle = roll_angle + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt_sec) * 1;
     yaw_angle = yaw_angle + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt_sec) * 1;
 
-    pitch_angle = ICM20602_normAngle(pitch_angle);
-    roll_angle  = ICM20602_normAngle(roll_angle);
+   // pitch_angle = ICM20602_normAngle(pitch_angle);
+    //roll_angle  = ICM20602_normAngle(roll_angle);
     yaw_angle   = ICM20602_normAngle(yaw_angle);
 
     gyro_prv[0] = gyro_comp[0];

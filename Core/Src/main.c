@@ -30,6 +30,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdarg.h>
+
 #include "dma_printf.h"
 #include "dma_scanf.h"
 #include "management.h"
@@ -41,17 +43,6 @@
 #endif /* __GNUC__ */
 
 void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
-
-/*int __io_putchar(int ch)
-{
-	  dma_printf_putc(ch&0xFF);
-		return ch;
-}
-
-int __io_getchar(void)
-{
-	  return dma_scanf_getc_blocking();
-}*/
 
 /* USER CODE END Includes */
 
@@ -98,9 +89,7 @@ void maintask_run();
 void maintask_stop();
 void maintask_emargency();
 void maintask_state_stop();
-long map(long x, long in_min, long in_max, long out_min, long out_max);
-float getAngleDiff(float angle_rad1, float angle_rad2);
-float normalizeAngle(float angle_rad);
+
 uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
@@ -147,12 +136,12 @@ TIM_OC_InitTypeDef sConfigOC;
 TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 UART_HandleTypeDef * huart_xprintf;
 
-int16_t mouse_raw_latest[2];
-float mouse_odom[2];
+int16_t mouse_raw_latest[2] = {0};
+float mouse_odom[2] = {0};
 
-float32_t motor_enc_angle[5];
-float32_t pre_motor_enc_angle[5];
-float32_t omni_angle_diff[4];
+float32_t motor_enc_angle[5] = {0};
+float32_t pre_motor_enc_angle[5] = {0};
+float32_t omni_angle_diff[4] = {0};
 
 float omni_travel[2];
 float32_t floor_odom_diff[2] = {0, 0}, robot_pos_diff[2] = {0, 0};
@@ -165,17 +154,24 @@ float32_t omni_odom_speed[2] = {0};
 #define SPEED_LOG_BUF_SIZE 100
 float32_t omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200ms
 
-#define printf_LOG_BUF_SIZE 500
-char Tx_printf_data[printf_LOG_BUF_SIZE];
+#define printf_BUF_SIZE 500
+static char printf_buffer[printf_BUF_SIZE];
 
-int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
-uint8_t start_byte_idx;
+int ball_local_x = 0, ball_local_y = 0, ball_local_radius = 0, ball_local_FPS = 0;
+uint8_t start_byte_idx = 0;
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void p(const char * format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vsprintf(printf_buffer + strlen(printf_buffer), format, args);
+  va_end(args);
+}
 /* USER CODE END 0 */
 
 /**
@@ -249,7 +245,7 @@ int main(void)
   HAL_UART_Init(&huart2);
   HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxbuf_from_ether, RX_BUF_SIZE_ETHER);
 
-  HAL_ADC_Start_DMA(&hadc5, (uint32_t *)adc_sw_data, 1);
+  HAL_ADC_Start_DMA(&hadc5, &adc_sw_data, 1);
 
   actuator_power_ONOFF(0);
   HAL_Delay(20);
@@ -287,6 +283,7 @@ int main(void)
 
   HAL_Delay(100);
   HAL_TIM_Base_Start_IT(&htim7);
+  // TIM interrupt is TIM7 only.
 
   mouse_odom[0] = 0;
   mouse_odom[1] = 0;
@@ -349,6 +346,8 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
+  // TIM interrupt is TIM7 only.
+
   static uint8_t pre_sw_mode;
   ICM20602_read_IMU_data(0.002);
   pre_sw_mode = sw_mode;
@@ -480,8 +479,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       maintask_stop();
       break;
   }
+  uint32_t tim_cnt_task_end = htim->Instance->CNT;
 
-  /*
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
   buzzer_cnt++;
@@ -501,40 +500,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuator_buzzer_off();
     }
   }
-*/
-  static uint16_t cnt_time_100Hz;
-  cnt_time_100Hz++;
-  if (cnt_time_100Hz > 10) {
-    cnt_time_100Hz = 0;
-
-    if (sw_mode > 0) {
-      sprintf(Tx_printf_data, "yaw=%+6.1f ", yaw_angle);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
-      sprintf(Tx_printf_data + strlen(Tx_printf_data), " Batt=%3.1f ", power_voltage[0]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," con %3d ", connection_check_cnt);
-      sprintf(Tx_printf_data + strlen(Tx_printf_data), " vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
-      //sprintf(Tx_printf_data + strlen(Tx_printf_data)," start_byte_idx=%d ", start_byte_idx);
-      sprintf(Tx_printf_data + strlen(Tx_printf_data), " ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
-      sprintf(Tx_printf_data + strlen(Tx_printf_data), "\r\n");
-    }
-
-    HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)Tx_printf_data, printf_LOG_BUF_SIZE);
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-
-    actuator_power_ONOFF(1);
-  }
 
   connection_check_cnt++;
   if (connection_check_cnt > 200) {
@@ -547,6 +512,44 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
     connection_check_cnt = 0;
     connection_check_pre = connection_check_ver;
+  }
+
+  actuator_power_ONOFF(1);
+
+  // interrupt : 500Hz
+  static uint16_t cnt_time_50Hz;
+  cnt_time_50Hz++;
+  if (cnt_time_50Hz > 10) {
+    cnt_time_50Hz = 0;
+
+    if (sw_mode > 0) {
+      // initialize
+      printf_buffer[0] = 0;
+      p("yaw=%+6.1f ", yaw_angle);
+      //p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
+      //p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
+      //p(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
+      p(" Batt=%3.1f ", power_voltage[0]);
+      //p(" mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
+      //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
+      //p(" con %3d ", connection_check_cnt);
+      p(" vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
+      //p(" grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
+      //p(" ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+      //p(" tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
+      //p(" PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
+      //p(" omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
+      //p(" mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
+      //p(" local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
+      //p(" tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
+      //p(" start_byte_idx=%d ", start_byte_idx);
+      p(" ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
+      p("TIM7 cnt %5d -> %5d ",  tim_cnt_task_end, htim->Instance->CNT);  // MAX 2000
+      p("\r\n");
+      HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
+    }
+
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
   }
 }
 
@@ -701,6 +704,13 @@ void omni_odometory(/*float motor_angle[4],float yaw_rad*/)
   // motor_enc_angle,/yaw_angle_rad
 
   for (int i = 0; i < 4; i++) {
+    /*if (motor_enc_angle[i] < -M_PI) {
+      motor_enc_angle[i] = -M_PI;
+    } else if (motor_enc_angle[i] > M_PI) {
+      motor_enc_angle[i] = M_PI;
+    } else if (isnan(motor_enc_angle[i])) {
+      motor_enc_angle[i] = 0;
+    }*/
     omni_angle_diff[i] = getAngleDiff(motor_enc_angle[i], pre_motor_enc_angle[i]);
     pre_motor_enc_angle[i] = motor_enc_angle[i];
   }
@@ -990,7 +1000,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     ai_cmd.allow_local_feedback = data_from_ether[25];
 
-    //AIからのデータがない時は全部0にする
+    //AIからの�?ータがな�?時�?�全部0にする
     if (ether_connect == 0) {
       ai_cmd.local_target_speed[0] = 0;
       ai_cmd.local_target_speed[1] = 0;

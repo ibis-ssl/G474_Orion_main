@@ -28,14 +28,9 @@ void actuator_motor5(float duty, float duty_Limit5) { motor_cmd_can1(0x104, duty
 void actuator_kicker_voltage(float voltage)
 {
   uint8_t senddata_kick[8];
-  uint8_t senddata_voltage[4];
-  float_to_uchar4(senddata_voltage, voltage);
+  float_to_uchar4(&senddata_kick[1], voltage);
 
   senddata_kick[0] = 0;
-  senddata_kick[1] = senddata_voltage[0];
-  senddata_kick[2] = senddata_voltage[1];
-  senddata_kick[3] = senddata_voltage[2];
-  senddata_kick[4] = senddata_voltage[3];
   can1_send(0x110, senddata_kick);
 }
 
@@ -81,43 +76,37 @@ void actuator_power_param(uint8_t id, float param)
  *   5=>maxtemp(solenoid)
  * */
 
-  uint8_t senddata_power_param_temp[8];
   uint8_t senddata_power_param[8];
 
-  float_to_uchar4(senddata_power_param_temp, param);
   senddata_power_param[0] = id;
-  senddata_power_param[1] = senddata_power_param_temp[0];
-  senddata_power_param[2] = senddata_power_param_temp[1];
-  senddata_power_param[3] = senddata_power_param_temp[2];
-  senddata_power_param[4] = senddata_power_param_temp[3];
+  float_to_uchar4(&senddata_power_param[1], param);
 
   can1_send(0x010, senddata_power_param);
 }
 
 void actuator_motor_param(uint8_t param1, float m1p, uint8_t param2, float m2p, uint8_t param3, float m3p, uint8_t param4, float m4p, uint8_t param5, float m5p)
 {
-  uint8_t senddata_temp[4];
-  uint8_t senddata_param[8];
+  uint8_t send_data_param[8];
 
-  float_to_uchar4(&senddata_param[1], m1p);
-  senddata_param[0] = param1;
-  can1_send(0x300, senddata_param);
+  float_to_uchar4(&send_data_param[1], m1p);
+  send_data_param[0] = param1;
+  can1_send(0x300, send_data_param);
 
-  float_to_uchar4(&senddata_param[1], m2p);
-  senddata_param[0] = param2;
-  can1_send(0x301, senddata_param);
+  float_to_uchar4(&send_data_param[1], m2p);
+  send_data_param[0] = param2;
+  can1_send(0x301, send_data_param);
 
-  float_to_uchar4(&senddata_param[1], m3p);
-  senddata_param[0] = param3;
-  can2_send(0x302, senddata_param);
+  float_to_uchar4(&send_data_param[1], m3p);
+  send_data_param[0] = param3;
+  can2_send(0x302, send_data_param);
 
-  float_to_uchar4(&senddata_param[1], m4p);
-  senddata_param[0] = param4;
-  can2_send(0x303, senddata_param);
+  float_to_uchar4(&send_data_param[1], m4p);
+  send_data_param[0] = param4;
+  can2_send(0x303, send_data_param);
 
-  float_to_uchar4(&senddata_param[1], m5p);
-  senddata_param[0] = param5;
-  can1_send(0x304, senddata_param);
+  float_to_uchar4(&send_data_param[1], m5p);
+  send_data_param[0] = param5;
+  can1_send(0x304, send_data_param);
 }
 
 void actuator_buzzer(uint16_t ontime, uint16_t offtime)
