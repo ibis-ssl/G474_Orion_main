@@ -73,7 +73,7 @@ const float OMNI_DIR_LENGTH = OMNI_DIAMETER * M_PI;
 
 #define OMNI_OUTPUT_LIMIT (4)    // ~ m/s
 #define OMNI_OUTPUT_GAIN (-250)  // ~ m/s / m : 250 -> 4cm : 1m/s
-#define OMEGA_LIMIT (2.0)        // ~ rad/s
+#define OMEGA_LIMIT (20.0)        // ~ rad/s
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 #define ACCEL_LIMIT (4.0)  // m/ss
@@ -108,7 +108,6 @@ uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
 uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
 uint32_t adc_sw_data;
-uint8_t emergency_flag;
 float motor_feedback[5];
 float motor_feedback_velocity[5];
 float power_voltage[7];
@@ -590,34 +589,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   }
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  if (HAL_GetTick() > 2000) {
-    uint8_t cnt = 0;
-    while (cnt < 100) {
-      if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) == 1) {
-        cnt++;
-        delayUs(1);
-      } else {
-        break;
-      }
-    }
-
-    if (cnt >= 100) {
-      emergency_flag = 1;
-      printf("Emergency Stop !!!!!!!!!!!!!");
-      for (int i = 0; i < 50; i++) {
-        maintask_emargency();
-      }
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 0);
-      NVIC_SystemReset();
-      emergency_flag = 0;
-    } else {
-      emergency_flag = 0;
-    }
-  }
-}
-
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs)
 {
   uint8_t RxData[CAN_RX_DATA_SIZE];
@@ -927,11 +898,10 @@ void maintask_run()
 
 void maintask_emargency()
 {
-  actuator_motor1(0.0, 0.0);
-  actuator_motor2(0.0, 0.0);
-  actuator_motor3(0.0, 0.0);
-  actuator_motor4(0.0, 0.0);
+  omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
+  actuator_kicker(1, 0);
+  actuator_kicker_voltage(0.0);
 
   tx_data_uart[0] = 0xFE;
   tx_data_uart[1] = 0xFC;
@@ -951,9 +921,6 @@ void maintask_emargency()
   can1_send(0x000, senddata_error);
   can2_send(0x000, senddata_error);
 
-  actuator_kicker(1, 0);
-  actuator_kicker_voltage(0.0);
-
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
 }
 
@@ -964,6 +931,8 @@ void maintask_state_stop()
 
   omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
+  actuator_kicker(1, 0);
+  actuator_kicker_voltage(0.0);
 
   tx_data_uart[0] = 0xFE;
   tx_data_uart[1] = 0xFC;
@@ -975,21 +944,18 @@ void maintask_state_stop()
   tx_data_uart[7] = 1;
   tx_data_uart[8] = (uint8_t)power_voltage[4];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
-
-  actuator_kicker(1, 0);
-  actuator_kicker_voltage(0.0);
 }
 
 void maintask_stop()
 {
-  omni_move(0.0, 0.0, 0.0, 0.0);
-  actuator_motor5(0.0, 0.0);
 
   uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
   uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
 
   omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
+  actuator_kicker(1, 0);
+  actuator_kicker_voltage(0.0);
 
   tx_data_uart[0] = 0xFE;
   tx_data_uart[1] = 0xFC;
@@ -1001,9 +967,6 @@ void maintask_stop()
   tx_data_uart[7] = 0;
   tx_data_uart[8] = (uint8_t)power_voltage[4];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
-
-  actuator_kicker(1, 0);
-  actuator_kicker_voltage(0.0);
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {

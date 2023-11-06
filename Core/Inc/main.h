@@ -74,9 +74,6 @@ void p(const char * format, ...);
 #define UART2_TX_ETH_GPIO_Port GPIOB
 #define UART2_RX_ETH_Pin GPIO_PIN_4
 #define UART2_RX_ETH_GPIO_Port GPIOB
-#define ESTOP_Pin GPIO_PIN_9
-#define ESTOP_GPIO_Port GPIOB
-#define ESTOP_EXTI_IRQn EXTI9_5_IRQn
 
 /* USER CODE BEGIN Private defines */
 
