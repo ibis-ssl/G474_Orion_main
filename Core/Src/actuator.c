@@ -120,3 +120,160 @@ void actuator_buzzer(uint16_t ontime, uint16_t offtime)
 
 void actuator_buzzer_on() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 250); }
 void actuator_buzzer_off() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0); }
+
+void morse_short() { actuator_buzzer(40, 20); }
+void morse_long() { actuator_buzzer(120, 20); }
+
+void morse_machine_name()
+{
+  //i
+  morse_short();
+  morse_short();
+
+  HAL_Delay(80);
+
+  //b
+  morse_long();
+  morse_short();
+  morse_short();
+  morse_short();
+
+  HAL_Delay(80);
+
+  //i
+  morse_short();
+  morse_short();
+
+  HAL_Delay(80);
+
+  //s
+  morse_short();
+  morse_short();
+  morse_short();
+
+  HAL_Delay(300);
+
+  //o
+  morse_long();
+  morse_long();
+  morse_long();
+
+  HAL_Delay(80);
+
+  //r
+  morse_long();
+  morse_short();
+  morse_long();
+
+  HAL_Delay(80);
+
+  //i
+  morse_short();
+  morse_short();
+
+  HAL_Delay(80);
+
+  //o
+  morse_long();
+  morse_long();
+  morse_long();
+
+  HAL_Delay(80);
+
+  //n
+  morse_long();
+  morse_short();
+
+  HAL_Delay(80);
+}
+void morse_period()
+{
+  morse_short();
+  morse_long();
+  morse_short();
+  morse_long();
+  morse_short();
+  morse_long();
+  morse_short();
+  morse_long();
+
+  HAL_Delay(80);
+}
+
+void morse_number(uint8_t value)
+{
+  switch (value) {
+    case 0:
+      morse_long();
+      morse_long();
+      morse_long();
+      morse_long();
+      morse_long();
+      break;
+    case 1:
+      morse_short();
+      morse_long();
+      morse_long();
+      morse_long();
+      morse_long();
+      break;
+    case 2:
+      morse_short();
+      morse_short();
+      morse_long();
+      morse_long();
+      morse_long();
+      break;
+    case 3:
+      morse_short();
+      morse_short();
+      morse_short();
+      morse_long();
+      morse_long();
+      break;
+    case 4:
+      morse_short();
+      morse_short();
+      morse_short();
+      morse_short();
+      morse_long();
+      break;
+    case 5:
+      morse_short();
+      morse_short();
+      morse_short();
+      morse_short();
+      morse_short();
+      break;
+    case 6:
+      morse_long();
+      morse_short();
+      morse_short();
+      morse_short();
+      morse_short();
+      break;
+    case 7:
+      morse_long();
+      morse_long();
+      morse_short();
+      morse_short();
+      morse_short();
+      break;
+    case 8:
+      morse_long();
+      morse_long();
+      morse_long();
+      morse_short();
+      morse_short();
+      break;
+    case 9:
+      morse_long();
+      morse_long();
+      morse_long();
+      morse_long();
+      morse_short();
+      break;
+  }
+
+  HAL_Delay(80);
+}

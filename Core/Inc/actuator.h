@@ -26,4 +26,10 @@ void actuator_buzzer_on();
 void actuator_buzzer_off();
 void actuator_kicker_voltage(float voltage);
 
+void morse_machine_name();
+void morse_short();
+void morse_long();
+void morse_period();
+void morse_number(uint8_t value);
+
 #endif /* ACTUATOR_H_ */

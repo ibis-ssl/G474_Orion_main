@@ -112,10 +112,9 @@ uint32_t adc_sw_data;
 uint8_t emergency_flag;
 float motor_feedback[5];
 float motor_feedback_velocity[5];
-float voltage[6];
-float power_voltage[6];
-float temperature[6];
-float amplitude[5];
+float power_voltage[7];
+float temperature[7];
+float current[5];
 uint8_t ball_detection[4];
 
 uint8_t error_no[4];
@@ -227,9 +226,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
   kick_state = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
-  for (int i = 0; i < 3; i++) {
-    actuator_buzzer(20, 20);
-  }
+
+  //morse_machine_name();
 
   HAL_UART_Init(&hlpuart1);
   setbuf(stdin, NULL);
@@ -424,28 +422,38 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       omni_move(0.0, 0.0, 0.0, 0.0);
       break;
 
-    case 5:
+    case 5:  // kicker test (auto)
+      if (kick_state == 1) {
+        kick_time++;
+        if (kick_time > 100) {
+          kick_state = 0;
+          kick_time = 0;
+        }
+      }
       if (decode_SW(adc_sw_data) & 0b00010000) {
         actuator_motor5(0.5, 1.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
         if (ball_detection[0] == 1) {
           if (kick_state == 0) {
+            actuator_kicker(2, 0);  // straight
             actuator_kicker(3, 100);
             kick_state = 1;
           }
         }
-        if (kick_state == 1) {
-          kick_time++;
-          if (kick_time > 100) {
-            kick_state = 0;
-            kick_time = 0;
+      } else if (decode_SW(adc_sw_data) & 0b00000010) {
+        actuator_motor5(0.5, 1.0);
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+        if (ball_detection[0] == 1) {
+          if (kick_state == 0) {
+            actuator_kicker(2, 1);  // chip
+            actuator_kicker(3, 100);
+            kick_state = 1;
           }
         }
       } else {
         actuator_motor5(0.0, 0.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-        actuator_kicker(1, 1);
-        actuator_kicker(2, 0);
+        actuator_kicker(1, 1);  // charge enable
         actuator_kicker_voltage(250.0);
         kick_state = 0;
         kick_time = 0;
@@ -453,32 +461,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       omni_move(0.0, 0.0, 0.0, 0.0);
       break;
 
-    case 6:
-      if (decode_SW(adc_sw_data) & 0b00010000) {
-        actuator_motor5(0.5, 1.0);
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-        if (ball_detection[0] == 1) {
-          if (kick_state == 0) {
-            actuator_kicker(3, 100);
-            kick_state = 1;
-          }
+    case 6:  // kicker test (manual)
+
+      if (kick_state == 1) {
+        kick_time++;
+        if (kick_time > 100) {
+          kick_state = 0;
+          kick_time = 0;
         }
-        if (kick_state == 1) {
-          kick_time++;
-          if (kick_time > 100) {
-            kick_state = 0;
-            kick_time = 0;
-          }
+      }
+      if (decode_SW(adc_sw_data) & 0b00010000) {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+
+        if (kick_state == 0) {
+          actuator_kicker(2, 0);  // straight
+          actuator_kicker(3, 100);
+          kick_state = 1;
+        }
+      } else if (decode_SW(adc_sw_data) & 0b00000010) {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+
+        if (kick_state == 0) {
+          actuator_kicker(2, 1);  // straight
+          actuator_kicker(3, 100);
+          kick_state = 1;
         }
       } else {
-        actuator_motor5(0.0, 0.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
         actuator_kicker(1, 1);
-        actuator_kicker(2, 1);
-        actuator_kicker_voltage(0.0);
+        actuator_kicker_voltage(250.0);
         kick_state = 0;
         kick_time = 0;
       }
+      actuator_motor5(0.0, 0.0);
       omni_move(0.0, 0.0, 0.0, 0.0);
       break;
 
@@ -517,6 +532,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       ether_connect = 0;
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
     }
+    //ether_connect = 1;
     connection_check_cnt = 0;
     connection_check_pre = connection_check_ver;
   }
@@ -535,8 +551,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       p("yaw=%+6.1f ", yaw_angle);
       //p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
       //p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
-      //p(" t0=%.3f t1=%.3f t2=%.3f t3=%.3f",temperature[0],temperature[1],temperature[2],temperature[3]);
+      //p(" FET=%.3f C1=%.3f C2=%.3f", temperature[4], temperature[5], temperature[6]);
       p(" Batt=%3.1f ", power_voltage[0]);
+      //p(" Cap=%3.0f BattC %+6.1f", power_voltage[6], current[4]);
       //p(" mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
       //p(" con %3d ", connection_check_cnt);
@@ -641,23 +658,27 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
         power_voltage[rx_can_id - 0x210] = uchar4_to_float(RxData);
         break;
 
-      // temperature
+      // temperature from BLDC
       case 0x220:
       case 0x221:
       case 0x222:
       case 0x223:
-      case 0x224:
-      case 0x225:
         temperature[rx_can_id - 0x220] = uchar4_to_float(RxData);
         break;
+      // temperature from power
+      case 0x224:
+        temperature[4] = RxData[0];  // fet
+        temperature[5] = RxData[1];  // coil 1
+        temperature[6] = RxData[2];  // coil 2
+        break;
 
-      // amplitude
+      // current
       case 0x230:
       case 0x231:
       case 0x232:
       case 0x233:
       case 0x234:
-        amplitude[rx_can_id - 0x230] = uchar4_to_float(RxData);
+        current[rx_can_id - 0x230] = uchar4_to_float(RxData);
         break;
 
       // ball_detection
