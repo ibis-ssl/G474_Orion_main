@@ -392,19 +392,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     case 3:  // motor test
       if (decode_SW(adc_sw_data) & 0b00000001) {
-        omni_move(1.0, 0.0, 0.0, 1.0);  // fwd
+        omni_move(2.0, 0.0, 0.0, 2.0);  // fwd
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
       } else if (decode_SW(adc_sw_data) & 0b00000010) {
-        omni_move(-1.0, 0.0, 0.0, 1.0);  // back
+        omni_move(-2.0, 0.0, 0.0, 2.0);  // back
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
       } else if (decode_SW(adc_sw_data) & 0b00000100) {
-        omni_move(0.0, -1.0, 0.0, 1.0);  // left
+        omni_move(0.0, -2.0, 0.0, 2.0);  // left
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
       } else if (decode_SW(adc_sw_data) & 0b00001000) {
-        omni_move(0.0, 1.0, 0.0, 1.0);  // right
+        omni_move(0.0, 2.0, 0.0, 2.0);  // right
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
       } else if (decode_SW(adc_sw_data) & 0b00010000) {
-        omni_move(0.0, 0.0, 7.0, 1.0);  // spin
+        omni_move(0.0, 0.0, 20.0, 2.0);  // spin
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
       } else {
         omni_move(0.0, 0.0, 0.0, 0.0);
