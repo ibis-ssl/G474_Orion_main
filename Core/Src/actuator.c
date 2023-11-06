@@ -25,6 +25,9 @@ void actuator_motor3(float duty, float duty_Limit3) { motor_cmd_can2(0x102, duty
 void actuator_motor4(float duty, float duty_Limit4) { motor_cmd_can2(0x103, duty); }
 void actuator_motor5(float duty, float duty_Limit5) { motor_cmd_can1(0x104, duty); }
 
+void actuator_dribbler_up() { motor_cmd_can1(0x105, 0.8); }
+void actuator_dribbler_down() { motor_cmd_can1(0x105, 0); }
+
 void actuator_kicker_voltage(float voltage)
 {
   uint8_t senddata_kick[8];
@@ -55,17 +58,9 @@ void actuator_power_ONOFF(uint8_t power_on)
   senddata_power[0] = 0;
   senddata_power[1] = power_on;
   can1_send(0x010, senddata_power);
+  can2_send(0x010, senddata_power);
 }
 
-void actuator_system_shutdown()
-{
-  uint8_t senddata_shutdown[8];
-  senddata_shutdown[0] = 255;
-  senddata_shutdown[1] = 0xFF;
-  senddata_shutdown[2] = 0x00;
-  senddata_shutdown[3] = 0xFF;
-  can1_send(0x010, senddata_shutdown);
-}
 
 void actuator_power_param(uint8_t id, float param)
 {

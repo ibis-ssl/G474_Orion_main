@@ -19,14 +19,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "gpio.h"
+#include "usart.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -104,7 +103,7 @@ float roll_angle;
 float yaw_angle, pre_yaw_angle;
 float yaw_angle_rad, pre_yaw_angle_rad;
 
-volatile int kick_state, kick_time;
+volatile int kick_state, kick_time, dribbler_up;
 uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
 uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
@@ -333,19 +332,22 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
     Error_Handler();
   }
 }
@@ -470,6 +472,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
           kick_time = 0;
         }
       }
+
+      if (dribbler_up == 0 && decode_SW(adc_sw_data) & 0b00000100) {
+        dribbler_up = 1;
+        actuator_dribbler_down();
+      } else if (dribbler_up == 1 && decode_SW(adc_sw_data) & 0b00001000) {
+        dribbler_up = 0;
+        actuator_dribbler_up();
+      }
+
       if (decode_SW(adc_sw_data) & 0b00010000) {
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
 
@@ -570,7 +581,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       p("tar %+3.0f %+3.0f ", tar_vel[0], tar_vel[1]);
       p("tar-c %+6.2f %+6.2f ", tar_vel_current[0], tar_vel_current[1]);
       //p(" ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
-      //p("TIM7 cnt %5d -> %5d ", tim_cnt_task_end, htim->Instance->CNT);  // MAX 2000
+      p(" cpu %3d ", htim->Instance->CNT / 20);  // MAX 2000
       p("\r\n");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
     }
@@ -889,8 +900,10 @@ void maintask_run()
 
   if (ai_cmd.chip_en == 1) {
     actuator_kicker(2, 1);
+    actuator_dribbler_up();
   } else {
     actuator_kicker(2, 0);
+    actuator_dribbler_down();
   }
   actuator_kicker(1, 1);
   actuator_kicker_voltage(250.0);
@@ -1059,7 +1072,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     ai_cmd.allow_local_feedback = data_from_ether[25];
 
-    //AIからの�?ータがな�?時�?�全部0にする
+    // time out
     if (ether_connect == 0) {
       ai_cmd.local_target_speed[0] = 0;
       ai_cmd.local_target_speed[1] = 0;
@@ -1113,7 +1126,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1121,7 +1134,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t * file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
