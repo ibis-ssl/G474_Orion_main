@@ -19,13 +19,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "usart.h"
+#include "gpio.h"
 #include "spi.h"
 #include "tim.h"
-#include "gpio.h"
+#include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -73,7 +74,7 @@ const float OMNI_DIR_LENGTH = OMNI_DIAMETER * M_PI;
 
 #define OMNI_OUTPUT_LIMIT (4)    // ~ m/s
 #define OMNI_OUTPUT_GAIN (-250)  // ~ m/s / m : 250 -> 4cm : 1m/s
-#define OMEGA_LIMIT (20.0)        // ~ rad/s
+#define OMEGA_LIMIT (20.0)       // ~ rad/s
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 #define ACCEL_LIMIT (4.0)  // m/ss
@@ -91,21 +92,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void maintask_run();
-void maintask_stop();
-void maintask_emargency();
-void maintask_state_stop();
+
+void maintask_stop(uint8_t mode, uint8_t info);
 
 uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
-float pitch_angle;
-float roll_angle;
-float yaw_angle, pre_yaw_angle;
+// for IMU
+static float yaw_angle, pre_yaw_angle;
 float yaw_angle_rad, pre_yaw_angle_rad;
 
+// kicker
 volatile int kick_state, kick_time, dribbler_up;
-uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
-uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
 uint32_t adc_sw_data;
 float motor_feedback[5];
@@ -130,14 +128,10 @@ struct
   int global_global_target_position[2];
   int global_ball_position[2];
   uint8_t allow_local_feedback;
+  int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
 } ai_cmd;
 
-FDCAN_TxHeaderTypeDef TxHeader;
-FDCAN_FilterTypeDef sFilterConfig;
 
-TIM_MasterConfigTypeDef sMasterConfig;
-TIM_OC_InitTypeDef sConfigOC;
-TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 UART_HandleTypeDef * huart_xprintf;
 
 int16_t mouse_raw_latest[2] = {0};
@@ -151,7 +145,6 @@ float omni_travel[2];
 float floor_odom_diff[2] = {0, 0}, robot_pos_diff[2] = {0, 0};
 float tar_pos[2] = {0, 0};
 float tar_vel[2] = {0, 0};  // m/s
-static float pre_tar_vel[2] = {0, 0};
 float tar_accel[2] = {0, 0};
 float tar_vel_current[2] = {0, 0};
 
@@ -164,8 +157,6 @@ float omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
 
-int ball_local_x = 0, ball_local_y = 0, ball_local_radius = 0, ball_local_FPS = 0;
-uint8_t start_byte_idx = 0;
 
 /* USER CODE END PFP */
 
@@ -331,22 +322,19 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -357,7 +345,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // TIM interrupt is TIM7 only.
 
   static uint8_t pre_sw_mode;
-  ICM20602_read_IMU_data(0.002);
+  yaw_angle = ICM20602_read_IMU_data(0.002);
   pre_sw_mode = sw_mode;
   sw_mode = 15 - (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) + (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1) + (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) << 3) + (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2) << 2));
 
@@ -508,10 +496,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     default:
-      maintask_stop();
+      maintask_stop(0, 1);
       break;
   }
-  uint32_t tim_cnt_task_end = htim->Instance->CNT;
 
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
@@ -610,13 +597,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
       case 0x001:
         error_no[0] = RxData[0];
         error_no[1] = RxData[1];
-        maintask_stop();
-        break;
-      case 0x002:
-        break;
-      case 0x003:
-        break;
-      case 0x004:
+        maintask_stop(0, 0);
         break;
 
       // motor_feedback
@@ -843,7 +824,7 @@ void maintask_run()
   if (!ether_connect && sw_mode == 0) {
     ai_cmd.local_target_speed[0] = 0;
     ai_cmd.local_target_speed[1] = 0;
-    maintask_state_stop();
+    maintask_stop(1, 0);
     return;  // without move
   }
 
@@ -884,6 +865,8 @@ void maintask_run()
   uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
   uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
 
+  uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
+
   tx_data_uart[0] = 0xFE;
   tx_data_uart[1] = 0xFC;
   tx_data_uart[2] = (uint8_t)yaw_angle_send_low;
@@ -896,35 +879,7 @@ void maintask_run()
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 }
 
-void maintask_emargency()
-{
-  omni_move(0.0, 0.0, 0.0, 0.0);
-  actuator_motor5(0.0, 0.0);
-  actuator_kicker(1, 0);
-  actuator_kicker_voltage(0.0);
-
-  tx_data_uart[0] = 0xFE;
-  tx_data_uart[1] = 0xFC;
-  tx_data_uart[2] = error_no[0];
-  tx_data_uart[3] = error_no[1];
-  tx_data_uart[4] = error_no[2];
-  tx_data_uart[5] = error_no[3];
-  tx_data_uart[6] = 252;
-  tx_data_uart[7] = 122;
-  tx_data_uart[8] = 200;
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
-
-  actuator_buzzer(150, 150);
-
-  uint8_t senddata_error[8];
-
-  can1_send(0x000, senddata_error);
-  can2_send(0x000, senddata_error);
-
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
-}
-
-void maintask_state_stop()
+void maintask_stop(uint8_t mode, uint8_t info)
 {
   uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
   uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
@@ -933,6 +888,8 @@ void maintask_state_stop()
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
+  
+  uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
   tx_data_uart[0] = 0xFE;
   tx_data_uart[1] = 0xFC;
@@ -940,37 +897,27 @@ void maintask_state_stop()
   tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
   tx_data_uart[4] = error_no[0];
   tx_data_uart[5] = error_no[1];
-  tx_data_uart[6] = 1;
-  tx_data_uart[7] = 1;
+  tx_data_uart[6] = mode;
+  tx_data_uart[7] = info;
   tx_data_uart[8] = (uint8_t)power_voltage[4];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
+
+  if (mode) {
+    actuator_buzzer(150, 150);
+
+    uint8_t senddata_error[8];
+    can1_send(0x000, senddata_error);
+    can2_send(0x000, senddata_error);
+
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+  }
 }
 
-void maintask_stop()
-{
-
-  uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
-  uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
-
-  omni_move(0.0, 0.0, 0.0, 0.0);
-  actuator_motor5(0.0, 0.0);
-  actuator_kicker(1, 0);
-  actuator_kicker_voltage(0.0);
-
-  tx_data_uart[0] = 0xFE;
-  tx_data_uart[1] = 0xFC;
-  tx_data_uart[2] = (uint8_t)yaw_angle_send_low;
-  tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
-  tx_data_uart[4] = error_no[0];
-  tx_data_uart[5] = error_no[1];
-  tx_data_uart[6] = 0;
-  tx_data_uart[7] = 0;
-  tx_data_uart[8] = (uint8_t)power_voltage[4];
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, 32);
-}
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
-  start_byte_idx = 0;
+  uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
+  uint8_t start_byte_idx = 0;
+
 
   if (huart->Instance == huart2.Instance) {
     while (rxbuf_from_ether[start_byte_idx] != 254 && start_byte_idx < sizeof(rxbuf_from_ether)) {
@@ -1035,6 +982,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     ai_cmd.allow_local_feedback = data_from_ether[25];
 
+    ai_cmd.ball_local_x = data_from_ether[RX_BUF_SIZE_ETHER - 8] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 7];
+    ai_cmd.ball_local_y = data_from_ether[RX_BUF_SIZE_ETHER - 6] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 5];
+    ai_cmd.ball_local_radius = data_from_ether[RX_BUF_SIZE_ETHER - 4] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 3];
+    ai_cmd.ball_local_FPS = data_from_ether[RX_BUF_SIZE_ETHER - 2];
+
     // time out
     if (ether_connect == 0) {
       ai_cmd.local_target_speed[0] = 0;
@@ -1054,10 +1006,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       ai_cmd.allow_local_feedback = 0;
     }
 
-    ball_local_x = data_from_ether[RX_BUF_SIZE_ETHER - 8] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 7];
-    ball_local_y = data_from_ether[RX_BUF_SIZE_ETHER - 6] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 5];
-    ball_local_radius = data_from_ether[RX_BUF_SIZE_ETHER - 4] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 3];
-    ball_local_FPS = data_from_ether[RX_BUF_SIZE_ETHER - 2];
 
     connection_check_ver = data_from_ether[1];
   }
@@ -1081,7 +1029,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   while (1) {
-    maintask_emargency();
+    maintask_stop(255, 0);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
     actuator_buzzer(200, 200);
     // NVIC_SystemReset();
@@ -1089,7 +1037,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1097,7 +1045,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t * file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,

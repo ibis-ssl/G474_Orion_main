@@ -22,6 +22,10 @@
 
 /* USER CODE BEGIN 0 */
 
+TIM_OC_InitTypeDef sConfigOC;
+TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
+TIM_MasterConfigTypeDef sMasterConfig;
+
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim5;

@@ -7,6 +7,8 @@
 
 #include "can_ibis.h"
 
+FDCAN_TxHeaderTypeDef TxHeader;
+FDCAN_FilterTypeDef sFilterConfig;
 
 // power,FC,mose
 void can1_init_ibis(FDCAN_HandleTypeDef* handler){

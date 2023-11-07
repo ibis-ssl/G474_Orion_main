@@ -152,7 +152,7 @@ int     ICM20602_getGyroRange(void);
 void ICM20602_writeByte(uint8_t, uint8_t);
 uint8_t ICM20602_readByte(uint8_t);
 
-void ICM20602_read_IMU_data(float imu_dt_sec);
+float ICM20602_read_IMU_data(float imu_dt_sec);
 void ICM20602_IMU_calibration();
 void ICM20602_IMU_calibration2();
 void ICM20602_IMU_compensate();

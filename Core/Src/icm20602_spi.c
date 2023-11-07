@@ -1,11 +1,9 @@
 
 #include "icm20602_spi.h"
 
+static float pitch_angle,roll_angle, yaw_angle;
 
-
-
-
-float weight[2]   = {0.5f, 0.5f};
+float weight[2] = {0.5f, 0.5f};
 
 float acc[3];
 float acc_comp[3];
@@ -219,7 +217,7 @@ int ICM20602_getGyroRange(void)
     return Gscale;
 }
 
-void ICM20602_read_IMU_data(float imu_dt_sec)
+float ICM20602_read_IMU_data(float imu_dt_sec)
 {
     static float gyro_prv[3] = {0.0f};
 
@@ -246,6 +244,8 @@ void ICM20602_read_IMU_data(float imu_dt_sec)
     gyro_prv[0] = gyro_comp[0];
     gyro_prv[1] = gyro_comp[1];
     gyro_prv[2] = gyro_comp[2];
+
+    return yaw_angle;
 }
 
 float ICM20602_integral(float val, float val_prv, float dt)

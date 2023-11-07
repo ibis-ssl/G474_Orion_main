@@ -34,13 +34,6 @@
 
 
 
-extern FDCAN_TxHeaderTypeDef TxHeader;
-extern FDCAN_RxHeaderTypeDef RxHeader;
-extern FDCAN_FilterTypeDef  sFilterConfig;
-
-extern TIM_MasterConfigTypeDef sMasterConfig;
-extern TIM_OC_InitTypeDef sConfigOC;
-extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
 #define CAN_RX_DATA_SIZE 8
 #define CAN_TX_DATA_SIZE 8
@@ -50,9 +43,6 @@ extern TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 #define TX_BUF_SIZE_ETHER 64
 
 
-extern float pitch_angle;
-extern float roll_angle;
-extern float yaw_angle;
 
 //extern float32_t voltage[6];
 
