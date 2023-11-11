@@ -1,7 +1,9 @@
 
 #include "icm20602_spi.h"
 
-static float pitch_angle,roll_angle, yaw_angle;
+float pitch_angle, roll_angle;
+
+extern float yaw_angle;
 
 float weight[2] = {0.5f, 0.5f};
 

@@ -99,7 +99,7 @@ uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
 // for IMU
-static float yaw_angle, pre_yaw_angle;
+float yaw_angle, pre_yaw_angle;
 float yaw_angle_rad, pre_yaw_angle_rad;
 
 // kicker
@@ -155,6 +155,7 @@ float omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200
 
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
+uint8_t uart_rx_cnt = 0;
 
 /* USER CODE END PFP */
 
@@ -214,6 +215,7 @@ int main(void)
   kick_state = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
 
+  morse_long();
   //morse_machine_name();
 
   HAL_UART_Init(&hlpuart1);
@@ -343,7 +345,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // TIM interrupt is TIM7 only.
 
   static uint8_t pre_sw_mode;
-  yaw_angle = ICM20602_read_IMU_data(0.002);
+  ICM20602_read_IMU_data(0.002);
   pre_sw_mode = sw_mode;
   sw_mode = 15 - (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) + (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1) + (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) << 3) + (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2) << 2));
 
@@ -545,7 +547,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     if (sw_mode > 0) {
       // initialize
       printf_buffer[0] = 0;
-      p("theta %+4.1f", ai_cmd.global_vision_theta);
+      p("theta %+4.0f", ai_cmd.global_vision_theta * 180 / M_PI);
       p("yaw=%+6.1f ", yaw_angle);
       //p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
       //p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
@@ -555,13 +557,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       //p(" Cap=%3.0f BattC %+6.1f", power_voltage[6], current[4]);
       //p(" mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
-      //p(" con %3d ", connection_check_ver);
+      p(" con %3d ", uart_rx_cnt);
       p(" vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
       //p(" grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p(" ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
       //p(" tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
       //p(" PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
-      p(" omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
+      //p(" omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
       //p(" mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
       //p(" local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
       //p(" tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
@@ -572,6 +574,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       p(" cpu %3d ", htim->Instance->CNT / 20);  // MAX 2000
       p("\r\n");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
+      uart_rx_cnt = 0;
     }
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
@@ -822,16 +825,21 @@ void maintask_run()
 
   pre_yaw_angle_rad = yaw_angle_rad;
   pre_yaw_angle = yaw_angle;
-
+  /*
   if (!ether_connect && sw_mode == 0) {
     ai_cmd.local_target_speed[0] = 0;
     ai_cmd.local_target_speed[1] = 0;
     maintask_stop(1, 0);
     return;  // without move
-  }
+  }*/
 
   if (starting_status_flag) return;
 
+  if (!ether_connect) {
+    output_vel_surge = 0;
+    output_vel_sway = 0;
+    omega = 0;
+  }
   omni_move(output_vel_surge, output_vel_sway, omega, 1.0);
 
   if (ai_cmd.kick_power > 0) {
@@ -920,6 +928,7 @@ void maintask_stop(uint8_t mode, uint8_t info)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
+  uart_rx_cnt++;
   uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
   uint8_t start_byte_idx = 0;
 
