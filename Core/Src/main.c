@@ -74,8 +74,8 @@ const float OMNI_DIR_LENGTH = OMNI_DIAMETER * M_PI;
 
 #define OMNI_OUTPUT_LIMIT (4)    // ~ m/s
 #define OMNI_OUTPUT_GAIN (-250)  // ~ m/s / m : 250 -> 4cm : 1m/s
-#define OMEGA_LIMIT (20.0)       // ~ rad/s
-#define OMEGA_GAIN_KP (160.0)
+#define OMEGA_LIMIT (5.0)        // ~ rad/s
+#define OMEGA_GAIN_KP (80.0)
 #define OMEGA_GAIN_KD (4000.0)
 #define ACCEL_LIMIT (4.0)  // m/ss
 // fron 5.0
@@ -92,7 +92,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void maintask_run();
-
+void sendRobotInfo();
 void maintask_stop(uint8_t mode, uint8_t info);
 
 uint32_t HAL_GetTick(void) { return uwTick; }
@@ -131,7 +131,6 @@ struct
   int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
 } ai_cmd;
 
-
 UART_HandleTypeDef * huart_xprintf;
 
 int16_t mouse_raw_latest[2] = {0};
@@ -156,7 +155,6 @@ float omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200
 
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
-
 
 /* USER CODE END PFP */
 
@@ -358,6 +356,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   switch (sw_mode) {
     case 0:  // main without debug
       maintask_run();
+
       break;
 
     case 1:  // main debug
@@ -435,7 +434,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         if (ball_detection[0] == 1) {
           if (kick_state == 0) {
             actuator_kicker(2, 1);  // chip
-            actuator_kicker(3, 100);
+            actuator_kicker(3, 255);
             kick_state = 1;
           }
         }
@@ -443,7 +442,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_motor5(0.0, 0.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
         actuator_kicker(1, 1);  // charge enable
-        actuator_kicker_voltage(250.0);
+        actuator_kicker_voltage(400.0);
         kick_state = 0;
         kick_time = 0;
       }
@@ -480,8 +479,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
 
         if (kick_state == 0) {
-          actuator_kicker(2, 1);  // straight
-          actuator_kicker(3, 100);
+          actuator_kicker(2, 1);  // chip
+          actuator_kicker(3, 255);
           kick_state = 1;
         }
       } else {
@@ -499,6 +498,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       maintask_stop(0, 1);
       break;
   }
+  sendRobotInfo();
 
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
@@ -545,16 +545,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     if (sw_mode > 0) {
       // initialize
       printf_buffer[0] = 0;
+      p("theta %+4.1f", ai_cmd.global_vision_theta);
       p("yaw=%+6.1f ", yaw_angle);
       //p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
       //p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
+      //p(" i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f", current[0], current[1], current[2], current[3]);
       //p(" FET=%.3f C1=%.3f C2=%.3f", temperature[4], temperature[5], temperature[6]);
       p(" Batt=%3.1f ", power_voltage[0]);
       //p(" Cap=%3.0f BattC %+6.1f", power_voltage[6], current[4]);
       //p(" mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
-      //p(" con %3d ", connection_check_cnt);
-      //p(" vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
+      //p(" con %3d ", connection_check_ver);
+      p(" vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
       //p(" grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p(" ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
       //p(" tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
@@ -564,8 +566,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       //p(" local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
       //p(" tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
       //p(" start_byte_idx=%d ", start_byte_idx);
-      p("tar %+3.0f %+3.0f ", tar_vel[0], tar_vel[1]);
-      p("tar-c %+6.2f %+6.2f ", tar_vel_current[0], tar_vel_current[1]);
+      //p("tar %+3.0f %+3.0f ", tar_vel[0], tar_vel[1]);
+      //p("tar-c %+6.2f %+6.2f ", tar_vel_current[0], tar_vel_current[1]);
       //p(" ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
       p(" cpu %3d ", htim->Instance->CNT / 20);  // MAX 2000
       p("\r\n");
@@ -861,11 +863,14 @@ void maintask_run()
   actuator_kicker_voltage(250.0);
 
   actuator_motor5(ai_cmd.drible_power, 1.0);
+}
+
+void sendRobotInfo()
+{
+  uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
   uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
   uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
-
-  uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
   tx_data_uart[0] = 0xFE;
   tx_data_uart[1] = 0xFC;
@@ -875,7 +880,7 @@ void maintask_run()
   tx_data_uart[5] = ball_detection[1];
   tx_data_uart[6] = ai_cmd.chip_en;
   tx_data_uart[7] = kick_state;
-  tx_data_uart[8] = (uint8_t)power_voltage[4];
+  tx_data_uart[8] = (uint8_t)power_voltage[0];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 }
 
@@ -888,7 +893,7 @@ void maintask_stop(uint8_t mode, uint8_t info)
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
-  
+
   uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
   tx_data_uart[0] = 0xFE;
@@ -899,7 +904,7 @@ void maintask_stop(uint8_t mode, uint8_t info)
   tx_data_uart[5] = error_no[1];
   tx_data_uart[6] = mode;
   tx_data_uart[7] = info;
-  tx_data_uart[8] = (uint8_t)power_voltage[4];
+  tx_data_uart[8] = (uint8_t)power_voltage[0];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 
   if (mode) {
@@ -917,7 +922,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
   uint8_t start_byte_idx = 0;
-
 
   if (huart->Instance == huart2.Instance) {
     while (rxbuf_from_ether[start_byte_idx] != 254 && start_byte_idx < sizeof(rxbuf_from_ether)) {
@@ -1005,7 +1009,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       ai_cmd.global_global_target_position[1] = 0;
       ai_cmd.allow_local_feedback = 0;
     }
-
 
     connection_check_ver = data_from_ether[1];
   }

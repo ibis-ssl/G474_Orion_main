@@ -6,15 +6,28 @@
  */
 #include "actuator.h"
 
+#define DUTY_LIMIT (10.0)
+
 static void motor_cmd_can1(uint16_t motor_id, float duty)
 {
   uint8_t senddata_motor[8];
+  if (duty < -DUTY_LIMIT) {
+    duty = -DUTY_LIMIT;
+  } else if (duty > DUTY_LIMIT) {
+    duty = DUTY_LIMIT;
+  }
   float_to_uchar4(senddata_motor, duty);
   can1_send(motor_id, senddata_motor);
 }
 static void motor_cmd_can2(uint16_t motor_id, float duty)
 {
   uint8_t senddata_motor[8];
+
+  if (duty < -DUTY_LIMIT) {
+    duty = -DUTY_LIMIT;
+  } else if (duty > DUTY_LIMIT) {
+    duty = DUTY_LIMIT;
+  }
   float_to_uchar4(senddata_motor, duty);
   can2_send(motor_id, senddata_motor);
 }
@@ -60,7 +73,6 @@ void actuator_power_ONOFF(uint8_t power_on)
   can1_send(0x010, senddata_power);
   can2_send(0x010, senddata_power);
 }
-
 
 void actuator_power_param(uint8_t id, float param)
 {
