@@ -19,14 +19,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "gpio.h"
+#include "usart.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -155,7 +154,7 @@ float omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200
 
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
-uint8_t uart_rx_cnt = 0;
+uint32_t uart_rx_callback_cnt = 0, uart_rx_invalid_packet_cnt = 0;
 
 /* USER CODE END PFP */
 
@@ -322,19 +321,22 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
     Error_Handler();
   }
 }
@@ -557,7 +559,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       //p(" Cap=%3.0f BattC %+6.1f", power_voltage[6], current[4]);
       //p(" mouse_raw_latest:x=%+3d, y=%+3d",mouse_raw_latest[0],mouse_raw_latest[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor_enc_angle[0], motor_enc_angle[1], motor_enc_angle[2], motor_enc_angle[3]);
-      p(" con %3d ", uart_rx_cnt);
+      p(" con %3d %3d", uart_rx_callback_cnt, connection_check_ver);
       p(" vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
       //p(" grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p(" ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
@@ -574,7 +576,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       p(" cpu %3d ", htim->Instance->CNT / 20);  // MAX 2000
       p("\r\n");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
-      uart_rx_cnt = 0;
+      uart_rx_callback_cnt = 0;
     }
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
@@ -951,7 +953,7 @@ void maintask_stop(uint8_t mode, uint8_t info)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
-  uart_rx_cnt++;
+  uart_rx_callback_cnt++;
   uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
   uint8_t start_byte_idx = 0;
 
@@ -959,6 +961,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     while (rxbuf_from_ether[start_byte_idx] != 254 && start_byte_idx < sizeof(rxbuf_from_ether)) {
       start_byte_idx++;
     }
+    uart_rx_invalid_packet_cnt = start_byte_idx;
     if (start_byte_idx >= sizeof(rxbuf_from_ether)) {
       for (uint8_t k = 0; k < (sizeof(data_from_ether)); k++) {
         data_from_ether[k] = 0;
@@ -1072,7 +1075,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1080,7 +1083,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t * file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
