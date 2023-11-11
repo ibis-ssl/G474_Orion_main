@@ -807,6 +807,7 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
 
 void maintask_run()
 {
+  static uint8_t can_sending_index = 0;
   if (starting_status_flag) {
     yaw_angle = ai_cmd.target_theta;
     mouse_odom[0] = 0;
@@ -859,18 +860,40 @@ void maintask_run()
       }
     }
   }
+  can_sending_index++;
+  switch (can_sending_index) {
+    case 1:
+      if (ai_cmd.chip_en == 1) {
+        actuator_kicker(2, 1);
+      } else {
+        actuator_kicker(2, 0);
+      }
+      break;
 
-  if (ai_cmd.chip_en == 1) {
-    actuator_kicker(2, 1);
-    actuator_dribbler_up();
-  } else {
-    actuator_kicker(2, 0);
-    actuator_dribbler_down();
+    case 2:
+
+      if (ai_cmd.chip_en == 1) {
+        actuator_dribbler_up();
+      } else {
+        actuator_dribbler_down();
+      }
+      break;
+
+    case 3:
+      actuator_kicker(1, 1);
+      break;
+
+    case 4:
+      actuator_kicker_voltage(250.0);
+      break;
+
+    case 5:
+      actuator_motor5(ai_cmd.drible_power, 1.0);
+      break;
+    default:
+      can_sending_index = 0;
+      break;
   }
-  actuator_kicker(1, 1);
-  actuator_kicker_voltage(250.0);
-
-  actuator_motor5(ai_cmd.drible_power, 1.0);
 }
 
 void sendRobotInfo()
