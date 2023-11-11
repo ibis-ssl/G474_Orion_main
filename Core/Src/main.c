@@ -19,13 +19,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "usart.h"
+#include "gpio.h"
 #include "spi.h"
 #include "tim.h"
-#include "gpio.h"
+#include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -72,7 +73,7 @@ uint32_t connection_check_ver = 0;
 const float OMNI_DIR_LENGTH = OMNI_DIAMETER * M_PI;
 
 #define OMNI_OUTPUT_LIMIT (4)    // ~ m/s
-#define OMNI_OUTPUT_GAIN (-250)  // ~ m/s / m : 250 -> 4cm : 1m/s
+#define OMNI_OUTPUT_GAIN (-150)  // ~ m/s / m : 250 -> 4cm : 1m/s
 #define OMEGA_LIMIT (5.0)        // ~ rad/s
 #define OMEGA_GAIN_KP (80.0)
 #define OMEGA_GAIN_KD (4000.0)
@@ -92,7 +93,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void maintask_run();
 void sendRobotInfo();
-void maintask_stop(uint8_t mode, uint8_t info);
+void maintask_stop(uint8_t error, uint8_t info);
 
 uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
@@ -155,6 +156,7 @@ float omni_odom_speed_log[2][SPEED_LOG_BUF_SIZE] = {0};  // 2ms * 100cycle = 200
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
 uint32_t uart_rx_callback_cnt = 0, uart_rx_invalid_packet_cnt = 0;
+float output_vel_surge, output_vel_sway;
 
 /* USER CODE END PFP */
 
@@ -277,7 +279,7 @@ int main(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
   actuator_power_ONOFF(1);
 
-  for (int i = 0; i <8; i++) {
+  for (int i = 0; i < 8; i++) {
     actuator_buzzer(20, 20);
   }
 
@@ -325,22 +327,19 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -372,16 +371,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case 2:  // calibration motor
-      if (decode_SW(adc_sw_data) & 0b00010000) {
-        uint8_t senddata_calib[8];
-        can1_send(0x310, senddata_calib);  // calibration
-        can2_send(0x310, senddata_calib);  // calibration
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-      } else {
-        omni_move(0.0, 0.0, 0.0, 0.0);
-        actuator_motor5(0.0, 0.0);
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-      }
+      maintask_run();
       break;
 
     case 3:  // motor test
@@ -570,6 +560,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       //p(" tar X %+5d Y %+5d ", ai_cmd.global_global_target_position[0], ai_cmd.global_global_target_position[1]);
       //p(" PD %+5.2f  %+5.2f ", robot_pos_diff[0], robot_pos_diff[1]);
       //p(" omni X%+8.3f Y%+8.3f ", omni_odom[0], omni_odom[1]);
+      //p(" output x %+6.2f y %+6.2f", output_vel_surge, output_vel_sway);
       //p(" mouse_raw_latest X%+8.3f Y%+8.3f ", mouse_odom[0], mouse_odom[1]);
       //p(" local tar X%+8.3f Y%+8.3f ", tar_pos[0], tar_pos[1]);
       //p(" tarVel X%+4.3f Y%+4.3f ", tar_vel[0], tar_vel[1]);
@@ -739,8 +730,6 @@ void omni_odometory(/*float motor_angle[4],float yaw_rad*/)
   omni_odom_speed_log[1][odom_speed_index] = omni_odom_speed[1];
 }
 
-float output_vel_surge, output_vel_sway;
-
 void speed_control(/*float global_target_position[2],float global_robot_odom_position[2],float robot_theta*/)
 {
   tar_vel[0] = ai_cmd.local_target_speed[0];
@@ -782,7 +771,7 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
   // X
   robot_pos_diff[0] = floor_odom_diff[0] * cos(yaw_angle_rad) + floor_odom_diff[1] * sin(yaw_angle_rad);
   // Y
-  robot_pos_diff[1] = floor_odom_diff[0] * sin(yaw_angle_rad) + floor_odom_diff[1] * cos(yaw_angle_rad);
+  robot_pos_diff[1] = -floor_odom_diff[0] * sin(yaw_angle_rad) + floor_odom_diff[1] * cos(yaw_angle_rad);
   output_vel_surge = robot_pos_diff[0] * OMNI_OUTPUT_GAIN;
   output_vel_sway = robot_pos_diff[1] * OMNI_OUTPUT_GAIN;
   //+target_move_speed * 2;
@@ -821,8 +810,9 @@ void maintask_run()
     omni_odom[0] = 0;
     omni_odom[1] = 0;
   }
-
-  yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;
+  if (sw_mode != 2) {
+    yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;
+  }
   yaw_angle_rad = yaw_angle * M_PI / 180;
 
   omni_odometory();
@@ -832,22 +822,16 @@ void maintask_run()
 
   pre_yaw_angle_rad = yaw_angle_rad;
   pre_yaw_angle = yaw_angle;
-  /*
-  if (!ether_connect && sw_mode == 0) {
+
+  if (!ether_connect && sw_mode != 2) {
     ai_cmd.local_target_speed[0] = 0;
     ai_cmd.local_target_speed[1] = 0;
-    maintask_stop(1, 0);
+    maintask_stop(0, 0);
     return;  // without move
-  }*/
+  }
 
   if (starting_status_flag) return;
 
-  if (!ether_connect) {
-    output_vel_surge = 0;
-    output_vel_sway = 0;
-    omega = 0;
-    ai_cmd.drible_power=0;
-  }
   omni_move(output_vel_surge, output_vel_sway, omega, 1.0);
 
   if (ai_cmd.kick_power > 0) {
@@ -922,7 +906,7 @@ void sendRobotInfo()
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 }
 
-void maintask_stop(uint8_t mode, uint8_t info)
+void maintask_stop(uint8_t error, uint8_t info)
 {
   uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
   uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
@@ -940,12 +924,12 @@ void maintask_stop(uint8_t mode, uint8_t info)
   tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
   tx_data_uart[4] = error_no[0];
   tx_data_uart[5] = error_no[1];
-  tx_data_uart[6] = mode;
+  tx_data_uart[6] = error;
   tx_data_uart[7] = info;
   tx_data_uart[8] = (uint8_t)power_voltage[0];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 
-  if (mode) {
+  if (error) {
     actuator_buzzer(150, 150);
 
     uint8_t senddata_error[8];
@@ -998,7 +982,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     ai_cmd.drible_power = (float)data_from_ether[11] / 20.0;
 
     ai_cmd.keeper_en = data_from_ether[12];
-
 
     ai_cmd.global_ball_position[0] = two_to_int(&data_from_ether[13]);
     ai_cmd.global_ball_position[1] = two_to_int(&data_from_ether[15]);
@@ -1063,7 +1046,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1071,7 +1054,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t * file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
