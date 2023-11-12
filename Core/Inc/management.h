@@ -32,7 +32,7 @@
 #include "can_ibis.h"
 #include "util.h"
 
-extern float yaw_angle;
+extern float32_t motor_voltage[4];
 
 #define CAN_RX_DATA_SIZE 8
 #define CAN_TX_DATA_SIZE 8

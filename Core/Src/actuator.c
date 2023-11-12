@@ -6,40 +6,38 @@
  */
 #include "actuator.h"
 
-#define DUTY_LIMIT (10.0)
-
-static void motor_cmd_can1(uint16_t motor_id, float duty)
+static void motor_cmd_can1(uint16_t motor_id, float duty, float limit)
 {
   uint8_t senddata_motor[8];
-  if (duty < -DUTY_LIMIT) {
-    duty = -DUTY_LIMIT;
-  } else if (duty > DUTY_LIMIT) {
-    duty = DUTY_LIMIT;
+  if (duty < -limit) {
+    duty = -limit;
+  } else if (duty > limit) {
+    duty = limit;
   }
   float_to_uchar4(senddata_motor, duty);
   can1_send(motor_id, senddata_motor);
 }
-static void motor_cmd_can2(uint16_t motor_id, float duty)
+static void motor_cmd_can2(uint16_t motor_id, float duty, float limit)
 {
   uint8_t senddata_motor[8];
 
-  if (duty < -DUTY_LIMIT) {
-    duty = -DUTY_LIMIT;
-  } else if (duty > DUTY_LIMIT) {
-    duty = DUTY_LIMIT;
+  if (duty < -limit) {
+    duty = -limit;
+  } else if (duty > limit) {
+    duty = limit;
   }
   float_to_uchar4(senddata_motor, duty);
   can2_send(motor_id, senddata_motor);
 }
 
-void actuator_motor1(float duty, float duty_Limit1) { motor_cmd_can1(0x100, duty); }
-void actuator_motor2(float duty, float duty_Limit2) { motor_cmd_can1(0x101, duty); }
-void actuator_motor3(float duty, float duty_Limit3) { motor_cmd_can2(0x102, duty); }
-void actuator_motor4(float duty, float duty_Limit4) { motor_cmd_can2(0x103, duty); }
-void actuator_motor5(float duty, float duty_Limit5) { motor_cmd_can1(0x104, duty); }
+void actuator_motor1(float duty, float duty_limit) { motor_cmd_can1(0x100, duty, duty_limit); }
+void actuator_motor2(float duty, float duty_limit) { motor_cmd_can1(0x101, duty, duty_limit); }
+void actuator_motor3(float duty, float duty_limit) { motor_cmd_can2(0x102, duty, duty_limit); }
+void actuator_motor4(float duty, float duty_limit) { motor_cmd_can2(0x103, duty, duty_limit); }
+void actuator_motor5(float duty, float duty_limit) { motor_cmd_can1(0x104, duty, duty_limit); }
 
-void actuator_dribbler_up() { motor_cmd_can1(0x105, 0.8); }
-void actuator_dribbler_down() { motor_cmd_can1(0x105, 0); }
+void actuator_dribbler_up() { motor_cmd_can1(0x105, 0.8, 1.0); }
+void actuator_dribbler_down() { motor_cmd_can1(0x105, 0, 1.0); }
 
 void actuator_kicker_voltage(float voltage)
 {

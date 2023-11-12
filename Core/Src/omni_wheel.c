@@ -5,6 +5,7 @@
  *      Author: okada_tech
  */
 #include "omni_wheel.h"
+
 #include "arm_math.h"
 
 /*motor place
@@ -17,30 +18,31 @@
  *
  * */
 
+float32_t motor_voltage[4];
 
-const float32_t rotation_length_omni = OMNI_DIAMETER*M_PI;
-const float32_t sinM1 = sin(    M_PI/6.0);
-const float32_t sinM2 = sin(7.0*M_PI/4.0);
-const float32_t sinM3 = sin(5.0*M_PI/4.0);
-const float32_t sinM4 = sin(5.0*M_PI/6.0);
-const float32_t cosM1 = cos(    M_PI/6.0);
-const float32_t cosM2 = cos(7.0*M_PI/4.0);
-const float32_t cosM3 = cos(5.0*M_PI/4.0);
-const float32_t cosM4 = cos(5.0*M_PI/6.0);
+const float32_t rotation_length_omni = OMNI_DIAMETER * M_PI;
+const float32_t sinM1 = sin(M_PI / 6.0);
+const float32_t sinM2 = sin(7.0 * M_PI / 4.0);
+const float32_t sinM3 = sin(5.0 * M_PI / 4.0);
+const float32_t sinM4 = sin(5.0 * M_PI / 6.0);
+const float32_t cosM1 = cos(M_PI / 6.0);
+const float32_t cosM2 = cos(7.0 * M_PI / 4.0);
+const float32_t cosM3 = cos(5.0 * M_PI / 4.0);
+const float32_t cosM4 = cos(5.0 * M_PI / 6.0);
 
-void omni_move(float32_t vel_y_omni,float32_t vel_x_omni,float32_t omega_omni,float32_t duty_Limit){
-	float32_t v_round;
-	float32_t m1, m2, m3, m4;
+void omni_move(float32_t vel_y_robot, float32_t vel_x_robot, float32_t omega_roboot, float32_t duty_limit)
+{
+  float32_t rotation_omega_motor;
 
-	v_round=ROBOT_RADIUS*omega_omni;
+  rotation_omega_motor = ROBOT_RADIUS * omega_roboot;
 
-	m1=((vel_x_omni*sinM1)+(vel_y_omni*cosM1)+v_round)/rotation_length_omni;
-	m2=((vel_x_omni*sinM2)+(vel_y_omni*cosM2)+v_round)/rotation_length_omni;
-	m3=((vel_x_omni*sinM3)+(vel_y_omni*cosM3)+v_round)/rotation_length_omni;
-	m4=((vel_x_omni*sinM4)+(vel_y_omni*cosM4)+v_round)/rotation_length_omni;
+  motor_voltage[0] = ((vel_x_robot * sinM1) + (vel_y_robot * cosM1) + rotation_omega_motor) / rotation_length_omni;
+  motor_voltage[1] = ((vel_x_robot * sinM2) + (vel_y_robot * cosM2) + rotation_omega_motor) / rotation_length_omni;
+  motor_voltage[2] = ((vel_x_robot * sinM3) + (vel_y_robot * cosM3) + rotation_omega_motor) / rotation_length_omni;
+  motor_voltage[3] = ((vel_x_robot * sinM4) + (vel_y_robot * cosM4) + rotation_omega_motor) / rotation_length_omni;
 
-	actuator_motor1(m1,duty_Limit);
-	actuator_motor2(m2,duty_Limit);
-	actuator_motor3(m3,duty_Limit);
-	actuator_motor4(m4,duty_Limit);
+  actuator_motor1(motor_voltage[0], duty_limit);
+  actuator_motor2(motor_voltage[1], duty_limit);
+  actuator_motor3(motor_voltage[2], duty_limit);
+  actuator_motor4(motor_voltage[3], duty_limit);
 }

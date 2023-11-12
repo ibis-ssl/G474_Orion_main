@@ -219,7 +219,7 @@ int ICM20602_getGyroRange(void)
     return Gscale;
 }
 
-float ICM20602_read_IMU_data(float imu_dt_sec)
+void ICM20602_read_IMU_data(float imu_dt_sec, float * yaw_input)
 {
     static float gyro_prv[3] = {0.0f};
 
@@ -237,17 +237,15 @@ float ICM20602_read_IMU_data(float imu_dt_sec)
 
     //pitch_angle = pitch_angle + ICM20602_integral(gyro_comp[0], gyro_prv[0], imu_dt_sec) * 1;  //とりあえず変えておく
     //roll_angle = roll_angle + ICM20602_integral(gyro_comp[1], gyro_prv[1], imu_dt_sec) * 1;
-    yaw_angle = yaw_angle + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt_sec) * 1;
+    *yaw_input = *yaw_input + ICM20602_integral(gyro_comp[2], gyro_prv[2], imu_dt_sec) * 1;
 
-   // pitch_angle = ICM20602_normAngle(pitch_angle);
+    // pitch_angle = ICM20602_normAngle(pitch_angle);
     //roll_angle  = ICM20602_normAngle(roll_angle);
-    yaw_angle   = ICM20602_normAngle(yaw_angle);
+    *yaw_input = ICM20602_normAngle(*yaw_input);
 
     gyro_prv[0] = gyro_comp[0];
     gyro_prv[1] = gyro_comp[1];
     gyro_prv[2] = gyro_comp[2];
-
-    return yaw_angle;
 }
 
 float ICM20602_integral(float val, float val_prv, float dt)
