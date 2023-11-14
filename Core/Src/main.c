@@ -66,13 +66,21 @@ void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
 uint8_t rxbuf_from_ether[RX_BUF_SIZE_ETHER];
 uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
 
+struct
+{
+  uint8_t connected_ai;
+  uint32_t check_cnt;
+  uint32_t check_pre;
+  uint32_t check_ver;
+} connection;
+
 uint8_t sw_mode;
-uint8_t ether_connect = 0;
-uint32_t connection_check_cnt = 0;
-uint32_t connection_check_pre = 0;
-uint32_t connection_check_ver = 0;
+uint32_t adc_sw_data;
 
 const float OMNI_DIR_LENGTH = OMNI_DIAMETER * M_PI;
+
+#define FLAG_SSL_VISION_OK (0x01)
+#define FLAG_ENABLE_LOCAL_VISION (0x02)
 
 #define OMNI_OUTPUT_LIMIT (4)      // ~ m/s
 #define OMNI_OUTPUT_GAIN_KP (350)  // ~ m/s / m : -250 -> 4cm : 1m/s
@@ -102,22 +110,26 @@ uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
 // for IMU
-float yaw_angle, pre_yaw_angle;
-float yaw_angle_rad, pre_yaw_angle_rad;
+
+struct
+{
+  float yaw_angle, pre_yaw_angle;
+  float yaw_angle_rad, pre_yaw_angle_rad;
+} imu;
 
 // kicker
 volatile int kick_state, kick_time, dribbler_up;
 
-uint32_t adc_sw_data;
-float motor_feedback[5];
-float motor_feedback_velocity[5];
-float power_voltage[7];
-float temperature[7];
-float current[5];
-uint8_t ball_detection[4];
-
-uint8_t error_no[4];
-volatile bool starting_status_flag = true;
+struct
+{
+  uint8_t error_no[4];
+  float motor_feedback[5];
+  float motor_feedback_velocity[5];
+  float power_voltage[7];
+  float temperature[7];
+  float current[5];
+  uint8_t ball_detection[4];
+} can_raw;
 
 struct
 {
@@ -133,11 +145,8 @@ struct
   int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
 } ai_cmd;
 
+volatile bool starting_status_flag = true;
 volatile uint8_t vision_lost_flag = 0;
-
-UART_HandleTypeDef * huart_xprintf;
-
-
 
 struct
 {
@@ -156,7 +165,6 @@ struct
   float velocity_current[2];
 } target;
 
-
 struct
 {
   float velocity[2];
@@ -167,19 +175,29 @@ struct
 {
   float travel_distance[2];
   float odom_floor_diff[2], robot_pos_diff[2];
-  float odom[2],pre_odom[2];
+  float odom[2], pre_odom[2];
   float odom_speed[2], odom_speed_log[2][SPEED_LOG_BUF_SIZE];
-}omni;
+} omni;
 
+struct
+{
+  volatile float velocity[2];
+  volatile float omega;
+} output;
+
+UART_HandleTypeDef * huart_xprintf;
 
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
-volatile float output_vel_surge, output_vel_sway;
-volatile uint32_t main_loop_cnt = 0;
-float omega;
-static float vel_radian = 0;
-extern float32_t motor_voltage[4];
-volatile bool debug_print_flag = false;
+
+extern float32_t motor_voltage[4];  // for debug
+
+struct
+{
+  volatile uint32_t main_loop_cnt;
+  volatile float vel_radian;
+  volatile bool print_flag;
+} debug;
 
 #define MAIN_LOOP_CYCLE (500)
 
@@ -285,7 +303,7 @@ int main(void)
   actuator_kicker_voltage(250.0);
   actuator_power_param(1, 15.0);  // min voltage
   actuator_power_param(2, 35.0);  // max voltage
-  actuator_power_param(3, 50.0);  // max current
+  actuator_power_param(3, 50.0);  // max can_raw.current
   actuator_power_param(4, 90.0);  // max temp(fet)
   actuator_power_param(5, 90.0);  // max temp(solenoid)
 
@@ -322,26 +340,26 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    main_loop_cnt++;
-    if (debug_print_flag) {
-      debug_print_flag = false;
+    if (debug.print_flag) {
+      debug.main_loop_cnt++;
+      debug.print_flag = false;
       if (sw_mode > 0) {
         // initialize
         printf_buffer[0] = 0;
-        //p("Batt=%3.1f ", power_voltage[0]);
+        //p("Batt=%3.1f ", can_raw.power_voltage[0]);
         //p("theta %+4.0f", ai_cmd.global_vision_theta * 180 / M_PI);
-        //p("yaw=%+6.1f ", yaw_angle);
+        //p("yaw=%+6.1f ", imu.yaw_angle);
         // p("tar=%+6.1f ", ai_cmd.target_theta * 180 / M_PI);
         //p("omega = %+5.1f ",omega);
-        //p("vel rad %3.1f ", vel_radian);
-        //p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",motor_feedback[0],motor_feedback[1],motor_feedback[2],motor_feedback[3]);
+        //p("vel rad %3.1f ", debug.vel_radian);
+        //p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f",can_raw.motor_feedback[0],can_raw.motor_feedback[1],can_raw.motor_feedback[2],can_raw.motor_feedback[3]);
         //p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f",voltage[0],voltage[1],voltage[2],voltage[3]);
-        //p(" i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f", current[0], current[1], current[2], current[3]);
-        //p(" FET=%.3f C1=%.3f C2=%.3f", temperature[4], temperature[5], temperature[6]);
-        //p(" Cap=%3.0f BattC %+6.1f", power_voltage[6], current[4]);
+        //p(" i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+        //p(" FET=%.3f C1=%.3f C2=%.3f", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+        //p(" Cap=%3.0f BattC %+6.1f", can_raw.power_voltage[6], can_raw.current[4]);
         //p(" omni.mouse:x=%+3d, y=%+3d",omni.mouse[0],omni.mouse[1]);
         //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
-        //p(" con %3d , %3d", connection_check_ver, uart_rx_callback_cnt);
+        //p(" con %3d , %3d", connection.check_ver, uart_rx_callback_cnt);
         //p(" vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
         //p(" grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
         //p(" ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
@@ -350,7 +368,7 @@ int main(void)
         //p(" odomX %+8.3f odomY %+8.3f ", omni.odom[0], omni.odom[1]);
         //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
         p(" speedX %+8.3f speedY %+8.3f ", omni.odom_speed[0] * 10, omni.odom_speed[1] * 10);
-        //p(" output x %+6.2f y %+6.2f", output_vel_surge, output_vel_sway);
+        //p(" output x %+6.2f y %+6.2f", output.velocity[0], output.velocity[1]);
         //p(" omni.mouse X%+8.3f Y%+8.3f ", mouse.odom[0], mouse.odom[1]);
         //p(" local tar X%+8.3f Y%+8.3f ", target.position[0], target.position[1]);
         //p(" tarVel X%+4.3f Y%+4.3f ", target.velocity[0], target.velocity[1]);
@@ -363,11 +381,12 @@ int main(void)
         //p("%02x %02x %02x %02x ", data_from_ether[23], data_from_ether[24], data_from_ether[25], data_from_ether[26]);
         //p("allow 0x%02x vision lost %d ", ai_cmd.allow_local_flags, vision_lost_flag);
         //p(" cpu %3d ", htim->Instance->CNT / 20);  // MAX 2000
-        //p("loop %6d", main_loop_cnt);
         p("\r\n");
-        HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
-        main_loop_cnt = 0;
+
+        //p("loop %6d", debug.main_loop_cnt);        HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
       }
+
+      debug.main_loop_cnt = 0;
     }
   }
   /* USER CODE END 3 */
@@ -420,7 +439,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   // TIM interrupt is TIM7 only.
   static uint8_t pre_sw_mode;
-  ICM20602_read_IMU_data(1.0 / MAIN_LOOP_CYCLE,&yaw_angle);
+  ICM20602_read_IMU_data(1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
   pre_sw_mode = sw_mode;
   sw_mode = 15 - (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) + (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1) + (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) << 3) + (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2) << 2));
 
@@ -429,16 +448,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     omni.odom[1] = target.position[1];
     ai_cmd.local_target_speed[0] = 0;
     ai_cmd.local_target_speed[1] = 0;
-    yaw_angle = ai_cmd.target_theta;
+    imu.yaw_angle = ai_cmd.target_theta;
     mouse.odom[0] = 0;
     mouse.odom[1] = 0;
     vision_lost_flag = 2;
-  } else if (ai_cmd.allow_local_flags == false && sw_mode != 2) {
+  } else if ((ai_cmd.allow_local_flags & FLAG_SSL_VISION_OK) == false && sw_mode != 2) {
     omni.odom[0] = target.position[0];
     omni.odom[1] = target.position[1];
     ai_cmd.local_target_speed[0] = 0;
     ai_cmd.local_target_speed[1] = 0;
-    yaw_angle = ai_cmd.target_theta;
+    imu.yaw_angle = ai_cmd.target_theta;
     mouse.odom[0] = 0;
     mouse.odom[1] = 0;
     vision_lost_flag = 1;
@@ -504,7 +523,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       if (decode_SW(adc_sw_data) & 0b00010000) {
         actuator_motor5(0.5, 1.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-        if (ball_detection[0] == 1) {
+        if (can_raw.ball_detection[0] == 1) {
           if (kick_state == 0) {
             actuator_kicker(2, 0);  // straight
             actuator_kicker(3, 100);
@@ -514,7 +533,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       } else if (decode_SW(adc_sw_data) & 0b00000010) {
         actuator_motor5(0.5, 1.0);
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-        if (ball_detection[0] == 1) {
+        if (can_raw.ball_detection[0] == 1) {
           if (kick_state == 0) {
             actuator_kicker(2, 1);  // chip
             actuator_kicker(3, 255);
@@ -589,7 +608,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (buzzer_cnt > 100) {
     buzzer_cnt = 0;
 
-    if (power_voltage[0] < 21.0) {
+    if (can_raw.power_voltage[0] < 21.0) {
       if (buzzer_state == false) {
         buzzer_state = true;
         actuator_buzzer_on();
@@ -603,18 +622,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
   }
 
-  connection_check_cnt++;
-  if (connection_check_cnt > 200) {
-    if (connection_check_ver != connection_check_pre) {
-      ether_connect = 1;
+  connection.check_cnt++;
+  if (connection.check_cnt > 200) {
+    if (connection.check_ver != connection.check_pre) {
+      connection.connected_ai = 1;
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
     } else {
-      ether_connect = 0;
+      connection.connected_ai = 0;
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
     }
-    //ether_connect = 1;
-    connection_check_cnt = 0;
-    connection_check_pre = connection_check_ver;
+    //connection.connected_ai = 1;
+    connection.check_cnt = 0;
+    connection.check_pre = connection.check_ver;
   }
 
   // interrupt : 500Hz
@@ -623,7 +642,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (cnt_time_50Hz > 10) {
     cnt_time_50Hz = 0;
 
-    debug_print_flag = true;
+    debug.print_flag = true;
 
     actuator_power_ONOFF(1);
 
@@ -645,27 +664,27 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
     switch (rx_can_id) {
       // error
       case 0x000:
-        error_no[0] = RxData[0];
-        error_no[1] = RxData[1];
+        can_raw.error_no[0] = RxData[0];
+        can_raw.error_no[1] = RxData[1];
         Error_Handler();
         break;
       case 0x001:
-        error_no[0] = RxData[0];
-        error_no[1] = RxData[1];
+        can_raw.error_no[0] = RxData[0];
+        can_raw.error_no[1] = RxData[1];
         maintask_stop(0, 0);
         break;
 
-      // motor_feedback
+      // can_raw.motor_feedback
       case 0x200:
       case 0x201:
       case 0x202:
       case 0x203:
         motor.enc_angle[rx_can_id - 0x200] = uchar4_to_float(&RxData[4]);
-        motor_feedback[rx_can_id - 0x200] = uchar4_to_float(RxData);
-        motor_feedback_velocity[rx_can_id - 0x200] = motor_feedback[3] * OMNI_DIR_LENGTH;
+        can_raw.motor_feedback[rx_can_id - 0x200] = uchar4_to_float(RxData);
+        can_raw.motor_feedback_velocity[rx_can_id - 0x200] = can_raw.motor_feedback[3] * OMNI_DIR_LENGTH;
         break;
 
-        // power_Voltage
+        // can_raw.power_Voltage
       case 0x210:
       case 0x211:
       case 0x212:
@@ -673,43 +692,43 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
       case 0x214:
       case 0x215:
       case 0x216:
-        power_voltage[rx_can_id - 0x210] = uchar4_to_float(RxData);
+        can_raw.power_voltage[rx_can_id - 0x210] = uchar4_to_float(RxData);
         break;
 
-      // temperature from BLDC
+      // can_raw.temperature from BLDC
       case 0x220:
       case 0x221:
       case 0x222:
       case 0x223:
-        temperature[rx_can_id - 0x220] = uchar4_to_float(RxData);
+        can_raw.temperature[rx_can_id - 0x220] = uchar4_to_float(RxData);
         break;
-      // temperature from power
+      // can_raw.temperature from power
       case 0x224:
-        temperature[4] = RxData[0];  // fet
-        temperature[5] = RxData[1];  // coil 1
-        temperature[6] = RxData[2];  // coil 2
+        can_raw.temperature[4] = RxData[0];  // fet
+        can_raw.temperature[5] = RxData[1];  // coil 1
+        can_raw.temperature[6] = RxData[2];  // coil 2
         break;
 
-      // current
+      // can_raw.current
       case 0x230:
       case 0x231:
       case 0x232:
       case 0x233:
       case 0x234:
-        current[rx_can_id - 0x230] = uchar4_to_float(RxData);
+        can_raw.current[rx_can_id - 0x230] = uchar4_to_float(RxData);
         break;
 
-      // ball_detection
+      // can_raw.ball_detection
       case 0x240:
-        ball_detection[0] = RxData[0];
-        ball_detection[1] = RxData[1];
-        ball_detection[2] = RxData[2];
-        ball_detection[3] = RxData[3];
+        can_raw.ball_detection[0] = RxData[0];
+        can_raw.ball_detection[1] = RxData[1];
+        can_raw.ball_detection[2] = RxData[2];
+        can_raw.ball_detection[3] = RxData[3];
         break;
 
       // mouseXY
       case 0x241:
-        int16_t mouse_raw_x  = (int16_t)((RxData[1] << 8) | RxData[0]);
+        int16_t mouse_raw_x = (int16_t)((RxData[1] << 8) | RxData[0]);
         int16_t mouse_raw_y = (int16_t)((RxData[3] << 8) | RxData[2]);
         mouse.odom[0] += (float)mouse_raw_x / 1000;
         mouse.odom[1] += (float)mouse_raw_y / 1000;
@@ -721,14 +740,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
 {
   // PID
-  omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * OMEGA_GAIN_KD);
-  //float omega = (getAngleDiff(ai_cmd.target_theta, yaw_angle_rad) * 16.0) - (getAngleDiff(yaw_angle_rad, pre_yaw_angle_rad) * 400.0);
+  output.omega = (getAngleDiff(ai_cmd.target_theta, imu.yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu.yaw_angle_rad, imu.pre_yaw_angle_rad) * OMEGA_GAIN_KD);
+  //float omega = (getAngleDiff(ai_cmd.target_theta, imu.yaw_angle_rad) * 16.0) - (getAngleDiff(imu.yaw_angle_rad, imu.pre_yaw_angle_rad) * 400.0);
 
-  if (omega > OMEGA_LIMIT) {
-    omega = OMEGA_LIMIT;
+  if (output.omega > OMEGA_LIMIT) {
+    output.omega = OMEGA_LIMIT;
   }
-  if (omega < -OMEGA_LIMIT) {
-    omega = -OMEGA_LIMIT;
+  if (output.omega < -OMEGA_LIMIT) {
+    output.omega = -OMEGA_LIMIT;
   }
   // omega = 0;
   // out : omega
@@ -746,7 +765,7 @@ void mouse_odometory()
 
 void omniOdometory(/*float motor_angle[4],float yaw_rad*/)
 {
-  // motor.enc_angle,/yaw_angle_rad
+  // motor.enc_angle,/imu.yaw_angle_rad
 
   for (int i = 0; i < 4; i++) {
     if (isnan(motor.enc_angle[i])) {
@@ -757,7 +776,7 @@ void omniOdometory(/*float motor_angle[4],float yaw_rad*/)
   }
 
   float robot_rotation_adj;
-  robot_rotation_adj = normalizeAngle(yaw_angle_rad - pre_yaw_angle_rad) * OMNI_ROTATION_LENGTH;  // mm
+  robot_rotation_adj = normalizeAngle(imu.yaw_angle_rad - imu.pre_yaw_angle_rad) * OMNI_ROTATION_LENGTH;  // mm
 
   omni.travel_distance[0] = motor.angle_diff[1] * OMNI_DIAMETER + robot_rotation_adj * 2;
   omni.travel_distance[1] = motor.angle_diff[2] * OMNI_DIAMETER + robot_rotation_adj * 2;
@@ -766,8 +785,8 @@ void omniOdometory(/*float motor_angle[4],float yaw_rad*/)
   omni.pre_odom[0] = omni.odom[0];
   omni.pre_odom[1] = omni.odom[1];
 
-  omni.odom[0] += (omni.travel_distance[0] * cos(yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * cos(yaw_angle_rad + M_PI * 5 / 4)) / 2;
-  omni.odom[1] += (omni.travel_distance[0] * sin(yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * sin(yaw_angle_rad + M_PI * 5 / 4)) / 2;
+  omni.odom[0] += (omni.travel_distance[0] * cos(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * cos(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
+  omni.odom[1] += (omni.travel_distance[0] * sin(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * sin(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
 
   omni.odom_speed[0] = (omni.odom[0] - omni.pre_odom[0]) * MAIN_LOOP_CYCLE;
   omni.odom_speed[1] = (omni.odom[1] - omni.pre_odom[1]) * MAIN_LOOP_CYCLE;
@@ -812,34 +831,34 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
 
   // ロボット座標系
   // X
-  omni.robot_pos_diff[0] = omni.odom_floor_diff[0] * cos(yaw_angle_rad) + omni.odom_floor_diff[1] * sin(yaw_angle_rad);
+  omni.robot_pos_diff[0] = omni.odom_floor_diff[0] * cos(imu.yaw_angle_rad) + omni.odom_floor_diff[1] * sin(imu.yaw_angle_rad);
   // Y
-  omni.robot_pos_diff[1] = -omni.odom_floor_diff[0] * sin(yaw_angle_rad) + omni.odom_floor_diff[1] * cos(yaw_angle_rad);
+  omni.robot_pos_diff[1] = -omni.odom_floor_diff[0] * sin(imu.yaw_angle_rad) + omni.odom_floor_diff[1] * cos(imu.yaw_angle_rad);
 
-  output_vel_surge = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.odom_speed[0] * OMNI_OUTPUT_GAIN_KD;
-  output_vel_sway = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.odom_speed[1] * OMNI_OUTPUT_GAIN_KD;
+  output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.odom_speed[0] * OMNI_OUTPUT_GAIN_KD;
+  output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.odom_speed[1] * OMNI_OUTPUT_GAIN_KD;
 
   //+target_move_speed * 2;
 
   float limit_gain = 0;
-  if (output_vel_surge > OMNI_OUTPUT_LIMIT) {
-    limit_gain = output_vel_surge / OMNI_OUTPUT_LIMIT;
-    output_vel_surge = OMNI_OUTPUT_LIMIT;
-    output_vel_sway /= limit_gain;
-  } else if (output_vel_surge < -OMNI_OUTPUT_LIMIT) {
-    limit_gain = -output_vel_surge / OMNI_OUTPUT_LIMIT;
-    output_vel_surge = -OMNI_OUTPUT_LIMIT;
-    output_vel_sway /= limit_gain;
+  if (output.velocity[0] > OMNI_OUTPUT_LIMIT) {
+    limit_gain = output.velocity[0] / OMNI_OUTPUT_LIMIT;
+    output.velocity[0] = OMNI_OUTPUT_LIMIT;
+    output.velocity[1] /= limit_gain;
+  } else if (output.velocity[0] < -OMNI_OUTPUT_LIMIT) {
+    limit_gain = -output.velocity[0] / OMNI_OUTPUT_LIMIT;
+    output.velocity[0] = -OMNI_OUTPUT_LIMIT;
+    output.velocity[1] /= limit_gain;
   }
 
-  if (output_vel_sway > OMNI_OUTPUT_LIMIT) {
-    limit_gain = output_vel_sway / OMNI_OUTPUT_LIMIT;
-    output_vel_sway = OMNI_OUTPUT_LIMIT;
-    output_vel_surge /= limit_gain;
-  } else if (output_vel_sway < -OMNI_OUTPUT_LIMIT) {
-    limit_gain = -output_vel_sway / OMNI_OUTPUT_LIMIT;
-    output_vel_sway = -OMNI_OUTPUT_LIMIT;
-    output_vel_surge /= limit_gain;
+  if (output.velocity[1] > OMNI_OUTPUT_LIMIT) {
+    limit_gain = output.velocity[1] / OMNI_OUTPUT_LIMIT;
+    output.velocity[1] = OMNI_OUTPUT_LIMIT;
+    output.velocity[0] /= limit_gain;
+  } else if (output.velocity[1] < -OMNI_OUTPUT_LIMIT) {
+    limit_gain = -output.velocity[1] / OMNI_OUTPUT_LIMIT;
+    output.velocity[1] = -OMNI_OUTPUT_LIMIT;
+    output.velocity[0] /= limit_gain;
   }
 
   // output vel X/Y
@@ -851,46 +870,50 @@ void maintask_run()
 
   if (sw_mode != 2) {
     // 相補フィルタ
-    yaw_angle = yaw_angle - (getAngleDiff(yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
+    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
   }
-  yaw_angle_rad = yaw_angle * M_PI / 180;
+  imu.yaw_angle_rad = imu.yaw_angle * M_PI / 180;
 
   omniOdometory();
 
-  target.velocity[0] = ai_cmd.local_target_speed[0];
-  target.velocity[1] = ai_cmd.local_target_speed[1];
+  if ((ai_cmd.allow_local_flags & FLAG_ENABLE_LOCAL_VISION) == 0) {
+    target.velocity[0] = ai_cmd.local_target_speed[0];
+    target.velocity[1] = ai_cmd.local_target_speed[1];
+  } else {
+  }
 
+  // デバッグ用に勝手に動くやつ
   if (sw_mode == 2) {
-    vel_radian += (float)3 / 10 * 2 * M_PI / MAIN_LOOP_CYCLE;
+    debug.vel_radian += (float)3 / 10 * 2 * M_PI / MAIN_LOOP_CYCLE;
 
-    if (vel_radian > M_PI * 2) {
-      vel_radian = 0;
+    if (debug.vel_radian > M_PI * 2) {
+      debug.vel_radian = 0;
     }
-    if (sin(vel_radian) > sin(M_PI / 4)) {
+    if (sin(debug.vel_radian) > sin(M_PI / 4)) {
       target.velocity[0] = +0.3;
-    } else if (sin(vel_radian) < -sin(M_PI / 4)) {
+    } else if (sin(debug.vel_radian) < -sin(M_PI / 4)) {
       target.velocity[0] = -0.3;
     } else {
       target.velocity[0] = 0;
     }
-    if (cos(vel_radian) > sin(M_PI / 4)) {
+    if (cos(debug.vel_radian) > sin(M_PI / 4)) {
       target.velocity[1] = +0.3;
-    } else if (cos(vel_radian) < -sin(M_PI / 4)) {
+    } else if (cos(debug.vel_radian) < -sin(M_PI / 4)) {
       target.velocity[1] = -0.3;
     } else {
       target.velocity[1] = 0;
     }
 
-    ai_cmd.target_theta = sin(vel_radian);
-  }
+    ai_cmd.target_theta = sin(debug.vel_radian);
+  }//*/
 
   speed_control();
   theta_control();
 
-  pre_yaw_angle_rad = yaw_angle_rad;
-  pre_yaw_angle = yaw_angle;
+  imu.pre_yaw_angle_rad = imu.yaw_angle_rad;
+  imu.pre_yaw_angle = imu.yaw_angle;
 
-  if ((!ether_connect && sw_mode != 2) || vision_lost_flag) {
+  if ((!connection.connected_ai && sw_mode != 2) || vision_lost_flag) {
     ai_cmd.local_target_speed[0] = 0;
     ai_cmd.local_target_speed[1] = 0;
     maintask_stop(0, 0);
@@ -899,10 +922,10 @@ void maintask_run()
 
   if (starting_status_flag) return;
 
-  omni_move(output_vel_surge, output_vel_sway, omega, 10.0);
+  omni_move(output.velocity[0], output.velocity[1], output.omega, 10.0);
 
   if (ai_cmd.kick_power > 0) {
-    if (ball_detection[0] == 1) {
+    if (can_raw.ball_detection[0] == 1) {
       if (kick_state == 0) {
         uint8_t kick_power_param = (float)ai_cmd.kick_power * 255.0;
         printf(" kick=%d\r\n", kick_power_param);
@@ -960,25 +983,25 @@ void sendRobotInfo()
 {
   uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 
-  uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
-  uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
+  uint8_t yaw_angle_send_low = ((int)imu.yaw_angle + 360) & 0x00FF;
+  uint8_t yaw_angle_send_high = (((int)imu.yaw_angle + 360) & 0xFF00) >> 8;
 
   tx_data_uart[0] = 0xFE;
   tx_data_uart[1] = 0xFC;
   tx_data_uart[2] = (uint8_t)yaw_angle_send_low;
   tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
-  tx_data_uart[4] = ball_detection[0];
-  tx_data_uart[5] = ball_detection[1];
+  tx_data_uart[4] = can_raw.ball_detection[0];
+  tx_data_uart[5] = can_raw.ball_detection[1];
   tx_data_uart[6] = ai_cmd.chip_en;
   tx_data_uart[7] = kick_state;
-  tx_data_uart[8] = (uint8_t)power_voltage[0];
+  tx_data_uart[8] = (uint8_t)can_raw.power_voltage[0];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 }
 
 void maintask_stop(uint8_t error, uint8_t info)
 {
-  uint8_t yaw_angle_send_low = ((int)yaw_angle + 360) & 0x00FF;
-  uint8_t yaw_angle_send_high = (((int)yaw_angle + 360) & 0xFF00) >> 8;
+  uint8_t yaw_angle_send_low = ((int)imu.yaw_angle + 360) & 0x00FF;
+  uint8_t yaw_angle_send_high = (((int)imu.yaw_angle + 360) & 0xFF00) >> 8;
 
   omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
@@ -991,11 +1014,11 @@ void maintask_stop(uint8_t error, uint8_t info)
   tx_data_uart[1] = 0xFC;
   tx_data_uart[2] = (uint8_t)yaw_angle_send_low;
   tx_data_uart[3] = (uint8_t)yaw_angle_send_high;
-  tx_data_uart[4] = error_no[0];
-  tx_data_uart[5] = error_no[1];
+  tx_data_uart[4] = can_raw.error_no[0];
+  tx_data_uart[5] = can_raw.error_no[1];
   tx_data_uart[6] = error;
   tx_data_uart[7] = info;
-  tx_data_uart[8] = (uint8_t)power_voltage[0];
+  tx_data_uart[8] = (uint8_t)can_raw.power_voltage[0];
   HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
 
   if (error) {
@@ -1062,7 +1085,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     ai_cmd.ball_local_FPS = data_from_ether[RX_BUF_SIZE_ETHER - 2];
 
     // time out
-    if (ether_connect == 0) {
+    if (connection.connected_ai == 0) {
       ai_cmd.local_target_speed[0] = 0;
       ai_cmd.local_target_speed[1] = 0;
       ai_cmd.global_vision_theta = 0;
@@ -1081,7 +1104,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       ai_cmd.allow_local_flags = 0;
     }
 
-    connection_check_ver = data_from_ether[1];
+    connection.check_ver = data_from_ether[1];
   }
 }
 
