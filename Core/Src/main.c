@@ -177,6 +177,7 @@ struct
   float odom_floor_diff[2], robot_pos_diff[2];
   float odom[2], pre_odom[2];
   float odom_speed[2], odom_speed_log[2][SPEED_LOG_BUF_SIZE];
+  float odom_speed_log_total[2];
 } omni;
 
 struct
@@ -367,6 +368,7 @@ int main(void)
         //p(" PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
         //p(" odomX %+8.3f odomY %+8.3f ", omni.odom[0], omni.odom[1]);
         //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
+        p("odom log X %+6.1f Y %+6.1f", omni.odom_speed_log_total[0], omni.odom_speed_log_total[1]);
         p(" speedX %+8.3f speedY %+8.3f ", omni.odom_speed[0] * 10, omni.odom_speed[1] * 10);
         //p(" output x %+6.2f y %+6.2f", output.velocity[0], output.velocity[1]);
         //p(" omni.mouse X%+8.3f Y%+8.3f ", mouse.odom[0], mouse.odom[1]);
@@ -383,7 +385,8 @@ int main(void)
         //p(" cpu %3d ", htim->Instance->CNT / 20);  // MAX 2000
         p("\r\n");
 
-        //p("loop %6d", debug.main_loop_cnt);        HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
+        //p("loop %6d", debug.main_loop_cnt);
+        HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
       }
 
       debug.main_loop_cnt = 0;
@@ -798,6 +801,13 @@ void omniOdometory(/*float motor_angle[4],float yaw_rad*/)
   }
   omni.odom_speed_log[0][odom_speed_index] = omni.odom_speed[0];
   omni.odom_speed_log[1][odom_speed_index] = omni.odom_speed[1];
+
+  omni.odom_speed_log_total[0] = 0;
+  omni.odom_speed_log_total[1] = 0;
+  for (int i = 0; i < SPEED_LOG_BUF_SIZE; i++) {
+    omni.odom_speed_log_total[0] += omni.odom_speed_log[0][i];
+    omni.odom_speed_log_total[1] += omni.odom_speed_log[1][i];
+  }
 }
 
 void speed_control(/*float global_target_position[2],float global_robot_odom_position[2],float robot_theta*/)
@@ -825,7 +835,7 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
 
     target.position[i] += target.velocity_current[i] / MAIN_LOOP_CYCLE;
 
-    // 絶対座標系
+    // odom基準の絶対座標系
     omni.odom_floor_diff[i] = omni.odom[i] - target.position[i];
   }
 
@@ -883,7 +893,7 @@ void maintask_run()
   }
 
   // デバッグ用に勝手に動くやつ
-  if (sw_mode == 2) {
+  /*  if (sw_mode == 2) {
     debug.vel_radian += (float)3 / 10 * 2 * M_PI / MAIN_LOOP_CYCLE;
 
     if (debug.vel_radian > M_PI * 2) {
@@ -905,7 +915,7 @@ void maintask_run()
     }
 
     ai_cmd.target_theta = sin(debug.vel_radian);
-  }//*/
+  }  //*/
 
   speed_control();
   theta_control();
