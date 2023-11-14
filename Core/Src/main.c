@@ -65,6 +65,8 @@ void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
 /* USER CODE BEGIN PV */
 uint8_t rxbuf_from_ether[RX_BUF_SIZE_ETHER];
 uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
+uint8_t uart2_rx_it_buffer = 0;
+volatile uint32_t uart_rx_callback_cnt = 0;
 
 struct
 {
@@ -267,7 +269,6 @@ int main(void)
   morse_long();
   //morse_machine_name();
 
-  HAL_UART_Init(&hlpuart1);
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
@@ -329,7 +330,11 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim7);
   // TIM interrupt is TIM7 only.
 
-  HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxbuf_from_ether, RX_BUF_SIZE_ETHER);
+  HAL_UART_Init(&hlpuart1);
+
+  HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
+  //HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxbuf_from_ether, RX_BUF_SIZE_ETHER);
+
   HAL_Delay(1000);
   starting_status_flag = false;
   //target.velocity[1] = 1.0;
@@ -360,7 +365,7 @@ int main(void)
         //p(" Cap=%3.0f BattC %+6.1f", can_raw.power_voltage[6], can_raw.current[4]);
         //p(" omni.mouse:x=%+3d, y=%+3d",omni.mouse[0],omni.mouse[1]);
         //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
-        //p(" con %3d , %3d", connection.check_ver, uart_rx_callback_cnt);
+        p(" con %3d , %3d", connection.check_ver, uart_rx_callback_cnt);
         //p(" vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta);
         //p(" grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
         //p(" ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
@@ -368,8 +373,8 @@ int main(void)
         //p(" PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
         //p(" odomX %+8.3f odomY %+8.3f ", omni.odom[0], omni.odom[1]);
         //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
-        p("odom log X %+6.1f Y %+6.1f", omni.odom_speed_log_total[0], omni.odom_speed_log_total[1]);
-        p(" speedX %+8.3f speedY %+8.3f ", omni.odom_speed[0] * 10, omni.odom_speed[1] * 10);
+        //p("odom log X %+6.1f Y %+6.1f", omni.odom_speed_log_total[0], omni.odom_speed_log_total[1]);
+        //p(" speedX %+8.3f speedY %+8.3f ", omni.odom_speed[0] * 10, omni.odom_speed[1] * 10);
         //p(" output x %+6.2f y %+6.2f", output.velocity[0], output.velocity[1]);
         //p(" omni.mouse X%+8.3f Y%+8.3f ", mouse.odom[0], mouse.odom[1]);
         //p(" local tar X%+8.3f Y%+8.3f ", target.position[0], target.position[1]);
@@ -384,6 +389,7 @@ int main(void)
         //p("allow 0x%02x vision lost %d ", ai_cmd.allow_local_flags, vision_lost_flag);
         //p(" cpu %3d ", htim->Instance->CNT / 20);  // MAX 2000
         p("\r\n");
+        uart_rx_callback_cnt = 0;
 
         //p("loop %6d", debug.main_loop_cnt);
         HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
@@ -1046,7 +1052,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   uint8_t start_byte_idx = 0;
 
-  if (huart->Instance == huart2.Instance) {
+  if (huart->Instance == USART2) {
+    uart_rx_callback_cnt++;
+    HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
+
+    return;
     while (rxbuf_from_ether[start_byte_idx] != 254 && start_byte_idx < sizeof(rxbuf_from_ether)) {
       start_byte_idx++;
     }

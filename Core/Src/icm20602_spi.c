@@ -408,7 +408,6 @@ void ICM20602_IMU_calibration2(void)
 		|| cal_len < 500.0
 		){
 
-    	printf("cal_len=%f\r\n",cal_len);
     	for(j = 0; j < 3; j++){
     		acc[0] = ICM20602_getAccXvalue() * IMU_ONE_G * aRes;
     		acc[1] = ICM20602_getAccYvalue() * IMU_ONE_G * aRes;
