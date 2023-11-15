@@ -39,7 +39,7 @@ extern float32_t motor_voltage[4];
 #define OMNI_DIAMETER 0.056
 #define ROBOT_RADIUS  0.080
 #define RX_BUF_SIZE_ETHER 32
-#define TX_BUF_SIZE_ETHER 32
+#define TX_BUF_SIZE_ETHER 64
 
 
 
