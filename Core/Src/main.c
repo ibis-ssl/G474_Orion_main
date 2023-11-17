@@ -35,7 +35,6 @@
 #include "dma_printf.h"
 #include "dma_scanf.h"
 #include "management.h"
-#include "odom.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -93,12 +92,13 @@ void maintask_stop();
 void motor_test();
 void dribbler_test();
 void kicker_test(bool manual_mode);
-void send_accutuator_cmd();
+void send_accutuator_cmd_run();
 void send_can_error();
 void omniOdometory();
 void mouseOdometory();
 void yawFilter();
 void resetLocalSpeedControl();
+void resetAiCmdData();
 uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
@@ -111,6 +111,8 @@ mouse_t mouse;
 omni_t omni;
 output_t output;
 motor_t motor;
+connection_t connection;
+system_t sys;
 
 UART_HandleTypeDef * huart_xprintf;
 
@@ -126,35 +128,24 @@ struct
   volatile bool print_flag;
 } debug;
 
-#define MAIN_LOOP_CYCLE (500)
-
-
 // communication with CM4
 uint8_t data_from_ether[RX_BUF_SIZE_ETHER];
 uint8_t uart2_rx_it_buffer = 0;
 
 volatile int32_t uart_rx_cmd_idx = 0;
-volatile uint32_t uart_cmd_rx_cnt = 0;
+
+#define AI_CMD_VEL_MAX_MPS (7.0)
 
 #define FLAG_SSL_VISION_OK (0x01)
 #define FLAG_ENABLE_LOCAL_VISION (0x02)
-struct
-{
-  uint8_t connected_ai;
-  uint32_t check_cnt;
-  uint32_t check_pre;
-  uint32_t check_ver;
-} connection;
+#define FLAG_ENABLE_KEEPER_MODE (0x08)
 
 // main state
-volatile uint8_t main_mode;
 uint32_t adc_sw_data;
-volatile bool vision_lost_flag = false;
-volatile bool starting_status_flag = true;
-volatile bool error_flag = false;
 
 // kicker
-volatile int kick_state, kick_time, dribbler_up;
+volatile uint16_t kick_state;
+volatile bool dribbler_up;
 
 /* USER CODE END PFP */
 
@@ -189,7 +180,7 @@ int main(void)
 
   /* USER CODE END Init */
 
-  /* Configure the system clock */
+  /* Configure the sys clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
@@ -276,13 +267,14 @@ int main(void)
   for (int i = 0; i < 8; i++) {
     actuator_buzzer(20, 20);
   }
+  sys.starting_status_flag = true;
 
   HAL_Delay(100);
   HAL_TIM_Base_Start_IT(&htim7);
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(1000);
-  starting_status_flag = false;
+  sys.starting_status_flag = false;
   //target.velocity[1] = 1.0;
   /* USER CODE END 2 */
 
@@ -292,14 +284,19 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    // 30:black 31:red 32:green 33:yellow 34:blue 35:magenta 36:cyan 37:white(default)
     debug.main_loop_cnt++;
     if (debug.print_flag) {
       debug.print_flag = false;
 
       // initialize
       printf_buffer[0] = 0;
-      //p("mode %2d ", main_mode);
-      p("Batt=%3.1f ", can_raw.power_voltage[0]);
+      p("mode %2d ", sys.main_mode);
+      if (can_raw.power_voltage[0] < 22) {
+        p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[0]);
+      } else {
+        p("Batt=%3.1f ", can_raw.power_voltage[0]);
+      }
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
       //p("yaw=%+6.1f ", imu.yaw_angle);
       //p("tar=%+6.1f ", ai_cmd.target_theta * 180 / M_PI);
@@ -312,9 +309,15 @@ int main(void)
       //p(" Batt %3.1f Cap=%3.0f BattC %+6.1f ", can_raw.power_voltage[0], can_raw.power_voltage[6], can_raw.current[4]);
       //p(" omni.mouse:x=%+3d, y=%+3d ",omni.mouse[0],omni.mouse[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
-
-      p("con %3d , %3d ", connection.check_ver, uart_cmd_rx_cnt);
-      p("vel X %+4.1f Y %+4.1f tharW %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
+      if (connection.connected_ai) {
+        p("\e[32mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+      } else if (connection.connected_cm4) {
+        p("\e[33mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+      } else {
+        p("\e[31mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+      }
+      p("vel X %+4.1f Y %+4.1f tharW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
+      p("kick %3.2f chip %d dri %3.2f ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power);
 
       //p("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p("G-ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
@@ -323,6 +326,7 @@ int main(void)
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
       //p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+      //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
       //p("yaw adj X %+8.3f Y %+8.3f  ", 0.107 * cos(imu.yaw_angle_rad), 0.107 * sin(imu.yaw_angle_rad));
       //p("adj X %+8.3f Y %+8.3f ", 0.009 * cos(imu.yaw_angle_rad), 0.009 * sin(imu.yaw_angle_rad));
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
@@ -337,17 +341,23 @@ int main(void)
       //p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
       //p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
       //p("cos %+4.2f sin %+4.2f / cos %+4.2f sin %+4.2f", cos(imu.yaw_angle_rad), sin(imu.yaw_angle_rad), cos(imu.yaw_angle_rad + M_PI * 1 / 2), sin(imu.yaw_angle_rad + M_PI * 1 / 2));
-      //p("tarPos X %+8.3f Y %+8.3f ", target.position[0], target.position[1]);
       //p("start_byte_idx=%d ", start_byte_idx);
       //p("tarVel X %+5.2f Y %+5.2f ", target.velocity[0] * 10, target.velocity[1] * 10);
       //p("speedX %+6.2f velX %+6.2f ", target.velocity[0], omni.odom_speed[0]);
       //p("tar-c %+6.2f %+6.2f ", target.velocity_current[0], target.velocity_current[1]);
       //p("ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
-      //p("%02x %02x %02x %02x ", data_from_ether[0], data_from_ether[1], data_from_ether[2], data_from_ether[3]);
+      p("Raw %02x %02x %02x %02x ", data_from_ether[10], data_from_ether[11], data_from_ether[12], data_from_ether[13]);
       //p("%02x %02x %02x %02x ", data_from_ether[23], data_from_ether[24], data_from_ether[25], data_from_ether[26]);
-      p("allow 0x%02x vision lost %d ", ai_cmd.allow_local_flags, vision_lost_flag);
+
+      if (ai_cmd.vision_lost_flag) {
+        p("\e[33mallow 0x%02x vision lost %d local en %d keeper en %d\e[37m ", ai_cmd.allow_local_flags, ai_cmd.vision_lost_flag, ai_cmd.local_vision_en_flag, ai_cmd.keeper_mode_en_flag);
+      } else {
+        p("\e[32mallow 0x%02x vision lost %d local en %d keeper en %d\e[31m ", ai_cmd.allow_local_flags, ai_cmd.vision_lost_flag, ai_cmd.local_vision_en_flag, ai_cmd.keeper_mode_en_flag);
+      }
+      if (sys.error_flag) {
+        p("\e[31m error : 0x%02x 0x%02x 0x%02x 0x%02x\e[31m", can_raw.error_no[0], can_raw.error_no[1], can_raw.error_no[2], can_raw.error_no[3]);
+      }
       p("\r\n");
-      uart_cmd_rx_cnt = 0;
       //p("loop %6d", debug.main_loop_cnt);
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
 
@@ -358,7 +368,7 @@ int main(void)
 }
 
 /**
-  * @brief System Clock Configuration
+  * @brief sys Clock Configuration
   * @retval None
   */
 void SystemClock_Config(void)
@@ -403,14 +413,10 @@ void SystemClock_Config(void)
 
 void resetLocalSpeedControl()
 {
-  target.position[0] = 0;
-  target.position[1] = 0;
-  omni.odom[0] = 0;
-  omni.odom[1] = 0;
-  omni.odom_raw[0] = 0;
-  omni.odom_raw[1] = 0;
-  ai_cmd.local_target_speed[0] = 0;
-  ai_cmd.local_target_speed[1] = 0;
+  for (int i = 0; i < 2; i++) {
+    target.position[i] = omni.odom[i];
+    ai_cmd.local_target_speed[i] = 0;
+  }
   imu.yaw_angle = ai_cmd.target_theta;
 }
 
@@ -422,36 +428,32 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   pre_sw_mode = sw_mode;
   sw_mode = getModeSwitch();
 
-  if (error_flag) {
-    main_mode = 9;
+  if (sys.error_flag) {
+    sys.main_mode = 9;
     resetLocalSpeedControl();
 
-  } else if (sw_mode != pre_sw_mode || starting_status_flag) {  // reset
-    main_mode = 7;
+  } else if (sw_mode != pre_sw_mode || sys.starting_status_flag) {  // reset
+    sys.main_mode = 7;
     resetLocalSpeedControl();
 
   } else {
-    main_mode = sw_mode;
+    sys.main_mode = sw_mode;
   }
 
-  if ((ai_cmd.allow_local_flags & 0x01) == false) {
-    vision_lost_flag = true;
-  } else {
-    vision_lost_flag = false;
-  }
-
-  yawFilter();
+  yawFilter();  // mode == 2なら相補フィルタなし
   omniOdometory();
 
-  switch (main_mode) {
+  switch (sys.main_mode) {
     case 0:  // with ai
     case 1:  //
-    case 2:  // local test mode
-      if (vision_lost_flag && main_mode != 2) {
+      if (connection.connected_ai == false) {
         maintask_stop();
       } else {
         maintask_run();
       }
+      break;
+    case 2:  // local test mode
+      maintask_run();
       break;
 
     case 3:  // motor test
@@ -487,7 +489,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (buzzer_cnt > 100) {
     buzzer_cnt = 0;
 
-    if (can_raw.power_voltage[0] < 21.0 || error_flag) {
+    if (can_raw.power_voltage[0] < 21.0 || sys.error_flag) {
       if (buzzer_state == false) {
         buzzer_state = true;
         actuator_buzzer_on();
@@ -501,18 +503,27 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
   }
 
-  connection.check_cnt++;
-  if (connection.check_cnt > 200) {
+  static uint32_t connection_check_cnt = 0;
+  connection_check_cnt++;
+  if (connection_check_cnt > MAIN_LOOP_CYCLE / 4) {  // 0.25s
     if (connection.check_ver != connection.check_pre) {
       connection.connected_ai = 1;
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
     } else {
       connection.connected_ai = 0;
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+      resetAiCmdData();
     }
-    //connection.connected_ai = 1;
-    connection.check_cnt = 0;
+    connection_check_cnt = 0;
     connection.check_pre = connection.check_ver;
+    connection.cmd_rx_frq = (float)connection.cmd_cnt * 4;  // 0.25s cycle -> x4
+    connection.cmd_cnt = 0;
+
+    if (connection.cmd_rx_frq > 0) {
+      connection.connected_cm4 = true;
+    } else {
+      connection.connected_cm4 = false;
+    }
   }
 
   // interrupt : 500Hz
@@ -532,96 +543,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 uint8_t getModeSwitch()
 {
   return 15 - (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) + (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1) + (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) << 3) + (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2) << 2));
-}
-
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs)
-{
-  uint8_t RxData[CAN_RX_DATA_SIZE];
-  FDCAN_RxHeaderTypeDef RxHeader;
-  uint16_t rx_can_id;
-
-  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
-    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK) {
-      Error_Handler();
-    }
-    rx_can_id = RxHeader.Identifier;
-    switch (rx_can_id) {
-      // error
-      case 0x000:
-      case 0x001:
-        can_raw.error_no[0] = RxData[0];
-        can_raw.error_no[1] = RxData[1];
-        error_flag = true;
-        break;
-
-      // can_raw.motor_feedback
-      case 0x200:
-      case 0x201:
-      case 0x202:
-      case 0x203:
-        motor.enc_angle[rx_can_id - 0x200] = uchar4_to_float(&RxData[4]);
-        can_raw.motor_feedback[rx_can_id - 0x200] = uchar4_to_float(RxData);
-        can_raw.motor_feedback_velocity[rx_can_id - 0x200] = can_raw.motor_feedback[3] * OMNI_DIAMETER * M_PI;
-        break;
-
-        // can_raw.power_Voltage
-      case 0x210:  // m0
-      case 0x211:  // m1
-      case 0x212:  // m2
-      case 0x213:  // m3
-      case 0x214:  // sub board (not used)
-      case 0x215:  // battery
-      case 0x216:  // capacitor
-        can_raw.power_voltage[rx_can_id - 0x210] = uchar4_to_float(RxData);
-        break;
-
-      // can_raw.temperature from BLDC
-      case 0x220:
-      case 0x221:
-      case 0x222:
-      case 0x223:
-        can_raw.temperature[rx_can_id - 0x220] = uchar4_to_float(RxData);
-        break;
-      // can_raw.temperature from power
-      case 0x224:
-        can_raw.temperature[4] = RxData[0];  // fet
-        can_raw.temperature[5] = RxData[1];  // coil 1
-        can_raw.temperature[6] = RxData[2];  // coil 2
-        break;
-
-      // can_raw.current
-      case 0x230:
-      case 0x231:
-      case 0x232:
-      case 0x233:
-      case 0x234:
-        can_raw.current[rx_can_id - 0x230] = uchar4_to_float(RxData);
-        break;
-
-      // can_raw.ball_detection
-      case 0x240:
-        can_raw.ball_detection[0] = RxData[0];
-        can_raw.ball_detection[1] = RxData[1];
-        can_raw.ball_detection[2] = RxData[2];
-        can_raw.ball_detection[3] = RxData[3];
-        break;
-
-      // mouseXY
-      case 0x241:
-        mouse.raw[0] = (int16_t)((RxData[1] << 8) | RxData[0]);
-        mouse.raw[1] = (int16_t)((RxData[3] << 8) | RxData[2]);
-        mouse.quality = (uint16_t)((RxData[5] << 8) | RxData[4]);
-        mouseOdometory();
-        mouse.loop_cnt_debug = mouse.integral_loop_cnt;
-        mouse.integral_loop_cnt = 0;
-
-        // 持ち上げ･コート外検知
-        /*if (mouse.quality < 30 && starting_status_flag == false) {
-          error_flag = true;
-        }*/
-        break;
-    }
-  }
 }
 
 void motor_test()
@@ -662,11 +583,13 @@ void dribbler_test()
 
 void kicker_test(bool manual_mode)
 {
-  if (kick_state == 1) {
-    kick_time++;
-    if (kick_time > 100) {
-      kick_state = 0;
-      kick_time = 0;
+  if (kick_state != 0) {
+    if (kick_state > MAIN_LOOP_CYCLE / 2) {
+      if (can_raw.ball_detection[0] == 0) {
+        kick_state = 0;
+      }
+    } else {
+      kick_state++;
     }
   }
 
@@ -707,8 +630,6 @@ void kicker_test(bool manual_mode)
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
     actuator_kicker(1, 1);  // charge enable
     actuator_kicker_voltage(150.0);
-    kick_state = 0;
-    kick_time = 0;
   }
   omni_move(0.0, 0.0, 0.0, 0.0);
 }
@@ -720,7 +641,7 @@ void yawFilter()
 
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
 
-  if (main_mode < 2) {
+  if (sys.main_mode < 2) {
     // 相補フィルタ
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
   }
@@ -740,78 +661,6 @@ void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
   }
   // omega = 0;
   // out : omega
-}
-
-void mouseOdometory()
-{
-  mouse.raw_diff[0] = (float)mouse.raw[0] / 750;
-  mouse.raw_diff[1] = (float)mouse.raw[1] / 750;
-
-  mouse.raw_odom[0] += mouse.raw_diff[0];
-  mouse.raw_odom[1] += mouse.raw_diff[1];
-
-  mouse.floor_odom[0] += ((float)mouse.raw_diff[0] * cos(imu.yaw_angle_rad) - (float)mouse.raw_diff[1] * sin(imu.yaw_angle_rad)) / 2;
-  mouse.floor_odom[1] += ((float)mouse.raw_diff[0] * sin(imu.yaw_angle_rad) + (float)mouse.raw_diff[1] * cos(imu.yaw_angle_rad)) / 2;
-
-  // 旋回ぶん補正 X方向は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
-  mouse.odom[0] = mouse.floor_odom[0] - (0.066 * cos(imu.yaw_angle_rad) - 0.066);
-  //  +(0.009 * sin(imu.yaw_angle_rad));
-  mouse.odom[1] = mouse.floor_odom[1] - (0.066 * sin(imu.yaw_angle_rad));
-  //  +(0.009 * cos(imu.yaw_angle_rad) - 0.009);
-
-  mouse.pre_yaw_angle_rad = imu.yaw_angle_rad;
-}
-
-void omniOdometory(/*float motor_angle[4],float yaw_rad*/)
-{
-  // motor.enc_angle,/imu.yaw_angle_rad
-
-  for (int i = 0; i < 4; i++) {
-    if (isnan(motor.enc_angle[i])) {
-      motor.enc_angle[i] = 0;
-    }
-    motor.angle_diff[i] = getAngleDiff(motor.enc_angle[i], motor.pre_enc_angle[i]);
-    motor.pre_enc_angle[i] = motor.enc_angle[i];
-  }
-
-  // float robot_rotation_adj;
-  // robot_rotation_adj = normalizeAngle(imu.yaw_angle_rad - imu.pre_yaw_angle_rad) * OMNI_ROTATION_LENGTH;  // mm
-
-  omni.travel_distance[0] = motor.angle_diff[1] * OMNI_DIAMETER;
-  //  +robot_rotation_adj * 2;
-  omni.travel_distance[1] = motor.angle_diff[2] * OMNI_DIAMETER;
-  //  +robot_rotation_adj * 2;
-
-  // right back & left back
-  omni.odom_raw[0] += omni.travel_distance[0] * cos(imu.yaw_angle_rad) + omni.travel_distance[1] * sin(imu.yaw_angle_rad);
-  omni.odom_raw[1] += omni.travel_distance[0] * sin(imu.yaw_angle_rad) - omni.travel_distance[1] * cos(imu.yaw_angle_rad);
-
-  omni.pre_odom[0] = omni.odom[0];
-  omni.pre_odom[1] = omni.odom[1];
-
-  omni.odom[0] = ((omni.odom_raw[0] * cos(M_PI * 3 / 4) - omni.odom_raw[1] * sin(M_PI * 3 / 4)) / 2) + (0.107 * cos(imu.yaw_angle_rad) - 0.107);
-  omni.odom[1] = ((omni.odom_raw[0] * sin(M_PI * 3 / 4) + omni.odom_raw[1] * cos(M_PI * 3 / 4)) / 2) + (0.107 * sin(imu.yaw_angle_rad));
-
-  //omni.odom[0] += (omni.travel_distance[0] * cos(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * cos(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
-  //omni.odom[1] += (omni.travel_distance[0] * sin(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * sin(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
-
-  omni.odom_speed[0] = (omni.odom[0] - omni.pre_odom[0]) * MAIN_LOOP_CYCLE;
-  omni.odom_speed[1] = (omni.odom[1] - omni.pre_odom[1]) * MAIN_LOOP_CYCLE;
-
-  static uint32_t odom_speed_index = 0;
-  odom_speed_index++;
-  if (odom_speed_index >= SPEED_LOG_BUF_SIZE) {
-    odom_speed_index = 0;
-  }
-  omni.odom_speed_log[0][odom_speed_index] = omni.odom_speed[0];
-  omni.odom_speed_log[1][odom_speed_index] = omni.odom_speed[1];
-
-  omni.odom_speed_log_total[0] = 0;
-  omni.odom_speed_log_total[1] = 0;
-  for (int i = 0; i < SPEED_LOG_BUF_SIZE; i++) {
-    omni.odom_speed_log_total[0] += omni.odom_speed_log[0][i];
-    omni.odom_speed_log_total[1] += omni.odom_speed_log[1][i];
-  }
 }
 
 void speed_control(/*float global_target_position[2],float global_robot_odom_position[2],float robot_theta*/)
@@ -837,7 +686,15 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
       }
     }
 
-    target.position[i] += target.velocity_current[i] / MAIN_LOOP_CYCLE;
+    target.position[i] += target.velocity_current[i] / MAIN_LOOP_CYCLE;  // speed to position
+
+    // targetとodomの差分に上限をつける
+    /*float odom_diff_max = (float)OMNI_OUTPUT_LIMIT / OMNI_OUTPUT_GAIN_KP;
+    if (omni.odom[i] - target.position[i] > odom_diff_max) {
+      target.position[i] = omni.odom[i] + odom_diff_max;
+    } else if (omni.odom[i] - target.position[i] < -odom_diff_max) {
+      target.position[i] = omni.odom[i] - odom_diff_max;
+    }*/
 
     // odom基準の絶対座標系
     omni.odom_floor_diff[i] = omni.odom[i] - target.position[i];
@@ -880,14 +737,16 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
 
 void maintask_run()
 {
-  if ((ai_cmd.allow_local_flags & FLAG_ENABLE_LOCAL_VISION) == 0) {
+  if (ai_cmd.local_vision_en_flag == false) {
     target.velocity[0] = ai_cmd.local_target_speed[0];
     target.velocity[1] = ai_cmd.local_target_speed[1];
   } else {
+    target.velocity[0] = 0;
+    target.velocity[1] = 0;
   }
 
   // デバッグ用に勝手に動くやつ
-  /*if (main_mode == 2) {
+  /*if (sys.main_mode == 2) {
     debug.vel_radian += (float)5 / 10 * 2 * M_PI / MAIN_LOOP_CYCLE;
 
     if (debug.vel_radian > M_PI * 2) {
@@ -914,26 +773,27 @@ void maintask_run()
   speed_control();
   theta_control();
 
-  omni_move(output.velocity[0], output.velocity[1], output.omega, 10.0);
-  send_accutuator_cmd();
+  omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT);
+  send_accutuator_cmd_run();
 }
 
-void send_accutuator_cmd()
+void send_accutuator_cmd_run()
 {
   if (ai_cmd.kick_power > 0) {
-    if (can_raw.ball_detection[0] == 1) {
-      if (kick_state == 0) {
+    if (kick_state == 0) {
+      if (can_raw.ball_detection[0] == 1) {
         uint8_t kick_power_param = (float)ai_cmd.kick_power * 255.0;
         printf(" kick=%d\r\n", kick_power_param);
         actuator_kicker(3, (uint8_t)kick_power_param);
         kick_state = 1;
       }
-    }
-    if (kick_state == 1) {
-      kick_time++;
-      if (kick_time > 100) {
-        kick_state = 0;
-        kick_time = 0;
+    } else {
+      if (kick_state > MAIN_LOOP_CYCLE / 2) {
+        if (can_raw.ball_detection[0] == 0) {
+          kick_state = 0;
+        }
+      } else {
+        kick_state++;
       }
     }
   }
@@ -943,7 +803,7 @@ void send_accutuator_cmd()
   can_sending_index++;
   switch (can_sending_index) {
     case 1:
-      if (ai_cmd.chip_en == 1) {
+      if (ai_cmd.chip_en == true) {
         actuator_kicker(2, 1);
       } else {
         actuator_kicker(2, 0);
@@ -951,7 +811,7 @@ void send_accutuator_cmd()
       break;
 
     case 2:
-      if (ai_cmd.chip_en == 1) {
+      if (ai_cmd.chip_en == true) {
         actuator_dribbler_up();
       } else {
         actuator_dribbler_down();
@@ -990,7 +850,7 @@ void sendRobotInfo()
   tx_data_uart[4] = can_raw.ball_detection[0];
   tx_data_uart[5] = can_raw.ball_detection[1];
   tx_data_uart[6] = 0;
-  tx_data_uart[7] = kick_state;
+  tx_data_uart[7] = kick_state / 10;
   tx_data_uart[8] = (uint8_t)can_raw.power_voltage[0];
   tx_data_uart[9] = can_raw.error_no[0];
   tx_data_uart[10] = can_raw.error_no[1];
@@ -1028,6 +888,7 @@ void maintask_stop()
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
+  actuator_dribbler_down();
 }
 
 void send_can_error()
@@ -1038,22 +899,57 @@ void send_can_error()
 
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
 }
+void resetAiCmdData()
+{
+  ai_cmd.local_target_speed[0] = 0;
+  ai_cmd.local_target_speed[1] = 0;
+  ai_cmd.global_vision_theta = 0;
+  ai_cmd.target_theta = 0;
+  ai_cmd.chip_en = false;
+  ai_cmd.kick_power = 0;
+  ai_cmd.drible_power = 0;
+  ai_cmd.allow_local_flags = 0;
+
+  ai_cmd.global_ball_position[0] = 0;
+  ai_cmd.global_ball_position[1] = 0;
+  ai_cmd.global_robot_position[0] = 0;
+  ai_cmd.global_robot_position[1] = 0;
+  ai_cmd.global_target_position[0] = 0;
+  ai_cmd.global_target_position[1] = 0;
+
+  ai_cmd.ball_local_x = 0;
+  ai_cmd.ball_local_y = 0;
+  ai_cmd.ball_local_radius = 0;
+  ai_cmd.ball_local_FPS = 0;
+
+  ai_cmd.vision_lost_flag = true;
+  ai_cmd.local_vision_en_flag = false;
+  ai_cmd.keeper_mode_en_flag = false;
+}
 
 void parseRxCmd()
 {
-  ai_cmd.local_target_speed[0] = two_to_float(&data_from_ether[2]) * 7.0;
-  ai_cmd.local_target_speed[1] = two_to_float(&data_from_ether[4]) * 7.0;
+  connection.cmd_cnt++;
+  connection.check_ver = data_from_ether[1];
+
+  // time out
+  if (connection.connected_ai == 0) {
+    resetAiCmdData();
+    return;
+  }
+
+  ai_cmd.local_target_speed[0] = two_to_float(&data_from_ether[2]) * AI_CMD_VEL_MAX_MPS;
+  ai_cmd.local_target_speed[1] = two_to_float(&data_from_ether[4]) * AI_CMD_VEL_MAX_MPS;
   ai_cmd.global_vision_theta = two_to_float(&data_from_ether[6]) * M_PI;
   ai_cmd.target_theta = two_to_float(&data_from_ether[8]) * M_PI;
-
   if (data_from_ether[10] > 100) {
-    ai_cmd.chip_en = 1;
-    data_from_ether[10] = data_from_ether[10] - 100;
+    ai_cmd.chip_en = true;
+    ai_cmd.kick_power = (float)(data_from_ether[10] - 100) / 20;
   } else {
-    ai_cmd.chip_en = 0;
+    ai_cmd.kick_power = (float)data_from_ether[10] / 20;
+    ai_cmd.chip_en = false;
   }
-  ai_cmd.kick_power = (float)data_from_ether[10] / 20.0;
-  ai_cmd.drible_power = (float)data_from_ether[11] / 20.0;
+  ai_cmd.drible_power = (float)data_from_ether[11] / 20;
 
   ai_cmd.allow_local_flags = data_from_ether[12];
 
@@ -1069,27 +965,23 @@ void parseRxCmd()
   ai_cmd.ball_local_radius = data_from_ether[RX_BUF_SIZE_ETHER - 4] << 8 | data_from_ether[RX_BUF_SIZE_ETHER - 3];
   ai_cmd.ball_local_FPS = data_from_ether[RX_BUF_SIZE_ETHER - 2];
 
-  // time out
-  if (connection.connected_ai == 0) {
-    ai_cmd.local_target_speed[0] = 0;
-    ai_cmd.local_target_speed[1] = 0;
-    ai_cmd.global_vision_theta = 0;
-    ai_cmd.target_theta = 0;
-    ai_cmd.chip_en = 0;
-    ai_cmd.kick_power = 0;
-    ai_cmd.drible_power = 0;
-    ai_cmd.allow_local_flags = 0;
-    ai_cmd.global_ball_position[0] = 0;
-    ai_cmd.global_ball_position[1] = 0;
-    ai_cmd.global_robot_position[0] = 0;
-    ai_cmd.global_robot_position[1] = 0;
-    ai_cmd.global_target_position[0] = 0;
-    ai_cmd.global_target_position[1] = 0;
-    //test
-    ai_cmd.allow_local_flags = 0;
+  if ((ai_cmd.allow_local_flags & FLAG_SSL_VISION_OK) != 0) {
+    ai_cmd.vision_lost_flag = false;
+  } else {
+    ai_cmd.vision_lost_flag = true;
   }
 
-  connection.check_ver = data_from_ether[1];
+  if ((ai_cmd.allow_local_flags & FLAG_ENABLE_LOCAL_VISION) != 0) {
+    ai_cmd.local_vision_en_flag = true;
+  } else {
+    ai_cmd.local_vision_en_flag = false;
+  }
+
+  if ((ai_cmd.allow_local_flags & FLAG_ENABLE_KEEPER_MODE) != 0) {
+    ai_cmd.keeper_mode_en_flag = true;
+  } else {
+    ai_cmd.keeper_mode_en_flag = false;
+  }
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
@@ -1119,7 +1011,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       uart_rx_cmd_idx = -1;
       parseRxCmd();
       sendRobotInfo();
-      uart_cmd_rx_cnt++;
     }
   }
 }
@@ -1145,7 +1036,7 @@ void Error_Handler(void)
     maintask_stop(255, 0);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
     actuator_buzzer(200, 200);
-    // NVIC_SystemReset();
+    // NVIC_sysReset();
   }
   /* USER CODE END Error_Handler_Debug */
 }

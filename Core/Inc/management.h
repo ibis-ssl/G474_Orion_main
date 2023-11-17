@@ -31,14 +31,17 @@
 #include "myatan2.h"
 #include "omni_wheel.h"
 #include "util.h"
+#include "odom.h"
 
 extern float32_t motor_voltage[4];
+
+#define MAIN_LOOP_CYCLE (500)
 
 #define CAN_RX_DATA_SIZE 8
 #define CAN_TX_DATA_SIZE 8
 #define OMNI_DIAMETER 0.056
 #define ROBOT_RADIUS 0.080
-#define RX_BUF_SIZE_ETHER 32
+#define RX_BUF_SIZE_ETHER 64
 #define TX_BUF_SIZE_ETHER 64
 
 #define SPEED_LOG_BUF_SIZE 100
@@ -64,13 +67,14 @@ typedef struct
   float target_theta, global_vision_theta;
   float drible_power;
   float kick_power;
-  uint8_t chip_en;
+  bool chip_en;
   float local_target_speed[2];
   int global_robot_position[2];
-  int global_global_target_positio_n__[2];
+  int global_target_position[2];
   int global_ball_position[2];
   uint8_t allow_local_flags;
   int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
+  bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag;
 } ai_cmd_t;
 
 typedef struct
@@ -116,6 +120,22 @@ typedef struct
   volatile float omega;
 } output_t;
 
+typedef struct
+{
+  uint8_t connected_ai;
+  uint8_t connected_cm4;
+  uint32_t check_pre;
+  uint32_t check_ver;
+  uint32_t cmd_cnt;
+  float cmd_rx_frq;
+} connection_t;
+
+typedef struct
+{
+  bool error_flag;
+  bool starting_status_flag;
+  uint8_t main_mode;
+} system_t;
 
 extern imu_t imu;
 extern can_raw_t can_raw;
@@ -125,6 +145,8 @@ extern mouse_t mouse;
 extern omni_t omni;
 extern output_t output;
 extern motor_t motor;
+extern connection_t connection;
+extern system_t sys;
 
 //extern float32_t voltage[6];
 

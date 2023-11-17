@@ -9,5 +9,7 @@
 #define INC_ODOM_H_
 #include "management.h"
 
+void omniOdometory();
+void mouseOdometory();
 
 #endif /* INC_ODOM_H_ */
