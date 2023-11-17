@@ -35,6 +35,7 @@
 #include "dma_printf.h"
 #include "dma_scanf.h"
 #include "management.h"
+#include "odom.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -120,87 +121,19 @@ uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
 // for IMU
-
-struct
-{
-  float yaw_angle, pre_yaw_angle;
-  float yaw_angle_rad, pre_yaw_angle_rad;
-} imu;
-
-// kicker
-volatile int kick_state, kick_time, dribbler_up;
-
-struct
-{
-  uint8_t error_no[4];
-  float motor_feedback[5];
-  float motor_feedback_velocity[5];
-  float power_voltage[7];
-  float temperature[7];
-  float current[5];
-  uint8_t ball_detection[4];
-} can_raw;
-
-struct
-{
-  float target_theta, global_vision_theta;
-  float drible_power;
-  float kick_power;
-  uint8_t chip_en;
-  float local_target_speed[2];
-  int global_robot_position[2];
-  int global_global_target_positio_n__[2];
-  int global_ball_position[2];
-  uint8_t allow_local_flags;
-  int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
-} ai_cmd;
+imu_t imu;
+can_raw_t can_raw;
+ai_cmd_t ai_cmd;
+target_t target;
+mouse_t mouse;
+omni_t omni;
+output_t output;
+motor_t motor;
 
 volatile bool starting_status_flag = true;
 volatile uint8_t vision_lost_flag = 0;
-
-struct
-{
-  float enc_angle[5];
-  float pre_enc_angle[5];
-  float angle_diff[4];
-} motor;
-
-#define SPEED_LOG_BUF_SIZE 100
-
-struct
-{
-  float position[2];
-  float velocity[2];  // m/s
-  float acceleration[2];
-  float velocity_current[2];
-} target;
-
-struct
-{
-  float velocity[2];
-  float raw_odom[2];
-  float floor_odom[2];
-  int16_t raw[2];
-  float raw_diff[2];
-  uint16_t quality;
-  int integral_loop_cnt, loop_cnt_debug;
-  float pre_yaw_angle_rad, diff_yaw_angle_rad;
-} mouse;
-
-struct
-{
-  float travel_distance[2];
-  float odom_floor_diff[2], robot_pos_diff[2];
-  float odom[2], pre_odom[2];
-  float odom_speed[2], odom_speed_log[2][SPEED_LOG_BUF_SIZE];
-  float odom_speed_log_total[2];
-} omni;
-
-struct
-{
-  volatile float velocity[2];
-  volatile float omega;
-} output;
+// kicker
+volatile int kick_state, kick_time, dribbler_up;
 
 UART_HandleTypeDef * huart_xprintf;
 
@@ -327,7 +260,7 @@ int main(void)
   actuator_motor5(0.0, 0.0);
 
   actuator_kicker(1, 1);
-  actuator_kicker_voltage(250.0);
+  actuator_kicker_voltage(150.0);
   actuator_power_param(1, 15.0);  // min voltage
   actuator_power_param(2, 35.0);  // max voltage
   actuator_power_param(3, 50.0);  // max can_raw.current
@@ -388,15 +321,19 @@ int main(void)
       //p("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p("ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
       //p("tar X %+5d Y %+5d ", ai_cmd.global_global_target_positio_n__[0], ai_cmd.global_global_target_positio_n__[1]);
+      //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
-      p("odom X %+8.3f Y %+8.3f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+      p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+      //p("yaw adj X %+8.3f Y %+8.3f  ", 0.107 * cos(imu.yaw_angle_rad), 0.107 * sin(imu.yaw_angle_rad));
+      //p("adj X %+8.3f Y %+8.3f ", 0.009 * cos(imu.yaw_angle_rad), 0.009 * sin(imu.yaw_angle_rad));
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
       //p("odom log X %+6.1f Y %+6.1f ", omni.odom_speed_log_total[0], omni.odom_speed_log_total[1]);
       //p("speedX %+8.1f speedY %+8.1f ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
       //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
       //p("raw_odom X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
-      p("floor X %+8.3f Y %+8.3f ", -mouse.floor_odom[0] * 1000, -mouse.floor_odom[1] * 1000);
-      p("Error X %+8.3f Y %+8.3f ", (omni.odom[0] + mouse.floor_odom[0]) * 1000, (omni.odom[1] + mouse.floor_odom[1]) * 1000);
+      //p("mouse floor X %+8.3f Y %+8.3f ", -mouse.floor_odom[0] * 1000, -mouse.floor_odom[1] * 1000);
+      p("mouse X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
+      p("Error X %+8.3f Y %+8.3f ", (omni.odom[0] + mouse.odom[0]) * 1000, (omni.odom[1] + mouse.odom[1]) * 1000);
       //p("diff X %+8.3f Y %+8.3f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
       //p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
       //p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
@@ -470,8 +407,12 @@ void SystemClock_Config(void)
 
 void resetLocalSpeedControl()
 {
-  omni.odom[0] = target.position[0];
-  omni.odom[1] = target.position[1];
+  target.position[0] = 0;
+  target.position[1] = 0;
+  omni.odom[0] = 0;
+  omni.odom[1] = 0;
+  omni.odom_raw[0] = 0;
+  omni.odom_raw[1] = 0;
   ai_cmd.local_target_speed[0] = 0;
   ai_cmd.local_target_speed[1] = 0;
   imu.yaw_angle = ai_cmd.target_theta;
@@ -505,7 +446,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   yawFilter();
   omniOdometory();
-  mouseOdometory();
 
   switch (main_mode) {
     case 0:  // with ai
@@ -680,9 +620,9 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
         mouse.integral_loop_cnt = 0;
 
         // 持ち上げ･コート外検知
-        if (mouse.quality < 30 && starting_status_flag == false) {
+        /*if (mouse.quality < 30 && starting_status_flag == false) {
           error_flag = true;
-        }
+        }*/
         break;
     }
   }
@@ -770,7 +710,7 @@ void kicker_test(bool manual_mode)
     actuator_motor5(0.0, 0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
     actuator_kicker(1, 1);  // charge enable
-    actuator_kicker_voltage(400.0);
+    actuator_kicker_voltage(150.0);
     kick_state = 0;
     kick_time = 0;
   }
@@ -808,23 +748,28 @@ void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
 
 void mouseOdometory()
 {
-  mouse.raw_diff[0] = (float)mouse.raw[0] / 5000;
-  mouse.raw_diff[1] = (float)mouse.raw[1] / 5000;
+  mouse.raw_diff[0] = (float)mouse.raw[0] / 750;
+  mouse.raw_diff[1] = (float)mouse.raw[1] / 750;
 
   mouse.raw_odom[0] += mouse.raw_diff[0];
   mouse.raw_odom[1] += mouse.raw_diff[1];
 
   // 旋回ぶんを補正
-  robot_rotation_adj_mouse = normalizeAngle(imu.yaw_angle_rad - imu.pre_yaw_angle_rad) * 0.066 * 2;  // mm
-  mouse.raw_diff[1] = mouse.raw_diff[1] - robot_rotation_adj_mouse;
+  //robot_rotation_adj_mouse = normalizeAngle(imu.yaw_angle_rad - imu.pre_yaw_angle_rad) * 0.066;  // mm
+  //mouse.raw_diff[1] = mouse.raw_diff[1] - robot_rotation_adj_mouse;
 
-  // X方向は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
   /*robot_rotation_adj_mouse = normalizeAngle(imu.yaw_angle_rad - imu.pre_yaw_angle_rad) * 0.009;  // mm
   robot_rotation_adj_vised = mouse.raw_diff[0] - robot_rotation_adj_mouse;
   robot_rotation_adj_vised_int += robot_rotation_adj_vised;*/
 
-  mouse.floor_odom[0] += ((float)mouse.raw_diff[0] * cos(imu.yaw_angle_rad) + (float)mouse.raw_diff[1] * cos(imu.yaw_angle_rad + M_PI * 1 / 2)) / 2;
-  mouse.floor_odom[1] += ((float)mouse.raw_diff[0] * sin(imu.yaw_angle_rad) + (float)mouse.raw_diff[1] * sin(imu.yaw_angle_rad + M_PI * 1 / 2)) / 2;
+  mouse.floor_odom[0] += ((float)mouse.raw_diff[0] * cos(imu.yaw_angle_rad) - (float)mouse.raw_diff[1] * sin(imu.yaw_angle_rad)) / 2;
+  mouse.floor_odom[1] += ((float)mouse.raw_diff[0] * sin(imu.yaw_angle_rad) + (float)mouse.raw_diff[1] * cos(imu.yaw_angle_rad)) / 2;
+
+  // X方向は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
+  mouse.odom[0] = mouse.floor_odom[0] - (0.066 * cos(imu.yaw_angle_rad) - 0.066);
+  //  +(0.009 * sin(imu.yaw_angle_rad));
+  mouse.odom[1] = mouse.floor_odom[1] - (0.066 * sin(imu.yaw_angle_rad));
+  //  +(0.009 * cos(imu.yaw_angle_rad) - 0.009);
 
   mouse.pre_yaw_angle_rad = imu.yaw_angle_rad;
 }
@@ -841,18 +786,26 @@ void omniOdometory(/*float motor_angle[4],float yaw_rad*/)
     motor.pre_enc_angle[i] = motor.enc_angle[i];
   }
 
-  float robot_rotation_adj;
-  robot_rotation_adj = normalizeAngle(imu.yaw_angle_rad - imu.pre_yaw_angle_rad) * OMNI_ROTATION_LENGTH;  // mm
+  // float robot_rotation_adj;
+  // robot_rotation_adj = normalizeAngle(imu.yaw_angle_rad - imu.pre_yaw_angle_rad) * OMNI_ROTATION_LENGTH;  // mm
 
-  omni.travel_distance[0] = motor.angle_diff[1] * OMNI_DIAMETER + robot_rotation_adj * 2;
-  omni.travel_distance[1] = motor.angle_diff[2] * OMNI_DIAMETER + robot_rotation_adj * 2;
-  // spin_adjusted_result += (omni.travel_distance[0] + omni.travel_distance[1]) / 2; // for debug output
+  omni.travel_distance[0] = motor.angle_diff[1] * OMNI_DIAMETER;
+  //  +robot_rotation_adj * 2;
+  omni.travel_distance[1] = motor.angle_diff[2] * OMNI_DIAMETER;
+  //  +robot_rotation_adj * 2;
+
+  // right back & left back
+  omni.odom_raw[0] += omni.travel_distance[0] * cos(imu.yaw_angle_rad) + omni.travel_distance[1] * sin(imu.yaw_angle_rad);
+  omni.odom_raw[1] += omni.travel_distance[0] * sin(imu.yaw_angle_rad) - omni.travel_distance[1] * cos(imu.yaw_angle_rad);
 
   omni.pre_odom[0] = omni.odom[0];
   omni.pre_odom[1] = omni.odom[1];
 
-  omni.odom[0] += (omni.travel_distance[0] * cos(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * cos(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
-  omni.odom[1] += (omni.travel_distance[0] * sin(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * sin(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
+  omni.odom[0] = ((omni.odom_raw[0] * cos(M_PI * 3 / 4) - omni.odom_raw[1] * sin(M_PI * 3 / 4)) / 2) + (0.107 * cos(imu.yaw_angle_rad) - 0.107);
+  omni.odom[1] = ((omni.odom_raw[0] * sin(M_PI * 3 / 4) + omni.odom_raw[1] * cos(M_PI * 3 / 4)) / 2) + (0.107 * sin(imu.yaw_angle_rad));
+
+  //omni.odom[0] += (omni.travel_distance[0] * cos(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * cos(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
+  //omni.odom[1] += (omni.travel_distance[0] * sin(imu.yaw_angle_rad + M_PI * 3 / 4) - omni.travel_distance[1] * sin(imu.yaw_angle_rad + M_PI * 5 / 4)) / 2;
 
   omni.odom_speed[0] = (omni.odom[0] - omni.pre_odom[0]) * MAIN_LOOP_CYCLE;
   omni.odom_speed[1] = (omni.odom[1] - omni.pre_odom[1]) * MAIN_LOOP_CYCLE;
@@ -1022,7 +975,7 @@ void send_accutuator_cmd()
       break;
 
     case 4:
-      actuator_kicker_voltage(250.0);
+      actuator_kicker_voltage(150.0);
       break;
 
     case 5:

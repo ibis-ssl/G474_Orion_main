@@ -1,5 +1,8 @@
 {
     "files.autoSave": "afterDelay",
     "editor.formatOnPaste": true,
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "files.associations": {
+        "cmath": "c"
+    }
 }

@@ -42,7 +42,7 @@ void actuator_dribbler_down() { motor_cmd_can1(0x105, 0, 1.0); }
 void actuator_kicker_voltage(float voltage)
 {
   uint8_t senddata_kick[8];
-  float_to_uchar4(&senddata_kick[1], voltage);
+  float_to_uchar4(&senddata_kick[4], voltage);
 
   senddata_kick[0] = 0;
   can1_send(0x110, senddata_kick);

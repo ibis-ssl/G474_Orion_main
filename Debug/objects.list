@@ -12,6 +12,7 @@
 "./Core/Src/main.o"
 "./Core/Src/microsectimer.o"
 "./Core/Src/myatan2.o"
+"./Core/Src/odom.o"
 "./Core/Src/omni_wheel.o"
 "./Core/Src/spi.o"
 "./Core/Src/stm32g4xx_hal_msp.o"
