@@ -53,7 +53,7 @@ typedef struct
 } imu_t;
 typedef struct
 {
-  uint8_t error_no[4];
+  uint8_t error_no[8];
   float motor_feedback[5];
   float motor_feedback_velocity[5];
   float power_voltage[7];
@@ -122,10 +122,10 @@ typedef struct
 
 typedef struct
 {
-  uint8_t connected_ai;
-  uint8_t connected_cm4;
-  uint32_t check_pre;
-  uint32_t check_ver;
+  bool connected_ai;
+  bool connected_cm4;
+  uint8_t check_pre;
+  uint8_t check_ver;
   uint32_t cmd_cnt;
   float cmd_rx_frq;
 } connection_t;
