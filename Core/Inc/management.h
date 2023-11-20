@@ -9,6 +9,7 @@
 #define MANAGEMENT_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,9 +30,9 @@
 #include "icm20602_spi.h"
 #include "microsectimer.h"
 #include "myatan2.h"
+#include "odom.h"
 #include "omni_wheel.h"
 #include "util.h"
-#include "odom.h"
 
 extern float32_t motor_voltage[4];
 
@@ -42,7 +43,7 @@ extern float32_t motor_voltage[4];
 #define OMNI_DIAMETER 0.056
 #define ROBOT_RADIUS 0.080
 #define RX_BUF_SIZE_ETHER 64
-#define TX_BUF_SIZE_ETHER 64
+#define TX_BUF_SIZE_ETHER 128
 
 #define SPEED_LOG_BUF_SIZE 100
 
@@ -136,6 +137,26 @@ typedef struct
   bool starting_status_flag;
   uint8_t main_mode;
 } system_t;
+
+typedef union {
+  uint8_t buf[TX_BUF_SIZE_ETHER];
+
+  struct
+  {
+    uint8_t head[2];
+    uint8_t counter, return_counter;
+
+    uint8_t kick_state;
+    uint8_t temperature[7];
+
+    uint8_t error_info[8];
+    int8_t motor_current[4];
+    uint8_t ball_detection[4];
+    
+    float yaw_angle, diff_angle;
+    float odom[2], odom_speed[2], mouse_raw[2], voltage[2];
+  } data;
+} tx_msg_t;
 
 extern imu_t imu;
 extern can_raw_t can_raw;

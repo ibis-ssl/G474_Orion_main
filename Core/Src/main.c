@@ -839,45 +839,38 @@ void send_accutuator_cmd_run()
 
 void sendRobotInfo()
 {
+  tx_msg_t msg;
   static uint8_t ring_counter = 0;
   ring_counter++;
 
-  tx_data_uart[0] = 0xFE;
-  tx_data_uart[1] = 0xFC;
-  tx_data_uart[2] = ring_counter;
-  tx_data_uart[3] = connection.check_ver;
-  ushort_to_uchar2(&(tx_data_uart[4]), (int)imu.yaw_angle + 360);
-  ushort_to_uchar2(&(tx_data_uart[6]), (int)(imu.yaw_angle - ai_cmd.global_vision_theta) + 360);  // for latency detection
-  tx_data_uart[7] = 0;
-  tx_data_uart[8] = 0;
-  tx_data_uart[9] = kick_state / 10;
-  tx_data_uart[10] = (uint8_t)can_raw.power_voltage[0];
-  memcpy(&(tx_data_uart[11]), &(can_raw.error_no[0]), 8);  // 11~18
-  tx_data_uart[19] = (int8_t)can_raw.current[0];           // motor 0~3
-  tx_data_uart[20] = (int8_t)can_raw.current[1];
-  tx_data_uart[21] = (int8_t)can_raw.current[2];
-  tx_data_uart[22] = (int8_t)can_raw.current[3];
-  tx_data_uart[23] = (uint8_t)can_raw.temperature[0];  // motor 0~3
-  tx_data_uart[24] = (uint8_t)can_raw.temperature[1];
-  tx_data_uart[25] = (uint8_t)can_raw.temperature[2];
-  tx_data_uart[26] = (uint8_t)can_raw.temperature[3];
-  tx_data_uart[27] = (uint8_t)can_raw.temperature[4];  // fet
-  tx_data_uart[28] = (uint8_t)can_raw.temperature[5];  // coil1
-  tx_data_uart[29] = (uint8_t)can_raw.temperature[6];  // coil2
-  tx_data_uart[30] = can_raw.ball_detection[0];
-  tx_data_uart[31] = can_raw.ball_detection[1];
-  tx_data_uart[32] = can_raw.ball_detection[2];
-  tx_data_uart[33] = can_raw.ball_detection[3];
-  float_to_uchar4(&(tx_data_uart[30]), omni.odom[0]);
-  float_to_uchar4(&(tx_data_uart[34]), omni.odom[1]);
-  float_to_uchar4(&(tx_data_uart[38]), omni.odom_speed[0]);
-  float_to_uchar4(&(tx_data_uart[42]), omni.odom_speed[1]);
-  float_to_uchar4(&(tx_data_uart[46]), mouse.raw_odom[0]);
-  float_to_uchar4(&(tx_data_uart[50]), mouse.raw_odom[1]);
-  float_to_uchar4(&(tx_data_uart[54]), can_raw.power_voltage[5]);  // battery
-  float_to_uchar4(&(tx_data_uart[58]), can_raw.power_voltage[6]);  // capacitor
+  msg.data.head[0] = 0xFE;
+  msg.data.head[1] = 0xFC;
+  msg.data.counter = ring_counter;
+  msg.data.return_counter = connection.check_ver;
+  msg.data.yaw_angle = imu.yaw_angle;
+  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+  msg.data.kick_state = kick_state / 10;
+  for (int i = 0; i < 8; i++) {
+    msg.data.error_info[i] = can_raw.error_no[i];
+  }
+  for (int i = 0; i < 4; i++) {
+    msg.data.motor_current[i] = can_raw.current[i];
+  }
+  for (int i = 0; i < 7; i++) {
+    msg.data.temperature[i] = can_raw.temperature[i];
+  }
+  for (int i = 0; i < 4; i++) {
+    msg.data.ball_detection[i] = can_raw.ball_detection[i];
+  }
+  for (int i = 0; i < 2; i++) {
+    msg.data.odom[i] = omni.odom[i];
+    msg.data.odom_speed[i] = omni.odom_speed[i];
+    msg.data.mouse_raw[i] = mouse.raw_odom[i];
+  }
+  msg.data.voltage[0] = can_raw.power_voltage[5];
+  msg.data.voltage[1] = can_raw.power_voltage[6];
 
-  HAL_UART_Transmit_DMA(&huart2, tx_data_uart, TX_BUF_SIZE_ETHER);
+  HAL_UART_Transmit_DMA(&huart2, msg.buf, TX_BUF_SIZE_ETHER);
 }
 
 void maintask_stop()
