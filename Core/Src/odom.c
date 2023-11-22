@@ -10,8 +10,8 @@
 
 void mouseOdometory()
 {
-  mouse.raw_diff[0] = (float)mouse.raw[0] / 750;
-  mouse.raw_diff[1] = (float)mouse.raw[1] / 750;
+  mouse.raw_diff[0] = (float)mouse.raw[0] / 500;
+  mouse.raw_diff[1] = (float)mouse.raw[1] / 500;
 
   mouse.raw_odom[0] += mouse.raw_diff[0];
   mouse.raw_odom[1] += mouse.raw_diff[1];

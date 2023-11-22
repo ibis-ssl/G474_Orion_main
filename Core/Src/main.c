@@ -72,7 +72,7 @@ void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (3.0)       // m/ss, 4.5で滑る
+#define ACCEL_LIMIT (5.0)       // m/ss, 4.5で滑る
 #define ACCEL_LIMIT_BACK (3.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
@@ -307,6 +307,7 @@ int main(void)
       //p(" Batt %3.1f Cap=%3.0f BattC %+6.1f ", can_raw.power_voltage[0], can_raw.power_voltage[6], can_raw.current[4]);
       //p(" omni.mouse:x=%+3d, y=%+3d ",omni.mouse[0],omni.mouse[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
+
       if (connection.connected_ai) {
         p("\e[32mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       } else if (connection.connected_cm4) {
@@ -323,26 +324,26 @@ int main(void)
 
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
-      //p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+      p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
       //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
       //p("yaw adj X %+8.3f Y %+8.3f  ", 0.107 * cos(imu.yaw_angle_rad), 0.107 * sin(imu.yaw_angle_rad));
       //p("adj X %+8.3f Y %+8.3f ", 0.009 * cos(imu.yaw_angle_rad), 0.009 * sin(imu.yaw_angle_rad));
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
       //p("odom log X %+6.1f Y %+6.1f ", omni.odom_speed_log_total[0], omni.odom_speed_log_total[1]);
-      //p("speedX %+8.1f speedY %+8.1f ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
       //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
       //p("raw_odom X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
       //p("mouse floor X %+8.3f Y %+8.3f ", -mouse.floor_odom[0] * 1000, -mouse.floor_odom[1] * 1000);
-      //p("mouse X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
+      p("mouse X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
       //p("Error X %+8.3f Y %+8.3f ", (omni.odom[0] + mouse.odom[0]) * 1000, (omni.odom[1] + mouse.odom[1]) * 1000);
       //p("diff X %+8.3f Y %+8.3f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
       //p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
       //p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
       //p("cos %+4.2f sin %+4.2f / cos %+4.2f sin %+4.2f", cos(imu.yaw_angle_rad), sin(imu.yaw_angle_rad), cos(imu.yaw_angle_rad + M_PI * 1 / 2), sin(imu.yaw_angle_rad + M_PI * 1 / 2));
       //p("start_byte_idx=%d ", start_byte_idx);
-      //p("tarVel X %+5.2f Y %+5.2f ", target.velocity[0] * 10, target.velocity[1] * 10);
-      //p("speedX %+6.2f velX %+6.2f ", target.velocity[0], omni.odom_speed[0]);
-      //p("tar-c %+6.2f %+6.2f ", target.velocity_current[0], target.velocity_current[1]);
+      p("diffX %+8.1f %+8.2f", (omni.odom[0] - target.position[0]) * 1000, (omni.odom[1] - target.position[1]) * 1000);
+      p("tarVel X %+5.2f Y %+5.2f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
+      p("speedX %+8.1f speedY %+8.1f ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
+      p("tar-c %+6.2f %+6.2f ", target.velocity_current[0] * 1000, target.velocity_current[1] * 1000);
       //p("ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
       //p("Raw %02x %02x %02x %02x ", data_from_ether[10], data_from_ether[11], data_from_ether[12], data_from_ether[13]);
       //p("%02x %02x %02x %02x ", data_from_ether[23], data_from_ether[24], data_from_ether[25], data_from_ether[26]);
@@ -356,6 +357,7 @@ int main(void)
       if (sys.error_flag) {
         p("\e[31m error : 0x%02x 0x%02x 0x%02x 0x%02x\e[31m", can_raw.error_no[0], can_raw.error_no[1], can_raw.error_no[2], can_raw.error_no[3]);
       }
+
       p("\r\n");
       //p("loop %6d", debug.main_loop_cnt);
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
@@ -670,9 +672,23 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
   for (int i = 0; i < 2; i++) {
     // 加速度制限
     float accel_limit = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-    if (target.velocity[i] < target.velocity_current[i] && i == 0) {
+    if (target.velocity[i] < target.velocity_current[i] && i == 0) {  // バック時だけ加速度制限変更
       accel_limit = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
     }
+
+    if (fabs(target.velocity[i]) - fabs(target.velocity_current[i]) < 0) {
+      accel_limit *= 3;
+    }
+
+    // 目標移動位置を追い越してしまっている場合
+    // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
+    if (omni.odom[i] > target.position[i] && target.velocity[i] > 0) {
+      accel_limit *= 5;
+    }
+    if (omni.odom[i] < target.position[i] && target.velocity[i] < 0) {
+      accel_limit *= 5;
+    }
+
     if (target.velocity[i] >= target.velocity_current[i]) {
       if (target.velocity_current[i] + accel_limit > target.velocity[i]) {
         target.velocity_current[i] = target.velocity[i];
@@ -689,13 +705,15 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
 
     target.position[i] += target.velocity_current[i] / MAIN_LOOP_CYCLE;  // speed to position
 
-    // targetとodomの差分に上限をつける
-    /*float odom_diff_max = (float)OMNI_OUTPUT_LIMIT / OMNI_OUTPUT_GAIN_KP;
-    if (omni.odom[i] - target.position[i] > odom_diff_max) {
+    // ここから位置制御
+
+    // targetとodomの差分に上限をつける(吹っ飛び対策)
+    float odom_diff_max = (float)OMNI_OUTPUT_LIMIT / OMNI_OUTPUT_GAIN_KP;
+    if (target.position[i] - omni.odom[i] > odom_diff_max) {
       target.position[i] = omni.odom[i] + odom_diff_max;
-    } else if (omni.odom[i] - target.position[i] < -odom_diff_max) {
+    } else if (target.position[i] - omni.odom[i] < -odom_diff_max) {
       target.position[i] = omni.odom[i] - odom_diff_max;
-    }*/
+    }
 
     // odom基準の絶対座標系
     omni.odom_floor_diff[i] = omni.odom[i] - target.position[i];
