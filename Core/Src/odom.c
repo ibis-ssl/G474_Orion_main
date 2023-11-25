@@ -5,7 +5,6 @@
  *      Author: hiroyuki
  */
 
-
 #include "management.h"
 
 void mouseOdometory()
@@ -63,6 +62,9 @@ void omniOdometory()
 
   omni.odom_speed[0] = (omni.odom[0] - omni.pre_odom[0]) * MAIN_LOOP_CYCLE;
   omni.odom_speed[1] = (omni.odom[1] - omni.pre_odom[1]) * MAIN_LOOP_CYCLE;
+
+  omni.local_odom_speed[0] = omni.odom_speed[0] * cos(-imu.yaw_angle_rad) - omni.odom_speed[1] * sin(-imu.yaw_angle_rad);
+  omni.local_odom_speed[1] = omni.odom_speed[0] * sin(-imu.yaw_angle_rad) + omni.odom_speed[1] * cos(-imu.yaw_angle_rad);
 
   static uint32_t odom_speed_index = 0;
   odom_speed_index++;

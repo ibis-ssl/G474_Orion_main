@@ -64,15 +64,16 @@ void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (10)     //
-#define OMNI_OUTPUT_GAIN_KP (250)  // ~ m/s / m : -250 -> 4cm : 1m/s
+#define OMNI_OUTPUT_LIMIT (20)     //
+#define OMNI_OUTPUT_GAIN_KP (150)  // ~ m/s / m : -250 -> 4cm : 1m/s
 #define OMNI_OUTPUT_GAIN_KD (2)
+#define OMNI_OUTPUT_GAIN_FF (1.0)
 
 #define OMEGA_LIMIT (20.0)  // ~ rad/s
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (5.0)       // m/ss, 4.5で滑る
+#define ACCEL_LIMIT (6.0)       // m/ss, 4.5で滑る
 #define ACCEL_LIMIT_BACK (3.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
@@ -144,6 +145,7 @@ uint32_t adc_sw_data;
 
 // kicker
 volatile uint16_t kick_state;
+volatile float diff_global[2], diff_local[2];
 
 /* USER CODE END PFP */
 
@@ -289,12 +291,12 @@ int main(void)
 
       // initialize
       printf_buffer[0] = 0;
-      p("mode %2d ", sys.main_mode);
+      /*p("mode %2d ", sys.main_mode);
       if (can_raw.power_voltage[0] < 22) {
         p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[0]);
       } else {
         p("Batt=%3.1f ", can_raw.power_voltage[0]);
-      }
+      }*/
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
       //p("yaw=%+6.1f ", imu.yaw_angle);
       //p("tar=%+6.1f ", ai_cmd.target_theta * 180 / M_PI);
@@ -308,6 +310,7 @@ int main(void)
       //p(" omni.mouse:x=%+3d, y=%+3d ",omni.mouse[0],omni.mouse[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
 
+      /*
       if (connection.connected_ai) {
         p("\e[32mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       } else if (connection.connected_cm4) {
@@ -317,46 +320,51 @@ int main(void)
       }
       p("vel X %+4.1f Y %+4.1f tharW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
       p("kick %3.2f chip %d dri %3.2f ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power);
+      */
 
       //p("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p("G-ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
       //p("G-tar X %+5d Y %+5d ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
 
+      //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
+
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
-      p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-      //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
-      //p("yaw adj X %+8.3f Y %+8.3f  ", 0.107 * cos(imu.yaw_angle_rad), 0.107 * sin(imu.yaw_angle_rad));
-      //p("adj X %+8.3f Y %+8.3f ", 0.009 * cos(imu.yaw_angle_rad), 0.009 * sin(imu.yaw_angle_rad));
+      //p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
       //p("odom log X %+6.1f Y %+6.1f ", omni.odom_speed_log_total[0], omni.odom_speed_log_total[1]);
       //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
+
+      // omni odom
       //p("raw_odom X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
       //p("mouse floor X %+8.3f Y %+8.3f ", -mouse.floor_odom[0] * 1000, -mouse.floor_odom[1] * 1000);
-      p("mouse X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
+      //p("mouse X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
       //p("Error X %+8.3f Y %+8.3f ", (omni.odom[0] + mouse.odom[0]) * 1000, (omni.odom[1] + mouse.odom[1]) * 1000);
       //p("diff X %+8.3f Y %+8.3f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
       //p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
       //p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
-      //p("cos %+4.2f sin %+4.2f / cos %+4.2f sin %+4.2f", cos(imu.yaw_angle_rad), sin(imu.yaw_angle_rad), cos(imu.yaw_angle_rad + M_PI * 1 / 2), sin(imu.yaw_angle_rad + M_PI * 1 / 2));
-      //p("start_byte_idx=%d ", start_byte_idx);
-      p("diffX %+8.1f %+8.2f", (omni.odom[0] - target.position[0]) * 1000, (omni.odom[1] - target.position[1]) * 1000);
-      p("tarVel X %+5.2f Y %+5.2f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
-      p("speedX %+8.1f speedY %+8.1f ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
-      p("tar-c %+6.2f %+6.2f ", target.velocity_current[0] * 1000, target.velocity_current[1] * 1000);
+
+      p("Local %+8.1f %+8.1f ", (diff_local[0]) * 1000, (diff_local[1]) * 1000);
+      //p("tarVel X %+8.1f Y %+8.1f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
+      p("local X %+8.1f Y %+8.1f ", target.local_velocity[0] * 1000, target.local_velocity[1] * 1000);
+      p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+      p("tar-c %+8.1f %+8.1f ", target.local_velocity_current[0] * 1000, target.local_velocity_current[1] * 1000);
+      p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
+      //p("out local-c %+8.1f %+8.1f ", output.local_velocity_current[0] * 1000, output.local_velocity_current[1] * 1000);
+
       //p("ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
       //p("Raw %02x %02x %02x %02x ", data_from_ether[10], data_from_ether[11], data_from_ether[12], data_from_ether[13]);
       //p("%02x %02x %02x %02x ", data_from_ether[23], data_from_ether[24], data_from_ether[25], data_from_ether[26]);
       //p("txRaw %6.3f", imu.yaw_angle - ai_cmd.global_vision_theta);
 
-      if (ai_cmd.vision_lost_flag) {
+      /*if (ai_cmd.vision_lost_flag) {
         p("\e[33mallow 0x%02x vision lost %d local en %d keeper en %d\e[37m ", ai_cmd.allow_local_flags, ai_cmd.vision_lost_flag, ai_cmd.local_vision_en_flag, ai_cmd.keeper_mode_en_flag);
       } else {
         p("\e[32mallow 0x%02x vision lost %d local en %d keeper en %d\e[31m ", ai_cmd.allow_local_flags, ai_cmd.vision_lost_flag, ai_cmd.local_vision_en_flag, ai_cmd.keeper_mode_en_flag);
       }
       if (sys.error_flag) {
         p("\e[31m error : 0x%02x 0x%02x 0x%02x 0x%02x\e[31m", can_raw.error_no[0], can_raw.error_no[1], can_raw.error_no[2], can_raw.error_no[3]);
-      }
+      }*/
 
       p("\r\n");
       //p("loop %6d", debug.main_loop_cnt);
@@ -666,47 +674,65 @@ void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
   // out : omega
 }
 
-void speed_control(/*float global_target_position[2],float global_robot_odom_position[2],float robot_theta*/)
+void speed_control()
 {
+  // グローバル→ローカル座標系
+
+  target.local_velocity[0] = target.velocity[0] * cos(-imu.yaw_angle_rad) - target.velocity[1] * sin(-imu.yaw_angle_rad);
+  target.local_velocity[1] = target.velocity[0] * sin(-imu.yaw_angle_rad) + target.velocity[1] * cos(-imu.yaw_angle_rad);
+
+  diff_global[0] = omni.odom[0] - target.position[0];
+  diff_global[1] = omni.odom[1] - target.position[1];
+
+  diff_local[0] = diff_global[0] * cos(-imu.yaw_angle_rad) - diff_global[1] * sin(-imu.yaw_angle_rad);
+  diff_local[1] = diff_global[0] * sin(-imu.yaw_angle_rad) + diff_global[1] * cos(-imu.yaw_angle_rad);
+
   // 500Hz, m/s -> m / cycle
   for (int i = 0; i < 2; i++) {
     // 加速度制限
-    float accel_limit = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-    if (target.velocity[i] < target.velocity_current[i] && i == 0) {  // バック時だけ加速度制限変更
-      accel_limit = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
+    output.accel_limit[i] = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
+    if (target.local_velocity[i] < target.local_velocity_current[i] && i == 0) {  // バック時だけ加速度制限変更
+      output.accel_limit[i] = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
     }
 
-    if (fabs(target.velocity[i]) - fabs(target.velocity_current[i]) < 0) {
-      accel_limit *= 3;
+    // 減速方向は摩擦を使えるので制動力上げる
+    if (fabs(target.local_velocity[i]) < fabs(target.local_velocity_current[i])) {
+      output.accel_limit[i] *= 3;
     }
 
-    // 目標移動位置を追い越してしまっている場合
+    // 目標移動位置を追い越してしまっている場合。速度ではないのはノイズが多いから
     // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
-    if (omni.odom[i] > target.position[i] && target.velocity[i] > 0) {
-      accel_limit *= 5;
+    // local_velocityに対して追従するlocal_velocity_currentの追従を早める
+    if (diff_local[i] > 0 && target.local_velocity[i] > 0) {
+      output.accel_limit[i] *= 5;
     }
-    if (omni.odom[i] < target.position[i] && target.velocity[i] < 0) {
-      accel_limit *= 5;
+    if (diff_local[i] < 0 && target.local_velocity[i] < 0) {
+      output.accel_limit[i] *= 5;
     }
 
-    if (target.velocity[i] >= target.velocity_current[i]) {
-      if (target.velocity_current[i] + accel_limit > target.velocity[i]) {
-        target.velocity_current[i] = target.velocity[i];
+    if (target.local_velocity[i] >= target.local_velocity_current[i]) {
+      if (target.local_velocity_current[i] + output.accel_limit[i] > target.local_velocity[i]) {
+        target.local_velocity_current[i] = target.local_velocity[i];
       } else {
-        target.velocity_current[i] += accel_limit;
+        target.local_velocity_current[i] += output.accel_limit[i];
       }
     } else {
-      if (target.velocity_current[i] - accel_limit < target.velocity[i]) {
-        target.velocity_current[i] = target.velocity[i];
+      if (target.local_velocity_current[i] - output.accel_limit[i] < target.local_velocity[i]) {
+        target.local_velocity_current[i] = target.local_velocity[i];
       } else {
-        target.velocity_current[i] -= accel_limit;
+        target.local_velocity_current[i] -= output.accel_limit[i];
       }
     }
+  }
 
-    target.position[i] += target.velocity_current[i] / MAIN_LOOP_CYCLE;  // speed to position
+  // ローカル→グローバル座標系
+  output.local_velocity_current[0] = target.local_velocity_current[0] * cos(imu.yaw_angle_rad) - target.local_velocity_current[1] * sin(imu.yaw_angle_rad);
+  output.local_velocity_current[1] = target.local_velocity_current[0] * sin(imu.yaw_angle_rad) + target.local_velocity_current[1] * cos(imu.yaw_angle_rad);
+  target.position[0] += output.local_velocity_current[0] / MAIN_LOOP_CYCLE;  // speed to position
+  target.position[1] += output.local_velocity_current[1] / MAIN_LOOP_CYCLE;  // speed to position
 
-    // ここから位置制御
-
+  // ここから位置制御
+  for (int i = 0; i < 2; i++) {
     // targetとodomの差分に上限をつける(吹っ飛び対策)
     float odom_diff_max = (float)OMNI_OUTPUT_LIMIT / OMNI_OUTPUT_GAIN_KP;
     if (target.position[i] - omni.odom[i] > odom_diff_max) {
@@ -719,14 +745,12 @@ void speed_control(/*float global_target_position[2],float global_robot_odom_pos
     omni.odom_floor_diff[i] = omni.odom[i] - target.position[i];
   }
 
-  // ロボット座標系
-  // X
-  omni.robot_pos_diff[0] = omni.odom_floor_diff[0] * cos(imu.yaw_angle_rad) + omni.odom_floor_diff[1] * sin(imu.yaw_angle_rad);
-  // Y
-  omni.robot_pos_diff[1] = -omni.odom_floor_diff[0] * sin(imu.yaw_angle_rad) + omni.odom_floor_diff[1] * cos(imu.yaw_angle_rad);
+  // グローバル→ローカル座標系
+  omni.robot_pos_diff[0] = omni.odom_floor_diff[0] * cos(-imu.yaw_angle_rad) - omni.odom_floor_diff[1] * sin(-imu.yaw_angle_rad);
+  omni.robot_pos_diff[1] = omni.odom_floor_diff[0] * sin(-imu.yaw_angle_rad) + omni.odom_floor_diff[1] * cos(-imu.yaw_angle_rad);
 
-  output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.odom_speed[0] * OMNI_OUTPUT_GAIN_KD;
-  output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.odom_speed[1] * OMNI_OUTPUT_GAIN_KD;
+  output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[0] * OMNI_OUTPUT_GAIN_FF;
+  output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[1] * OMNI_OUTPUT_GAIN_FF;
 
   //+target_move_speed * 2;
 

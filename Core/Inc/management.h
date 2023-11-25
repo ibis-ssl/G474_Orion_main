@@ -88,9 +88,11 @@ typedef struct
 typedef struct
 {
   float position[2];
-  float velocity[2];  // m/s
+  float local_position[2];
+  float velocity[2];        // m/s
+  float local_velocity[2];  // m/s
   float acceleration[2];
-  float velocity_current[2];
+  float local_velocity_current[2];
 } target_t;
 
 typedef struct
@@ -113,12 +115,15 @@ typedef struct
   float odom[2], pre_odom[2], odom_raw[2];
   float odom_speed[2], odom_speed_log[2][SPEED_LOG_BUF_SIZE];
   float odom_speed_log_total[2];
+  float local_odom_speed[2];
 } omni_t;
 
 typedef struct
 {
   volatile float velocity[2];
+  volatile float local_velocity_current[2];
   volatile float omega;
+  volatile float accel_limit[2];
 } output_t;
 
 typedef struct
@@ -152,7 +157,7 @@ typedef union {
     uint8_t error_info[8];
     int8_t motor_current[4];
     uint8_t ball_detection[4];
-    
+
     float yaw_angle, diff_angle;
     float odom[2], odom_speed[2], mouse_raw[2], voltage[2];
   } data;
