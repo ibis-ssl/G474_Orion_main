@@ -137,8 +137,8 @@ uint8_t uart2_rx_it_buffer = 0;
 #define AI_CMD_VEL_MAX_MPS (7.0)
 
 #define FLAG_SSL_VISION_OK (0x01)
-#define FLAG_ENABLE_LOCAL_VISION (0x02)
-#define FLAG_ENABLE_KEEPER_MODE (0x08)
+#define FLAG_ENABLE_LOCAL_VISION (0x08)
+#define FLAG_ENABLE_KEEPER_MODE (0x02)
 
 // main state
 uint32_t adc_sw_data;
@@ -310,7 +310,6 @@ int main(void)
       //p(" omni.mouse:x=%+3d, y=%+3d ",omni.mouse[0],omni.mouse[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
 
-      /*
       if (connection.connected_ai) {
         p("\e[32mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       } else if (connection.connected_cm4) {
@@ -319,8 +318,7 @@ int main(void)
         p("\e[31mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       }
       p("vel X %+4.1f Y %+4.1f tharW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
-      p("kick %3.2f chip %d dri %3.2f ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power);
-      */
+      p("kick %3.2f chip %d dri %3.2f keeper %d local %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
 
       //p("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p("G-ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
@@ -344,12 +342,12 @@ int main(void)
       //p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
       //p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
 
-      p("Local %+8.1f %+8.1f ", (diff_local[0]) * 1000, (diff_local[1]) * 1000);
+      //p("Local %+8.1f %+8.1f ", (diff_local[0]) * 1000, (diff_local[1]) * 1000);
       //p("tarVel X %+8.1f Y %+8.1f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
-      p("local X %+8.1f Y %+8.1f ", target.local_velocity[0] * 1000, target.local_velocity[1] * 1000);
-      p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
-      p("tar-c %+8.1f %+8.1f ", target.local_velocity_current[0] * 1000, target.local_velocity_current[1] * 1000);
-      p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
+      //p("local X %+8.1f Y %+8.1f ", target.local_velocity[0] * 1000, target.local_velocity[1] * 1000);
+      //p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+      //p("tar-c %+8.1f %+8.1f ", target.local_velocity_current[0] * 1000, target.local_velocity_current[1] * 1000);
+      //p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
       //p("out local-c %+8.1f %+8.1f ", output.local_velocity_current[0] * 1000, output.local_velocity_current[1] * 1000);
 
       //p("ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
@@ -751,9 +749,10 @@ void speed_control()
 
   output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[0] * OMNI_OUTPUT_GAIN_FF;
   output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[1] * OMNI_OUTPUT_GAIN_FF;
+}
 
-  //+target_move_speed * 2;
-
+void output_limit()
+{
   float limit_gain = 0;
   if (output.velocity[0] > OMNI_OUTPUT_LIMIT) {
     limit_gain = output.velocity[0] / OMNI_OUTPUT_LIMIT;
@@ -774,8 +773,6 @@ void speed_control()
     output.velocity[1] = -OMNI_OUTPUT_LIMIT;
     output.velocity[0] /= limit_gain;
   }
-
-  // output vel X/Y
 }
 
 void maintask_run()
@@ -784,6 +781,7 @@ void maintask_run()
     target.velocity[0] = ai_cmd.local_target_speed[0];
     target.velocity[1] = ai_cmd.local_target_speed[1];
   } else {
+    //
     target.velocity[0] = 0;
     target.velocity[1] = 0;
   }
@@ -814,6 +812,7 @@ void maintask_run()
   }  //*/
 
   speed_control();
+  output_limit();
   theta_control();
 
   omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT);
@@ -884,6 +883,9 @@ void sendRobotInfo()
   tx_msg_t msg;
   static uint8_t ring_counter = 0;
   ring_counter++;
+  if (ring_counter > 200) {
+    ring_counter = 0;
+  }
 
   msg.data.head[0] = 0xFE;
   msg.data.head[1] = 0xFC;
