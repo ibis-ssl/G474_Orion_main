@@ -100,6 +100,8 @@ void mouseOdometory();
 void yawFilter();
 void resetLocalSpeedControl();
 void resetAiCmdData();
+void sendRobotInfoContinue();
+
 uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
@@ -429,6 +431,8 @@ void resetLocalSpeedControl()
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
+  sendRobotInfoContinue();
+
   mouse.integral_loop_cnt++;
   // TIM interrupt is TIM7 only.
   static uint8_t pre_sw_mode, sw_mode;
@@ -878,9 +882,32 @@ void send_accutuator_cmd_run()
   }
 }
 
+tx_msg_t msg;
+volatile uint32_t tx_msg_offset = 0;
+volatile bool tx_skip_flag = false;
+#define CYCLE_PER_BYTE (16)
+
+// 16byte 8
+// 100Hz : 10ms
+
+void sendRobotInfoContinue()
+{
+  if (tx_skip_flag) {
+    tx_skip_flag = false;
+    return;
+  }
+
+  if (tx_msg_offset != 0) {
+    HAL_UART_Transmit_DMA(&huart2, msg.buf + tx_msg_offset, CYCLE_PER_BYTE);
+    tx_msg_offset += CYCLE_PER_BYTE;
+    if (tx_msg_offset >= TX_BUF_SIZE_ETHER) {
+      tx_msg_offset = 0;
+    }
+  }
+}
+
 void sendRobotInfo()
 {
-  tx_msg_t msg;
   static uint8_t ring_counter = 0;
   ring_counter++;
   if (ring_counter > 200) {
@@ -909,12 +936,14 @@ void sendRobotInfo()
   for (int i = 0; i < 2; i++) {
     msg.data.odom[i] = omni.odom[i];
     msg.data.odom_speed[i] = omni.odom_speed[i];
-    msg.data.mouse_raw[i] = mouse.raw_odom[i];
+    //msg.data.mouse_raw[i] = mouse.raw_odom[i];
   }
   msg.data.voltage[0] = can_raw.power_voltage[5];
   msg.data.voltage[1] = can_raw.power_voltage[6];
 
-  HAL_UART_Transmit_DMA(&huart2, msg.buf, TX_BUF_SIZE_ETHER);
+  HAL_UART_Transmit_DMA(&huart2, msg.buf, CYCLE_PER_BYTE);
+  tx_msg_offset = CYCLE_PER_BYTE;
+  tx_skip_flag = true;
 }
 
 void maintask_stop()

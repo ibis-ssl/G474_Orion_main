@@ -43,7 +43,7 @@ extern float32_t motor_voltage[4];
 #define OMNI_DIAMETER 0.056
 #define ROBOT_RADIUS 0.080
 #define RX_BUF_SIZE_ETHER 64
-#define TX_BUF_SIZE_ETHER 128
+#define TX_BUF_SIZE_ETHER 64
 
 #define SPEED_LOG_BUF_SIZE 100
 
@@ -149,17 +149,18 @@ typedef union {
   struct
   {
     uint8_t head[2];
-    uint8_t counter, return_counter;
+    uint8_t counter, return_counter;  //4
 
     uint8_t kick_state;
-    uint8_t temperature[7];
+    uint8_t temperature[7];  //12
 
-    uint8_t error_info[8];
+    uint8_t error_info[8];  //20
     int8_t motor_current[4];
-    uint8_t ball_detection[4];
+    uint8_t ball_detection[4];  //28
 
-    float yaw_angle, diff_angle;
-    float odom[2], odom_speed[2], mouse_raw[2], voltage[2];
+    float yaw_angle, diff_angle;  //36
+    float odom[2], odom_speed[2]; // 
+    float voltage[2]; // 
   } data;
 } tx_msg_t;
 
