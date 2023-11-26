@@ -100,8 +100,6 @@ void mouseOdometory();
 void yawFilter();
 void resetLocalSpeedControl();
 void resetAiCmdData();
-void sendRobotInfoContinue();
-
 uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
 
@@ -144,6 +142,7 @@ uint8_t uart2_rx_it_buffer = 0;
 
 // main state
 uint32_t adc_sw_data;
+uint8_t send_no;
 
 // kicker
 volatile uint16_t kick_state;
@@ -205,6 +204,7 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   kick_state = 0;
+  send_no=0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
 
   for (int i = 0; i < 4; i++) {
@@ -431,8 +431,6 @@ void resetLocalSpeedControl()
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
-  sendRobotInfoContinue();
-
   mouse.integral_loop_cnt++;
   // TIM interrupt is TIM7 only.
   static uint8_t pre_sw_mode, sw_mode;
@@ -882,68 +880,142 @@ void send_accutuator_cmd_run()
   }
 }
 
-tx_msg_t msg;
-volatile uint32_t tx_msg_offset = 0;
-volatile bool tx_skip_flag = false;
-#define CYCLE_PER_BYTE (16)
-
-// 16byte 8
-// 100Hz : 10ms
-
-void sendRobotInfoContinue()
-{
-  if (tx_skip_flag) {
-    tx_skip_flag = false;
-    return;
-  }
-
-  if (tx_msg_offset != 0) {
-    HAL_UART_Transmit_DMA(&huart2, msg.buf + tx_msg_offset, CYCLE_PER_BYTE);
-    tx_msg_offset += CYCLE_PER_BYTE;
-    if (tx_msg_offset >= TX_BUF_SIZE_ETHER) {
-      tx_msg_offset = 0;
-    }
-  }
-}
-
 void sendRobotInfo()
 {
-  static uint8_t ring_counter = 0;
-  ring_counter++;
-  if (ring_counter > 200) {
-    ring_counter = 0;
-  }
 
-  msg.data.head[0] = 0xFE;
-  msg.data.head[1] = 0xFC;
-  msg.data.counter = ring_counter;
-  msg.data.return_counter = connection.check_ver;
-  msg.data.yaw_angle = imu.yaw_angle;
-  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
-  msg.data.kick_state = kick_state / 10;
-  for (int i = 0; i < 8; i++) {
-    msg.data.error_info[i] = can_raw.error_no[i];
-  }
-  for (int i = 0; i < 4; i++) {
-    msg.data.motor_current[i] = can_raw.current[i];
-  }
-  for (int i = 0; i < 7; i++) {
-    msg.data.temperature[i] = can_raw.temperature[i];
-  }
-  for (int i = 0; i < 4; i++) {
-    msg.data.ball_detection[i] = can_raw.ball_detection[i];
-  }
-  for (int i = 0; i < 2; i++) {
-    msg.data.odom[i] = omni.odom[i];
-    msg.data.odom_speed[i] = omni.odom_speed[i];
-    //msg.data.mouse_raw[i] = mouse.raw_odom[i];
-  }
-  msg.data.voltage[0] = can_raw.power_voltage[5];
-  msg.data.voltage[1] = can_raw.power_voltage[6];
+	  tx_msg_t msg;
+	  static uint8_t ring_counter = 0;
+	  ring_counter++;
+	  if (ring_counter > 200) {
+	    ring_counter = 0;
+	  }
 
-  HAL_UART_Transmit_DMA(&huart2, msg.buf, CYCLE_PER_BYTE);
-  tx_msg_offset = CYCLE_PER_BYTE;
-  tx_skip_flag = true;
+	  uint8_t senddata[16];
+	  uint8_t* temp;
+
+	  switch (send_no) {
+		case 0:
+		  senddata[0]=0xFA;
+		  senddata[1]=0xFB;
+		  senddata[2]=send_no+10;
+		  senddata[3]=ring_counter;
+			  temp = (uint8_t*)&imu.yaw_angle;
+		  senddata[4]=temp[0];
+		  senddata[5]=temp[1];
+		  senddata[6]=temp[2];
+		  senddata[7]=temp[3];
+		  	  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+			  temp = (uint8_t*)&msg.data.diff_angle;
+		  senddata[8]=temp[0];
+		  senddata[9]=temp[1];
+		  senddata[10]=temp[2];
+		  senddata[11]=temp[3];
+		  senddata[12]=can_raw.ball_detection[0];
+		  senddata[13]=can_raw.ball_detection[1];
+		  senddata[14]=can_raw.ball_detection[2];
+		  senddata[15]=can_raw.ball_detection[3];
+		break;
+		case 1:
+		  senddata[0]=0xFA;
+		  senddata[1]=0xFB;
+		  senddata[2]=send_no+10;
+		  senddata[3]=kick_state / 10;
+		  senddata[4]=can_raw.error_no[0];
+		  senddata[5]=can_raw.error_no[1];
+		  senddata[6]=can_raw.error_no[2];
+		  senddata[7]=can_raw.error_no[3];
+		  senddata[8]=can_raw.error_no[4];
+		  senddata[9]=can_raw.error_no[5];
+		  senddata[10]=can_raw.error_no[6];
+		  senddata[11]=can_raw.error_no[7];
+		  senddata[12]=(uint8_t)can_raw.current[0];
+		  senddata[13]=(uint8_t)can_raw.current[1];
+		  senddata[14]=(uint8_t)can_raw.current[2];
+		  senddata[15]=(uint8_t)can_raw.current[3];
+		break;
+		case 2:
+		  senddata[0]=0xFA;
+		  senddata[1]=0xFB;
+		  senddata[2]=send_no+10;
+		  senddata[3]=kick_state / 10;
+		  senddata[4]=ring_counter;
+		  senddata[5]=(uint8_t)can_raw.temperature[0];
+		  senddata[6]=(uint8_t)can_raw.temperature[1];
+		  senddata[7]=(uint8_t)can_raw.temperature[2];
+		  senddata[8]=(uint8_t)can_raw.temperature[3];
+		  senddata[9]=(uint8_t)can_raw.temperature[4];
+		  senddata[10]=(uint8_t)can_raw.temperature[5];
+		  senddata[11]=(uint8_t)can_raw.temperature[6];
+			  temp = (uint8_t*)&can_raw.power_voltage[5];
+		  senddata[12]=temp[0];
+		  senddata[13]=temp[1];
+		  senddata[14]=temp[2];
+		  senddata[15]=temp[3];
+		break;
+		case 3:
+		  senddata[0]=0xFA;
+		  senddata[1]=0xFB;
+		  senddata[2]=send_no+10;
+	      senddata[3]=ring_counter;
+			  temp = (uint8_t*)&can_raw.power_voltage[6];
+		  senddata[4]=temp[0];
+		  senddata[5]=temp[1];
+		  senddata[6]=temp[2];
+		  senddata[7]=temp[3];
+			  temp = (uint8_t*)&omni.odom[0];
+		  senddata[8]=temp[0];
+		  senddata[9]=temp[1];
+		  senddata[10]=temp[2];
+		  senddata[11]=temp[3];
+			  temp = (uint8_t*)&omni.odom[1];
+	      senddata[11]=temp[0];
+	      senddata[12]=temp[1];
+	      senddata[13]=temp[2];
+	      senddata[14]=temp[3];
+		break;
+		case 4:
+		  senddata[0]=0xFA;
+		  senddata[1]=0xFB;
+		  senddata[2]=send_no+10;
+	      senddata[3]=ring_counter;
+			  temp = (uint8_t*)&omni.odom_speed[0];
+		  senddata[4]=temp[0];
+		  senddata[5]=temp[1];
+		  senddata[6]=temp[2];
+		  senddata[7]=temp[3];
+			  temp = (uint8_t*)&omni.odom_speed[1];
+		  senddata[8]=temp[0];
+		  senddata[9]=temp[1];
+		  senddata[10]=temp[2];
+		  senddata[11]=temp[3];
+	      senddata[11]=0;
+	      senddata[12]=0;
+	      senddata[13]=0;
+	      senddata[14]=0;
+		break;
+		default:
+		  senddata[0]=0xFA;
+		  senddata[1]=0xFB;
+		  senddata[2]=send_no+100;
+		  senddata[3]=0;
+		  senddata[4]=0;
+		  senddata[5]=0;
+		  senddata[6]=0;
+		  senddata[7]=0;
+		  senddata[8]=0;
+		  senddata[9]=0;
+		  senddata[10]=0;
+		  senddata[11]=0;
+		  senddata[12]=0;
+		  senddata[13]=0;
+		  senddata[14]=0;
+		  senddata[15]=0;
+			break;
+	}
+	  send_no++;
+	  if(send_no>4){send_no=0;}
+
+	  HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
 }
 
 void maintask_stop()
