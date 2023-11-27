@@ -977,7 +977,7 @@ void sendRobotInfo()
 		  senddata[0]=0xFA;
 		  senddata[1]=0xFB;
 		  senddata[2]=send_no+10;
-	      senddata[3]=ring_counter;
+	      senddata[3]=connection.check_ver;
 			  temp = (uint8_t*)&omni.odom_speed[0];
 		  senddata[4]=temp[0];
 		  senddata[5]=temp[1];
