@@ -301,7 +301,7 @@ int main(void)
       }*/
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
       p("yaw=%+6.1f ", imu.yaw_angle);
-      p("Batt=%3.1f ", can_raw.power_voltage[0]);
+      //p("Batt=%3.1f ", can_raw.power_voltage[0]);
       //p("tar=%+6.1f ", ai_cmd.target_theta * 180 / M_PI);
       //p("omega = %+5.1f ",omega);
       //p("vel rad %3.1f ", debug.vel_radian);
@@ -972,10 +972,10 @@ void sendRobotInfo()
 		  senddata[10]=temp[2];
 		  senddata[11]=temp[3];
 	  	  	  temp = (char*)&omni.odom[1];
-	      senddata[11]=temp[0];
-	      senddata[12]=temp[1];
-	      senddata[13]=temp[2];
-	      senddata[14]=temp[3];
+	      senddata[12]=temp[0];
+	      senddata[13]=temp[1];
+	      senddata[14]=temp[2];
+	      senddata[15]=temp[3];
 		break;
 		case 4:
 		  senddata[0]=0xFA;
@@ -992,10 +992,10 @@ void sendRobotInfo()
 		  senddata[9]=temp[1];
 		  senddata[10]=temp[2];
 		  senddata[11]=temp[3];
-	      senddata[11]=connection.check_ver;
-	      senddata[12]=0;
+	      senddata[12]=connection.check_ver;
 	      senddata[13]=0;
 	      senddata[14]=0;
+	      senddata[15]=0;
 		break;
 		default:
 		  senddata[0]=0xFA;
