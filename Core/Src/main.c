@@ -297,10 +297,11 @@ int main(void)
       if (can_raw.power_voltage[0] < 22) {
         p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[0]);
       } else {
-        p("Batt=%3.1f ", can_raw.power_voltage[0]);
+
       }*/
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
-      //p("yaw=%+6.1f ", imu.yaw_angle);
+      p("yaw=%+6.1f ", imu.yaw_angle);
+      p("Batt=%3.1f ", can_raw.power_voltage[0]);
       //p("tar=%+6.1f ", ai_cmd.target_theta * 180 / M_PI);
       //p("omega = %+5.1f ",omega);
       //p("vel rad %3.1f ", debug.vel_radian);
@@ -321,7 +322,6 @@ int main(void)
       }
       p("vel X %+4.1f Y %+4.1f tharW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
       p("kick %3.2f chip %d dri %3.2f keeper %d local %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
-
       //p("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
       //p("G-ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
       //p("G-tar X %+5d Y %+5d ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
@@ -546,7 +546,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     actuator_power_ONOFF(1);
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+
   }
+
+
+
+
 }
 
 uint8_t getModeSwitch()
@@ -882,16 +887,15 @@ void send_accutuator_cmd_run()
 
 void sendRobotInfo()
 {
-
 	  tx_msg_t msg;
 	  static uint8_t ring_counter = 0;
 	  ring_counter++;
 	  if (ring_counter > 200) {
 	    ring_counter = 0;
 	  }
+	  char* temp;
 
 	  uint8_t senddata[16];
-	  uint8_t* temp;
 
 	  switch (send_no) {
 		case 0:
@@ -899,13 +903,13 @@ void sendRobotInfo()
 		  senddata[1]=0xFB;
 		  senddata[2]=send_no+10;
 		  senddata[3]=ring_counter;
-			  temp = (uint8_t*)&imu.yaw_angle;
+		  	  temp = (char*)&imu.yaw_angle;
 		  senddata[4]=temp[0];
 		  senddata[5]=temp[1];
 		  senddata[6]=temp[2];
 		  senddata[7]=temp[3];
 		  	  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
-			  temp = (uint8_t*)&msg.data.diff_angle;
+		  	  temp = (char*)&msg.data.diff_angle;
 		  senddata[8]=temp[0];
 		  senddata[9]=temp[1];
 		  senddata[10]=temp[2];
@@ -919,7 +923,7 @@ void sendRobotInfo()
 		  senddata[0]=0xFA;
 		  senddata[1]=0xFB;
 		  senddata[2]=send_no+10;
-		  senddata[3]=kick_state / 10;
+		  senddata[3]=ring_counter;
 		  senddata[4]=can_raw.error_no[0];
 		  senddata[5]=can_raw.error_no[1];
 		  senddata[6]=can_raw.error_no[2];
@@ -937,8 +941,8 @@ void sendRobotInfo()
 		  senddata[0]=0xFA;
 		  senddata[1]=0xFB;
 		  senddata[2]=send_no+10;
-		  senddata[3]=kick_state / 10;
-		  senddata[4]=ring_counter;
+		  senddata[3]=ring_counter;
+		  senddata[4]=kick_state / 10;
 		  senddata[5]=(uint8_t)can_raw.temperature[0];
 		  senddata[6]=(uint8_t)can_raw.temperature[1];
 		  senddata[7]=(uint8_t)can_raw.temperature[2];
@@ -946,7 +950,7 @@ void sendRobotInfo()
 		  senddata[9]=(uint8_t)can_raw.temperature[4];
 		  senddata[10]=(uint8_t)can_raw.temperature[5];
 		  senddata[11]=(uint8_t)can_raw.temperature[6];
-			  temp = (uint8_t*)&can_raw.power_voltage[5];
+		  	  temp = (char*)&(can_raw.power_voltage[0]);
 		  senddata[12]=temp[0];
 		  senddata[13]=temp[1];
 		  senddata[14]=temp[2];
@@ -957,17 +961,17 @@ void sendRobotInfo()
 		  senddata[1]=0xFB;
 		  senddata[2]=send_no+10;
 	      senddata[3]=ring_counter;
-			  temp = (uint8_t*)&can_raw.power_voltage[6];
+	  	  	  temp = (char*)&(can_raw.power_voltage[6]);
 		  senddata[4]=temp[0];
 		  senddata[5]=temp[1];
 		  senddata[6]=temp[2];
 		  senddata[7]=temp[3];
-			  temp = (uint8_t*)&omni.odom[0];
+	  	  	  temp = (char*)&omni.odom[0];
 		  senddata[8]=temp[0];
 		  senddata[9]=temp[1];
 		  senddata[10]=temp[2];
 		  senddata[11]=temp[3];
-			  temp = (uint8_t*)&omni.odom[1];
+	  	  	  temp = (char*)&omni.odom[1];
 	      senddata[11]=temp[0];
 	      senddata[12]=temp[1];
 	      senddata[13]=temp[2];
@@ -977,18 +981,18 @@ void sendRobotInfo()
 		  senddata[0]=0xFA;
 		  senddata[1]=0xFB;
 		  senddata[2]=send_no+10;
-	      senddata[3]=connection.check_ver;
-			  temp = (uint8_t*)&omni.odom_speed[0];
+	      senddata[3]=ring_counter;
+	  	  	  temp = (char*)&omni.odom_speed[0];
 		  senddata[4]=temp[0];
 		  senddata[5]=temp[1];
 		  senddata[6]=temp[2];
 		  senddata[7]=temp[3];
-			  temp = (uint8_t*)&omni.odom_speed[1];
+	  	  	  temp = (char*)&omni.odom_speed[1];
 		  senddata[8]=temp[0];
 		  senddata[9]=temp[1];
 		  senddata[10]=temp[2];
 		  senddata[11]=temp[3];
-	      senddata[11]=0;
+	      senddata[11]=connection.check_ver;
 	      senddata[12]=0;
 	      senddata[13]=0;
 	      senddata[14]=0;
@@ -997,8 +1001,8 @@ void sendRobotInfo()
 		  senddata[0]=0xFA;
 		  senddata[1]=0xFB;
 		  senddata[2]=send_no+100;
-		  senddata[3]=0;
-		  senddata[4]=0;
+		  senddata[3]=ring_counter;
+		  senddata[4]=connection.check_ver;
 		  senddata[5]=0;
 		  senddata[6]=0;
 		  senddata[7]=0;
@@ -1015,7 +1019,8 @@ void sendRobotInfo()
 	  send_no++;
 	  if(send_no>4){send_no=0;}
 
-	  HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
+	  HAL_UART_Transmit(&huart2, senddata, sizeof(senddata),0xff);
+
 }
 
 void maintask_stop()
