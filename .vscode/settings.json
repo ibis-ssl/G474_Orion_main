@@ -3,6 +3,8 @@
     "editor.formatOnPaste": true,
     "editor.formatOnSave": true,
     "files.associations": {
-        "cmath": "c"
+        "cmath": "c",
+        "omni_wheel.h": "c",
+        "management.h": "c"
     }
 }

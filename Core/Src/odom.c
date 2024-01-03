@@ -6,6 +6,7 @@
  */
 
 #include "management.h"
+#include "ring_buffer.h"
 
 void mouseOdometory()
 {
@@ -71,13 +72,23 @@ void omniOdometory()
   if (odom_speed_index >= SPEED_LOG_BUF_SIZE) {
     odom_speed_index = 0;
   }
+
+  float latency_cycle = ai_cmd.latency_time_ms / (1000 / MAIN_LOOP_CYCLE);
+  for (int i = 0; i < 2; i++) {
+    enqueue(integ.odom_log[i], omni.odom_speed[i]);
+    integ.global_odom_vision_diff[i] = sumNewestN(integ.odom_log[i], latency_cycle + connection.cmd_update_cycle_cnt);
+    integ.vision_based_position[i] = ai_cmd.global_robot_position[i] + integ.global_odom_vision_diff[i];
+    integ.position_diff[i] = ai_cmd.global_target_position[i] - integ.vision_based_position[i];
+  }
+
+  /*
   omni.odom_speed_log[0][odom_speed_index] = omni.odom_speed[0];
   omni.odom_speed_log[1][odom_speed_index] = omni.odom_speed[1];
 
-  omni.odom_speed_log_total[0] = 0;
-  omni.odom_speed_log_total[1] = 0;
+  omni.global_odom_vision_diff[0] = 0;
+  omni.global_odom_vision_diff[1] = 0;
   for (int i = 0; i < SPEED_LOG_BUF_SIZE; i++) {
-    omni.odom_speed_log_total[0] += omni.odom_speed_log[0][i];
-    omni.odom_speed_log_total[1] += omni.odom_speed_log[1][i];
-  }
+    omni.global_odom_vision_diff[0] += omni.odom_speed_log[0][i];
+    omni.global_odom_vision_diff[1] += omni.odom_speed_log[1][i];
+  }*/
 }

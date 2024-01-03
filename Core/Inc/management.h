@@ -32,6 +32,7 @@
 #include "myatan2.h"
 #include "odom.h"
 #include "omni_wheel.h"
+#include "ring_buffer.h"
 #include "util.h"
 
 extern float32_t motor_voltage[4];
@@ -45,7 +46,8 @@ extern float32_t motor_voltage[4];
 #define RX_BUF_SIZE_ETHER 64
 #define TX_BUF_SIZE_ETHER 128
 
-#define SPEED_LOG_BUF_SIZE 100
+// logging time : 0.5s
+#define SPEED_LOG_BUF_SIZE (MAIN_LOOP_CYCLE / 2)
 
 typedef struct
 {
@@ -76,6 +78,7 @@ typedef struct
   uint8_t allow_local_flags;
   int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
   bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag;
+  uint32_t latency_time_ms;
 } ai_cmd_t;
 
 typedef struct
@@ -113,10 +116,18 @@ typedef struct
   float travel_distance[2];
   float odom_floor_diff[2], robot_pos_diff[2];
   float odom[2], pre_odom[2], odom_raw[2];
-  float odom_speed[2], odom_speed_log[2][SPEED_LOG_BUF_SIZE];
-  float odom_speed_log_total[2];
+  float odom_speed[2];
+  //, odom_speed_log[2][SPEED_LOG_BUF_SIZE];
   float local_odom_speed[2];
 } omni_t;
+
+typedef struct
+{
+  RingBuffer * odom_log[2];
+  float global_odom_vision_diff[2];  // vision座標を基準にした移動距離(global系)
+  float vision_based_position[2];
+  float position_diff[2];
+} integration_control_t;
 
 typedef struct
 {
@@ -134,6 +145,7 @@ typedef struct
   uint8_t check_ver;
   uint32_t cmd_cnt;
   float cmd_rx_frq;
+  uint32_t cmd_update_cycle_cnt;
 } connection_t;
 
 typedef struct
@@ -158,9 +170,9 @@ typedef union {
     int8_t motor_current[4];
     uint8_t ball_detection[4];  //28
 
-    float yaw_angle, diff_angle;  //36
-    float odom[2], odom_speed[2]; // 
-    float voltage[2]; // 
+    float yaw_angle, diff_angle;   //36
+    float odom[2], odom_speed[2];  //
+    float voltage[2];              //
   } data;
 } tx_msg_t;
 
@@ -174,6 +186,7 @@ extern output_t output;
 extern motor_t motor;
 extern connection_t connection;
 extern system_t sys;
+extern integration_control_t integ;
 
 //extern float32_t voltage[6];
 

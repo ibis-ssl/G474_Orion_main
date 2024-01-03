@@ -14,6 +14,7 @@
 "./Core/Src/myatan2.o"
 "./Core/Src/odom.o"
 "./Core/Src/omni_wheel.o"
+"./Core/Src/ring_buffer.o"
 "./Core/Src/spi.o"
 "./Core/Src/stm32g4xx_hal_msp.o"
 "./Core/Src/stm32g4xx_it.o"

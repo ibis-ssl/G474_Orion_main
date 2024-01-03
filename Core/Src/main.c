@@ -35,6 +35,7 @@
 #include "dma_printf.h"
 #include "dma_scanf.h"
 #include "management.h"
+#include "ring_buffer.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -114,6 +115,7 @@ output_t output;
 motor_t motor;
 connection_t connection;
 system_t sys;
+integration_control_t integ;
 
 UART_HandleTypeDef * huart_xprintf;
 
@@ -203,8 +205,13 @@ int main(void)
   MX_FDCAN2_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+
+  integ.odom_log[0] = initRingBuffer(SPEED_LOG_BUF_SIZE);
+  integ.odom_log[1] = initRingBuffer(SPEED_LOG_BUF_SIZE);
+  ai_cmd.latency_time_ms = 100;
+
   kick_state = 0;
-  send_no=0;
+  send_no = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
 
   for (int i = 0; i < 4; i++) {
@@ -293,12 +300,11 @@ int main(void)
 
       // initialize
       printf_buffer[0] = 0;
-      /*p("mode %2d ", sys.main_mode);
+      p("mode %2d ", sys.main_mode);
       if (can_raw.power_voltage[0] < 22) {
         p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[0]);
       } else {
-
-      }*/
+      }
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
       p("yaw=%+6.1f ", imu.yaw_angle);
       //p("Batt=%3.1f ", can_raw.power_voltage[0]);
@@ -331,8 +337,10 @@ int main(void)
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
       //p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+      //p("spd X %+8.3f Y %+8.3f  ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
-      //p("odom log X %+6.1f Y %+6.1f ", omni.odom_speed_log_total[0], omni.odom_speed_log_total[1]);
+      p("odom log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0], integ.global_odom_vision_diff[1]);
+      p("cycle %6d ", connection.cmd_update_cycle_cnt);
       //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
 
       // omni odom
@@ -535,6 +543,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
   }
 
+  if (connection.connected_ai) {
+    // max 0.5s
+    if (connection.cmd_update_cycle_cnt < MAIN_LOOP_CYCLE / 2) {
+      connection.cmd_update_cycle_cnt++;
+    }
+  } else {
+    connection.cmd_update_cycle_cnt = 0;
+  }
+
   // interrupt : 500Hz
   static uint16_t cnt_time_50Hz;
   cnt_time_50Hz++;
@@ -546,12 +563,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     actuator_power_ONOFF(1);
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-
   }
-
-
-
-
 }
 
 uint8_t getModeSwitch()
@@ -682,7 +694,7 @@ void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
 void speed_control()
 {
   // グローバル→ローカル座標系
-
+  /*
   target.local_velocity[0] = target.velocity[0] * cos(-imu.yaw_angle_rad) - target.velocity[1] * sin(-imu.yaw_angle_rad);
   target.local_velocity[1] = target.velocity[0] * sin(-imu.yaw_angle_rad) + target.velocity[1] * cos(-imu.yaw_angle_rad);
 
@@ -691,6 +703,47 @@ void speed_control()
 
   diff_local[0] = diff_global[0] * cos(-imu.yaw_angle_rad) - diff_global[1] * sin(-imu.yaw_angle_rad);
   diff_local[1] = diff_global[0] * sin(-imu.yaw_angle_rad) + diff_global[1] * cos(-imu.yaw_angle_rad);
+
+  // 500Hz, m/s -> m / cycle
+  for (int i = 0; i < 2; i++) {
+    // 加速度制限
+    output.accel_limit[i] = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
+    if (target.local_velocity[i] < target.local_velocity_current[i] && i == 0) {  // バック時だけ加速度制限変更
+      output.accel_limit[i] = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
+    }
+
+    // 減速方向は摩擦を使えるので制動力上げる
+    if (fabs(target.local_velocity[i]) < fabs(target.local_velocity_current[i])) {
+      output.accel_limit[i] *= 3;
+    }
+
+    // 目標移動位置を追い越してしまっている場合。速度ではないのはノイズが多いから
+    // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
+    // local_velocityに対して追従するlocal_velocity_currentの追従を早める
+    if (diff_local[i] > 0 && target.local_velocity[i] > 0) {
+      output.accel_limit[i] *= 5;
+    }
+    if (diff_local[i] < 0 && target.local_velocity[i] < 0) {
+      output.accel_limit[i] *= 5;
+    }
+
+    if (target.local_velocity[i] >= target.local_velocity_current[i]) {
+      if (target.local_velocity_current[i] + output.accel_limit[i] > target.local_velocity[i]) {
+        target.local_velocity_current[i] = target.local_velocity[i];
+      } else {
+        target.local_velocity_current[i] += output.accel_limit[i];
+      }
+    } else {
+      if (target.local_velocity_current[i] - output.accel_limit[i] < target.local_velocity[i]) {
+        target.local_velocity_current[i] = target.local_velocity[i];
+      } else {
+        target.local_velocity_current[i] -= output.accel_limit[i];
+      }
+    }*/
+  // ↑target_velがglobalだと何故か勘違いしていた時の実装
+
+  target.local_velocity[0] = target.velocity[0];
+  target.local_velocity[1] = target.velocity[1];
 
   // 500Hz, m/s -> m / cycle
   for (int i = 0; i < 2; i++) {
@@ -887,140 +940,141 @@ void send_accutuator_cmd_run()
 
 void sendRobotInfo()
 {
-	  tx_msg_t msg;
-	  static uint8_t ring_counter = 0;
-	  ring_counter++;
-	  if (ring_counter > 200) {
-	    ring_counter = 0;
-	  }
-	  char* temp;
+  tx_msg_t msg;
+  static uint8_t ring_counter = 0;
+  ring_counter++;
+  if (ring_counter > 200) {
+    ring_counter = 0;
+  }
+  char * temp;
 
-	  uint8_t senddata[16];
+  uint8_t senddata[16];
 
-	  switch (send_no) {
-		case 0:
-		  senddata[0]=0xFA;
-		  senddata[1]=0xFB;
-		  senddata[2]=send_no+10;
-		  senddata[3]=ring_counter;
-		  	  temp = (char*)&imu.yaw_angle;
-		  senddata[4]=temp[0];
-		  senddata[5]=temp[1];
-		  senddata[6]=temp[2];
-		  senddata[7]=temp[3];
-		  	  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
-		  	  temp = (char*)&msg.data.diff_angle;
-		  senddata[8]=temp[0];
-		  senddata[9]=temp[1];
-		  senddata[10]=temp[2];
-		  senddata[11]=temp[3];
-		  senddata[12]=can_raw.ball_detection[0];
-		  senddata[13]=can_raw.ball_detection[1];
-		  senddata[14]=can_raw.ball_detection[2];
-		  senddata[15]=can_raw.ball_detection[3];
-		break;
-		case 1:
-		  senddata[0]=0xFA;
-		  senddata[1]=0xFB;
-		  senddata[2]=send_no+10;
-		  senddata[3]=ring_counter;
-		  senddata[4]=can_raw.error_no[0];
-		  senddata[5]=can_raw.error_no[1];
-		  senddata[6]=can_raw.error_no[2];
-		  senddata[7]=can_raw.error_no[3];
-		  senddata[8]=can_raw.error_no[4];
-		  senddata[9]=can_raw.error_no[5];
-		  senddata[10]=can_raw.error_no[6];
-		  senddata[11]=can_raw.error_no[7];
-		  senddata[12]=(uint8_t)can_raw.current[0];
-		  senddata[13]=(uint8_t)can_raw.current[1];
-		  senddata[14]=(uint8_t)can_raw.current[2];
-		  senddata[15]=(uint8_t)can_raw.current[3];
-		break;
-		case 2:
-		  senddata[0]=0xFA;
-		  senddata[1]=0xFB;
-		  senddata[2]=send_no+10;
-		  senddata[3]=ring_counter;
-		  senddata[4]=kick_state / 10;
-		  senddata[5]=(uint8_t)can_raw.temperature[0];
-		  senddata[6]=(uint8_t)can_raw.temperature[1];
-		  senddata[7]=(uint8_t)can_raw.temperature[2];
-		  senddata[8]=(uint8_t)can_raw.temperature[3];
-		  senddata[9]=(uint8_t)can_raw.temperature[4];
-		  senddata[10]=(uint8_t)can_raw.temperature[5];
-		  senddata[11]=(uint8_t)can_raw.temperature[6];
-		  	  temp = (char*)&(can_raw.power_voltage[0]);
-		  senddata[12]=temp[0];
-		  senddata[13]=temp[1];
-		  senddata[14]=temp[2];
-		  senddata[15]=temp[3];
-		break;
-		case 3:
-		  senddata[0]=0xFA;
-		  senddata[1]=0xFB;
-		  senddata[2]=send_no+10;
-	      senddata[3]=ring_counter;
-	  	  	  temp = (char*)&(can_raw.power_voltage[6]);
-		  senddata[4]=temp[0];
-		  senddata[5]=temp[1];
-		  senddata[6]=temp[2];
-		  senddata[7]=temp[3];
-	  	  	  temp = (char*)&omni.odom[0];
-		  senddata[8]=temp[0];
-		  senddata[9]=temp[1];
-		  senddata[10]=temp[2];
-		  senddata[11]=temp[3];
-	  	  	  temp = (char*)&omni.odom[1];
-	      senddata[12]=temp[0];
-	      senddata[13]=temp[1];
-	      senddata[14]=temp[2];
-	      senddata[15]=temp[3];
-		break;
-		case 4:
-		  senddata[0]=0xFA;
-		  senddata[1]=0xFB;
-		  senddata[2]=send_no+10;
-	      senddata[3]=ring_counter;
-	  	  	  temp = (char*)&omni.odom_speed[0];
-		  senddata[4]=temp[0];
-		  senddata[5]=temp[1];
-		  senddata[6]=temp[2];
-		  senddata[7]=temp[3];
-	  	  	  temp = (char*)&omni.odom_speed[1];
-		  senddata[8]=temp[0];
-		  senddata[9]=temp[1];
-		  senddata[10]=temp[2];
-		  senddata[11]=temp[3];
-	      senddata[12]=connection.check_ver;
-	      senddata[13]=0;
-	      senddata[14]=0;
-	      senddata[15]=0;
-		break;
-		default:
-		  senddata[0]=0xFA;
-		  senddata[1]=0xFB;
-		  senddata[2]=send_no+100;
-		  senddata[3]=ring_counter;
-		  senddata[4]=connection.check_ver;
-		  senddata[5]=0;
-		  senddata[6]=0;
-		  senddata[7]=0;
-		  senddata[8]=0;
-		  senddata[9]=0;
-		  senddata[10]=0;
-		  senddata[11]=0;
-		  senddata[12]=0;
-		  senddata[13]=0;
-		  senddata[14]=0;
-		  senddata[15]=0;
-			break;
-	}
-	  send_no++;
-	  if(send_no>4){send_no=0;}
+  switch (send_no) {
+    case 0:
+      senddata[0] = 0xFA;
+      senddata[1] = 0xFB;
+      senddata[2] = send_no + 10;
+      senddata[3] = ring_counter;
+      temp = (char *)&imu.yaw_angle;
+      senddata[4] = temp[0];
+      senddata[5] = temp[1];
+      senddata[6] = temp[2];
+      senddata[7] = temp[3];
+      msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+      temp = (char *)&msg.data.diff_angle;
+      senddata[8] = temp[0];
+      senddata[9] = temp[1];
+      senddata[10] = temp[2];
+      senddata[11] = temp[3];
+      senddata[12] = can_raw.ball_detection[0];
+      senddata[13] = can_raw.ball_detection[1];
+      senddata[14] = can_raw.ball_detection[2];
+      senddata[15] = can_raw.ball_detection[3];
+      break;
+    case 1:
+      senddata[0] = 0xFA;
+      senddata[1] = 0xFB;
+      senddata[2] = send_no + 10;
+      senddata[3] = ring_counter;
+      senddata[4] = can_raw.error_no[0];
+      senddata[5] = can_raw.error_no[1];
+      senddata[6] = can_raw.error_no[2];
+      senddata[7] = can_raw.error_no[3];
+      senddata[8] = can_raw.error_no[4];
+      senddata[9] = can_raw.error_no[5];
+      senddata[10] = can_raw.error_no[6];
+      senddata[11] = can_raw.error_no[7];
+      senddata[12] = (uint8_t)can_raw.current[0];
+      senddata[13] = (uint8_t)can_raw.current[1];
+      senddata[14] = (uint8_t)can_raw.current[2];
+      senddata[15] = (uint8_t)can_raw.current[3];
+      break;
+    case 2:
+      senddata[0] = 0xFA;
+      senddata[1] = 0xFB;
+      senddata[2] = send_no + 10;
+      senddata[3] = ring_counter;
+      senddata[4] = kick_state / 10;
+      senddata[5] = (uint8_t)can_raw.temperature[0];
+      senddata[6] = (uint8_t)can_raw.temperature[1];
+      senddata[7] = (uint8_t)can_raw.temperature[2];
+      senddata[8] = (uint8_t)can_raw.temperature[3];
+      senddata[9] = (uint8_t)can_raw.temperature[4];
+      senddata[10] = (uint8_t)can_raw.temperature[5];
+      senddata[11] = (uint8_t)can_raw.temperature[6];
+      temp = (char *)&(can_raw.power_voltage[0]);
+      senddata[12] = temp[0];
+      senddata[13] = temp[1];
+      senddata[14] = temp[2];
+      senddata[15] = temp[3];
+      break;
+    case 3:
+      senddata[0] = 0xFA;
+      senddata[1] = 0xFB;
+      senddata[2] = send_no + 10;
+      senddata[3] = ring_counter;
+      temp = (char *)&(can_raw.power_voltage[6]);
+      senddata[4] = temp[0];
+      senddata[5] = temp[1];
+      senddata[6] = temp[2];
+      senddata[7] = temp[3];
+      temp = (char *)&omni.odom[0];
+      senddata[8] = temp[0];
+      senddata[9] = temp[1];
+      senddata[10] = temp[2];
+      senddata[11] = temp[3];
+      temp = (char *)&omni.odom[1];
+      senddata[12] = temp[0];
+      senddata[13] = temp[1];
+      senddata[14] = temp[2];
+      senddata[15] = temp[3];
+      break;
+    case 4:
+      senddata[0] = 0xFA;
+      senddata[1] = 0xFB;
+      senddata[2] = send_no + 10;
+      senddata[3] = ring_counter;
+      temp = (char *)&omni.odom_speed[0];
+      senddata[4] = temp[0];
+      senddata[5] = temp[1];
+      senddata[6] = temp[2];
+      senddata[7] = temp[3];
+      temp = (char *)&omni.odom_speed[1];
+      senddata[8] = temp[0];
+      senddata[9] = temp[1];
+      senddata[10] = temp[2];
+      senddata[11] = temp[3];
+      senddata[12] = connection.check_ver;
+      senddata[13] = 0;
+      senddata[14] = 0;
+      senddata[15] = 0;
+      break;
+    default:
+      senddata[0] = 0xFA;
+      senddata[1] = 0xFB;
+      senddata[2] = send_no + 100;
+      senddata[3] = ring_counter;
+      senddata[4] = connection.check_ver;
+      senddata[5] = 0;
+      senddata[6] = 0;
+      senddata[7] = 0;
+      senddata[8] = 0;
+      senddata[9] = 0;
+      senddata[10] = 0;
+      senddata[11] = 0;
+      senddata[12] = 0;
+      senddata[13] = 0;
+      senddata[14] = 0;
+      senddata[15] = 0;
+      break;
+  }
+  send_no++;
+  if (send_no > 4) {
+    send_no = 0;
+  }
 
-	  HAL_UART_Transmit(&huart2, senddata, sizeof(senddata),0xff);
-
+  HAL_UART_Transmit(&huart2, senddata, sizeof(senddata), 0xff);
 }
 
 void maintask_stop()
@@ -1072,6 +1126,9 @@ void parseRxCmd()
 {
   connection.cmd_cnt++;
   connection.check_ver = data_from_ether[1];
+  if (connection.check_pre != connection.check_ver) {
+    connection.cmd_update_cycle_cnt = 0;
+  }
 
   // time out
   if (connection.connected_ai == 0) {
