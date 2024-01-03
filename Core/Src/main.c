@@ -1083,7 +1083,7 @@ void maintask_stop()
   omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
-  actuator_kicker_voltage(0.0);
+  actuator_kicker_voltage(150.0);
   actuator_dribbler_down();
 }
 
