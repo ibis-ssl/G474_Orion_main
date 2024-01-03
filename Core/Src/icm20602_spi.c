@@ -405,7 +405,7 @@ void ICM20602_IMU_calibration2(void)
 		|| (fabs(gyro_ave[0][9] - gyro_ave[0][0]) > SHRINK_ERROR)
 		|| (fabs(gyro_ave[1][9] - gyro_ave[1][0]) > SHRINK_ERROR)
 		|| (fabs(gyro_ave[2][9] - gyro_ave[2][0]) > SHRINK_ERROR)
-		|| cal_len < 500.0
+		|| cal_len < 5000.0
 		){
 
     	for(j = 0; j < 3; j++){
@@ -432,7 +432,7 @@ void ICM20602_IMU_calibration2(void)
     	if(cal_len>5000){break;}
     }
 
-    if(cal_len==500){NVIC_SystemReset();}
+    if(cal_len==5000){NVIC_SystemReset();}
 
     for(j = 0; j < 3; j++){
     	acc_off[j]  = acc_sum[j]  / cal_len;

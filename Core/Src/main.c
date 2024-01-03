@@ -949,132 +949,133 @@ void sendRobotInfo()
   char * temp;
 
   uint8_t senddata[16];
-
-  switch (send_no) {
-    case 0:
-      senddata[0] = 0xFA;
-      senddata[1] = 0xFB;
-      senddata[2] = send_no + 10;
-      senddata[3] = ring_counter;
-      temp = (char *)&imu.yaw_angle;
-      senddata[4] = temp[0];
-      senddata[5] = temp[1];
-      senddata[6] = temp[2];
-      senddata[7] = temp[3];
-      msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
-      temp = (char *)&msg.data.diff_angle;
-      senddata[8] = temp[0];
-      senddata[9] = temp[1];
-      senddata[10] = temp[2];
-      senddata[11] = temp[3];
-      senddata[12] = can_raw.ball_detection[0];
-      senddata[13] = can_raw.ball_detection[1];
-      senddata[14] = can_raw.ball_detection[2];
-      senddata[15] = can_raw.ball_detection[3];
-      break;
-    case 1:
-      senddata[0] = 0xFA;
-      senddata[1] = 0xFB;
-      senddata[2] = send_no + 10;
-      senddata[3] = ring_counter;
-      senddata[4] = can_raw.error_no[0];
-      senddata[5] = can_raw.error_no[1];
-      senddata[6] = can_raw.error_no[2];
-      senddata[7] = can_raw.error_no[3];
-      senddata[8] = can_raw.error_no[4];
-      senddata[9] = can_raw.error_no[5];
-      senddata[10] = can_raw.error_no[6];
-      senddata[11] = can_raw.error_no[7];
-      senddata[12] = (uint8_t)can_raw.current[0];
-      senddata[13] = (uint8_t)can_raw.current[1];
-      senddata[14] = (uint8_t)can_raw.current[2];
-      senddata[15] = (uint8_t)can_raw.current[3];
-      break;
-    case 2:
-      senddata[0] = 0xFA;
-      senddata[1] = 0xFB;
-      senddata[2] = send_no + 10;
-      senddata[3] = ring_counter;
-      senddata[4] = kick_state / 10;
-      senddata[5] = (uint8_t)can_raw.temperature[0];
-      senddata[6] = (uint8_t)can_raw.temperature[1];
-      senddata[7] = (uint8_t)can_raw.temperature[2];
-      senddata[8] = (uint8_t)can_raw.temperature[3];
-      senddata[9] = (uint8_t)can_raw.temperature[4];
-      senddata[10] = (uint8_t)can_raw.temperature[5];
-      senddata[11] = (uint8_t)can_raw.temperature[6];
-      temp = (char *)&(can_raw.power_voltage[0]);
-      senddata[12] = temp[0];
-      senddata[13] = temp[1];
-      senddata[14] = temp[2];
-      senddata[15] = temp[3];
-      break;
-    case 3:
-      senddata[0] = 0xFA;
-      senddata[1] = 0xFB;
-      senddata[2] = send_no + 10;
-      senddata[3] = ring_counter;
-      temp = (char *)&(can_raw.power_voltage[6]);
-      senddata[4] = temp[0];
-      senddata[5] = temp[1];
-      senddata[6] = temp[2];
-      senddata[7] = temp[3];
-      temp = (char *)&omni.odom[0];
-      senddata[8] = temp[0];
-      senddata[9] = temp[1];
-      senddata[10] = temp[2];
-      senddata[11] = temp[3];
-      temp = (char *)&omni.odom[1];
-      senddata[12] = temp[0];
-      senddata[13] = temp[1];
-      senddata[14] = temp[2];
-      senddata[15] = temp[3];
-      break;
-    case 4:
-      senddata[0] = 0xFA;
-      senddata[1] = 0xFB;
-      senddata[2] = send_no + 10;
-      senddata[3] = ring_counter;
-      temp = (char *)&omni.odom_speed[0];
-      senddata[4] = temp[0];
-      senddata[5] = temp[1];
-      senddata[6] = temp[2];
-      senddata[7] = temp[3];
-      temp = (char *)&omni.odom_speed[1];
-      senddata[8] = temp[0];
-      senddata[9] = temp[1];
-      senddata[10] = temp[2];
-      senddata[11] = temp[3];
-      senddata[12] = connection.check_ver;
-      senddata[13] = 0;
-      senddata[14] = 0;
-      senddata[15] = 0;
-      break;
-    default:
-      senddata[0] = 0xFA;
-      senddata[1] = 0xFB;
-      senddata[2] = send_no + 100;
-      senddata[3] = ring_counter;
-      senddata[4] = connection.check_ver;
-      senddata[5] = 0;
-      senddata[6] = 0;
-      senddata[7] = 0;
-      senddata[8] = 0;
-      senddata[9] = 0;
-      senddata[10] = 0;
-      senddata[11] = 0;
-      senddata[12] = 0;
-      senddata[13] = 0;
-      senddata[14] = 0;
-      senddata[15] = 0;
-      break;
-  }
-  send_no++;
-  if (send_no > 4) {
-    send_no = 0;
-  }
+  for(int i=0;i<5;i++){
+	  switch (send_no) {
+		case 0:
+		  senddata[0] = 0xFA;
+		  senddata[1] = 0xFB;
+		  senddata[2] = send_no + 10;
+		  senddata[3] = ring_counter;
+		  temp = (char *)&imu.yaw_angle;
+		  senddata[4] = temp[0];
+		  senddata[5] = temp[1];
+		  senddata[6] = temp[2];
+		  senddata[7] = temp[3];
+		  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+		  temp = (char *)&msg.data.diff_angle;
+		  senddata[8] = temp[0];
+		  senddata[9] = temp[1];
+		  senddata[10] = temp[2];
+		  senddata[11] = temp[3];
+		  senddata[12] = can_raw.ball_detection[0];
+		  senddata[13] = can_raw.ball_detection[1];
+		  senddata[14] = can_raw.ball_detection[2];
+		  senddata[15] = can_raw.ball_detection[3];
+		  break;
+		case 1:
+		  senddata[0] = 0xFA;
+		  senddata[1] = 0xFB;
+		  senddata[2] = send_no + 10;
+		  senddata[3] = ring_counter;
+		  senddata[4] = can_raw.error_no[0];
+		  senddata[5] = can_raw.error_no[1];
+		  senddata[6] = can_raw.error_no[2];
+		  senddata[7] = can_raw.error_no[3];
+		  senddata[8] = can_raw.error_no[4];
+		  senddata[9] = can_raw.error_no[5];
+		  senddata[10] = can_raw.error_no[6];
+		  senddata[11] = can_raw.error_no[7];
+		  senddata[12] = (uint8_t)can_raw.current[0];
+		  senddata[13] = (uint8_t)can_raw.current[1];
+		  senddata[14] = (uint8_t)can_raw.current[2];
+		  senddata[15] = (uint8_t)can_raw.current[3];
+		  break;
+		case 2:
+		  senddata[0] = 0xFA;
+		  senddata[1] = 0xFB;
+		  senddata[2] = send_no + 10;
+		  senddata[3] = ring_counter;
+		  senddata[4] = kick_state / 10;
+		  senddata[5] = (uint8_t)can_raw.temperature[0];
+		  senddata[6] = (uint8_t)can_raw.temperature[1];
+		  senddata[7] = (uint8_t)can_raw.temperature[2];
+		  senddata[8] = (uint8_t)can_raw.temperature[3];
+		  senddata[9] = (uint8_t)can_raw.temperature[4];
+		  senddata[10] = (uint8_t)can_raw.temperature[5];
+		  senddata[11] = (uint8_t)can_raw.temperature[6];
+		  temp = (char *)&(can_raw.power_voltage[0]);
+		  senddata[12] = temp[0];
+		  senddata[13] = temp[1];
+		  senddata[14] = temp[2];
+		  senddata[15] = temp[3];
+		  break;
+		case 3:
+		  senddata[0] = 0xFA;
+		  senddata[1] = 0xFB;
+		  senddata[2] = send_no + 10;
+		  senddata[3] = ring_counter;
+		  temp = (char *)&(can_raw.power_voltage[6]);
+		  senddata[4] = temp[0];
+		  senddata[5] = temp[1];
+		  senddata[6] = temp[2];
+		  senddata[7] = temp[3];
+		  temp = (char *)&omni.odom[0];
+		  senddata[8] = temp[0];
+		  senddata[9] = temp[1];
+		  senddata[10] = temp[2];
+		  senddata[11] = temp[3];
+		  temp = (char *)&omni.odom[1];
+		  senddata[12] = temp[0];
+		  senddata[13] = temp[1];
+		  senddata[14] = temp[2];
+		  senddata[15] = temp[3];
+		  break;
+		case 4:
+		  senddata[0] = 0xFA;
+		  senddata[1] = 0xFB;
+		  senddata[2] = send_no + 10;
+		  senddata[3] = ring_counter;
+		  temp = (char *)&omni.odom_speed[0];
+		  senddata[4] = temp[0];
+		  senddata[5] = temp[1];
+		  senddata[6] = temp[2];
+		  senddata[7] = temp[3];
+		  temp = (char *)&omni.odom_speed[1];
+		  senddata[8] = temp[0];
+		  senddata[9] = temp[1];
+		  senddata[10] = temp[2];
+		  senddata[11] = temp[3];
+		  senddata[12] = connection.check_ver;
+		  senddata[13] = 0;
+		  senddata[14] = 0;
+		  senddata[15] = 0;
+		  break;
+		default:
+		  senddata[0] = 0xFA;
+		  senddata[1] = 0xFB;
+		  senddata[2] = send_no + 100;
+		  senddata[3] = ring_counter;
+		  senddata[4] = connection.check_ver;
+		  senddata[5] = 0;
+		  senddata[6] = 0;
+		  senddata[7] = 0;
+		  senddata[8] = 0;
+		  senddata[9] = 0;
+		  senddata[10] = 0;
+		  senddata[11] = 0;
+		  senddata[12] = 0;
+		  senddata[13] = 0;
+		  senddata[14] = 0;
+		  senddata[15] = 0;
+		  break;
+	  }
+	  send_no++;
+	  if (send_no > 4) {
+		send_no = 0;
+	  }
 
   HAL_UART_Transmit(&huart2, senddata, sizeof(senddata), 0xff);
+  }
 }
 
 void maintask_stop()
