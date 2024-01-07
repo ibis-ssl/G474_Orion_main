@@ -168,7 +168,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
         mouse.integral_loop_cnt = 0;
 
         // 持ち上げ･コート外検知
-        /*if (mouse.quality < 30 && starting_status_flag == false) {
+        /*if (mouse.quality < 30 && sys.system_time_ms > 1000) {
           error_flag = true;
         }*/
         break;

@@ -127,6 +127,8 @@ typedef struct
   float global_odom_vision_diff[2];  // vision座標を基準にした移動距離(global系)
   float vision_based_position[2];
   float position_diff[2];
+  int pre_global_target_position[2];
+  float guess_target_speed[2];
 } integration_control_t;
 
 typedef struct
@@ -146,13 +148,15 @@ typedef struct
   uint32_t cmd_cnt;
   float cmd_rx_frq;
   uint32_t cmd_update_cycle_cnt;
+  uint32_t pre_cmd_update_cycle_cnt;
 } connection_t;
 
 typedef struct
 {
-  bool error_flag;
-  bool starting_status_flag;
+  bool error_flag, stop_flag;
   uint8_t main_mode;
+  uint32_t system_time_ms;
+  uint32_t stop_flag_request_time;
 } system_t;
 
 typedef union {
