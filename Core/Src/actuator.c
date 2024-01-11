@@ -58,6 +58,7 @@ void actuator_kicker(uint8_t id, uint8_t param)
   senddata_kick[0] = id;
   senddata_kick[1] = param;
   can1_send(0x110, senddata_kick);
+  can2_send(0x110, senddata_kick);
 }
 
 void actuator_power_ONOFF(uint8_t power_on)

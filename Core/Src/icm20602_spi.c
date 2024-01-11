@@ -375,7 +375,7 @@ void ICM20602_IMU_calibration(void)
 void ICM20602_IMU_calibration2(void)
 {
   int i, j;
-  double cal_len = 0.0f;
+  int cal_len = 0;
   double acc_sum[3] = {0};
   double gyro_sum[3] = {0};
 
@@ -383,17 +383,19 @@ void ICM20602_IMU_calibration2(void)
   double gyro_ave[3][10] = {{0.0}};
 
   printf("put the IMU still!\n");
+  
   HAL_Delay(200);
 
-  while ((fabs(acc_ave[0][9] - acc_ave[0][0]) > SHRINK_ERROR) || (fabs(acc_ave[1][9] - acc_ave[1][0]) > SHRINK_ERROR) || (fabs(acc_ave[2][9] - acc_ave[2][0]) > SHRINK_ERROR) ||
-         (fabs(gyro_ave[0][9] - gyro_ave[0][0]) > SHRINK_ERROR) || (fabs(gyro_ave[1][9] - gyro_ave[1][0]) > SHRINK_ERROR) || (fabs(gyro_ave[2][9] - gyro_ave[2][0]) > SHRINK_ERROR) ||
-         cal_len < 5000.0) {
+  while (cal_len < 5000.0) {
     for (j = 0; j < 3; j++) {
-      acc[0] = ICM20602_getAccXvalue() * IMU_ONE_G * aRes;
-      acc[1] = ICM20602_getAccYvalue() * IMU_ONE_G * aRes;
-      acc[2] = ICM20602_getAccZvalue() * IMU_ONE_G * aRes;
-      gyro[0] = ICM20602_getGyrXvalue() * gRes;
-      gyro[1] = ICM20602_getGyrYvalue() * gRes;
+      // 加速度センサーはキャリブレーションしない
+      //acc[0] = ICM20602_getAccXvalue() * IMU_ONE_G * aRes;
+      //acc[1] = ICM20602_getAccYvalue() * IMU_ONE_G * aRes;
+      //acc[2] = ICM20602_getAccZvalue() * IMU_ONE_G * aRes;
+
+      // yawのみキャリブレーションする
+      //gyro[0] = ICM20602_getGyrXvalue() * gRes;
+      //gyro[1] = ICM20602_getGyrYvalue() * gRes;
       gyro[2] = ICM20602_getGyrZvalue() * gRes;
 
       acc_sum[j] += acc[j];
@@ -409,10 +411,14 @@ void ICM20602_IMU_calibration2(void)
     }
     cal_len++;
 
-    if (cal_len > 5000) {
+    if ((fabs(gyro_ave[2][9] - gyro_ave[2][0]) < SHRINK_ERROR) && cal_len > 1000) {
+      // エラーが一定以内になったのでキャリブレーション完了
       break;
     }
   }
+
+  printf("length = %d\n", cal_len);
+  printf("Gyro Yaw %+8.6f ", fabs(gyro_ave[2][9] - gyro_ave[2][0]));
 
   if (cal_len == 5000) {
     NVIC_SystemReset();
