@@ -207,6 +207,8 @@ int main(void)
 
   integ.odom_log[0] = initRingBuffer(SPEED_LOG_BUF_SIZE);
   integ.odom_log[1] = initRingBuffer(SPEED_LOG_BUF_SIZE);
+
+  // 本来はリアルタイムに更新できた方が良いが、まだそのシステムがないので固定値
   ai_cmd.latency_time_ms = 100;
 
   kick_state = 0;
@@ -291,7 +293,6 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-
     debug.main_loop_cnt++;
     if (debug.print_flag) {
       debug.print_flag = false;
@@ -309,7 +310,7 @@ int main(void)
       }
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
       p("yaw=%+6.1f ", imu.yaw_angle);
-      //p("Batt=%3.1f ", can_raw.power_voltage[0]);
+      p("Batt=%3.1f ", can_raw.power_voltage[0]);
       //p("tar=%+6.1f ", ai_cmd.target_theta * 180 / M_PI);
       //p("omega = %+5.1f ",omega);
       //p("vel rad %3.1f ", debug.vel_radian);
@@ -323,11 +324,11 @@ int main(void)
 
       // 通信接続状態表示
       if (connection.connected_ai) {
-        p("\e[32mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        p("\e[32m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       } else if (connection.connected_cm4) {
-        p("\e[33mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        p("\e[33m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       } else {
-        p("\e[31mcon %3d , %3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        p("\e[31m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       }
       /*if (connection.connected_ai) {
         p("\e[32mAI \e[37m ", connection.check_ver, connection.cmd_rx_frq);
@@ -337,22 +338,26 @@ int main(void)
         p("\e[31mDIS\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       }*/
 
-      p("vel X %+4.1f Y %+4.1f tharW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
-      p("kick %3.2f chip %d dri %3.2f keeper %d local %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
-      //p("grbl robot X %+5d Y %+5d W %+4.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
-      //p("G-ball X %+5d Y %+5d ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-      p("G-tar X %+5d Y %+5d ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+      //p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
+      //p("kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
+      p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
+      //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+      //p("G-tar X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
 
       //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
 
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
-      //p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+      p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
       //p("spd X %+8.3f Y %+8.3f  ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
-      p("odom log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0], integ.global_odom_vision_diff[1]);
-      p("cycle %6d ", connection.pre_cmd_update_cycle_cnt);
-      p("guess speed %6.1f %6.1f", integ.guess_target_speed[0], integ.guess_target_speed[1]);
+      p("log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
+      p("cycle %6d ", connection.vision_update_cycle_cnt);
+      //p("guess speed %6.1f %6.1f", integ.guess_target_speed[0], integ.guess_target_speed[1]);
+      p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
+
+      //p("TarDst %6.1f MvDst %6.1f", integ.targed_dist_diff, integ.move_dist);
+
       //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
 
       // omni odom
@@ -372,7 +377,7 @@ int main(void)
       //p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
       //p("out local-c %+8.1f %+8.1f ", output.local_velocity_current[0] * 1000, output.local_velocity_current[1] * 1000);
 
-      //p("ball_local x=%d y=%d radius=%d FPS=%d ", ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS);
+      //p("ball_local x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
       //p("Raw %02x %02x %02x %02x ", data_from_cm4[10], data_from_cm4[11], data_from_cm4[12], data_from_cm4[13]);
       //p("%02x %02x %02x %02x ", data_from_cm4[23], data_from_cm4[24], data_from_cm4[25], data_from_cm4[26]);
       //p("txRaw %6.3f", imu.yaw_angle - ai_cmd.global_vision_theta);
@@ -548,40 +553,32 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
   }
 
-  // AI･CM4との通信状態チェック
-  // 0.25s周期で確認し、AIからのコマンド更新がこれより遅いと切断判定する。
-  static uint32_t connection_check_cnt = 0;
-  connection_check_cnt++;
-  if (connection_check_cnt > MAIN_LOOP_CYCLE / 4) {
-    if (connection.check_ver != connection.check_pre) {
-      connection.connected_ai = true;
-      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
-    } else {
-      sys.stop_flag_request_time = sys.system_time_ms + 1000;  // 前回のタイムアウト時から1.0s間は動かさない
-      connection.connected_ai = false;
-      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-      resetAiCmdData();
-    }
-    connection_check_cnt = 0;
-    connection.check_pre = connection.check_ver;
-    connection.cmd_rx_frq = (float)connection.cmd_cnt * 4;  // 0.25s cycle -> x4
-    connection.cmd_cnt = 0;
+  // AIとの通信状態チェック
+  if (sys.system_time_ms - connection.latest_ai_cmd_update_time < 1000) {  // AI コマンドタイムアウト
+    connection.connected_ai = true;
 
-    if (connection.cmd_rx_frq > 0) {
-      connection.connected_cm4 = true;
-    } else {
-      connection.connected_cm4 = false;
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+
+    if (connection.vision_update_cycle_cnt < MAIN_LOOP_CYCLE * 2) {
+      connection.vision_update_cycle_cnt++;
     }
+
+  } else {
+    connection.connected_ai = false;
+    connection.cmd_rx_frq = 0;
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+    resetAiCmdData();
+    connection.vision_update_cycle_cnt = 0;
+
+    sys.stop_flag_request_time = sys.system_time_ms + 1000;  // 前回のタイムアウト時から1.0s間は動かさない
   }
 
-  // AIコマンド受信サイクルの計算(統合速度制御用)
-  if (connection.connected_ai) {
-    // max 0.5s
-    if (connection.cmd_update_cycle_cnt < MAIN_LOOP_CYCLE / 2) {
-      connection.cmd_update_cycle_cnt++;
-    }
+  // CM4との通信状態チェック
+  if (sys.system_time_ms - connection.latest_cm4_cmd_update_time < 200) {  // CM4 コマンドタイムアウト
+    connection.connected_cm4 = true;
   } else {
-    connection.cmd_update_cycle_cnt = 0;
+    connection.connected_cm4 = false;
+    connection.connected_ai = false;
   }
 
   // interrupt : 500Hz
@@ -606,19 +603,19 @@ uint8_t getModeSwitch()
 void motor_test()
 {
   if (decode_SW(adc_sw_data) & 0b00000001) {
-    omni_move(2.0, 0.0, 0.0, 2.0);  // fwd
+    omni_move(4.0, 0.0, 0.0, 4.0);  // fwd
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(adc_sw_data) & 0b00000010) {
-    omni_move(-2.0, 0.0, 0.0, 2.0);  // back
+    omni_move(-4.0, 0.0, 0.0, 4.0);  // back
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(adc_sw_data) & 0b00000100) {
-    omni_move(0.0, -2.0, 0.0, 2.0);  // left
+    omni_move(0.0, -4.0, 0.0, 4.0);  // left
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(adc_sw_data) & 0b00001000) {
-    omni_move(0.0, 2.0, 0.0, 2.0);  // right
+    omni_move(0.0, 4.0, 0.0, 4.0);  // right
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(adc_sw_data) & 0b00010000) {
-    omni_move(0.0, 0.0, 20.0, 2.0);  // spin
+    omni_move(0.0, 0.0, 20.0, 4.0);  // spin
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else {
     omni_move(0.0, 0.0, 0.0, 0.0);
@@ -700,16 +697,17 @@ void yawFilter()
   imu.pre_yaw_angle = imu.yaw_angle;
 
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
-  if (sys.main_mode < 2) {
+  if (sys.main_mode == 2) {
+    // targetへ補正する
+    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
+
+  } else {
     if (ai_cmd.vision_lost_flag == false) {
       // AI制御かつVision見えている
       imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
     } else {
       // AI制御だがVision見えていない、IMUのみを信じる
     }
-  } else {
-    // targetへ補正する
-    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
   }
 
   imu.yaw_angle_rad = imu.yaw_angle * M_PI / 180;
@@ -1025,10 +1023,11 @@ void sendRobotInfo()
         senddata[9] = can_raw.error_no[5];
         senddata[10] = can_raw.error_no[6];
         senddata[11] = can_raw.error_no[7];
-        senddata[12] = (uint8_t)can_raw.current[0];
-        senddata[13] = (uint8_t)can_raw.current[1];
-        senddata[14] = (uint8_t)can_raw.current[2];
-        senddata[15] = (uint8_t)can_raw.current[3];
+        // 小さすぎたので10倍してる
+        senddata[12] = (uint8_t)(can_raw.current[0] * 10);
+        senddata[13] = (uint8_t)(can_raw.current[1] * 10);
+        senddata[14] = (uint8_t)(can_raw.current[2] * 10);
+        senddata[15] = (uint8_t)(can_raw.current[3] * 10);
         break;
       case 2:
         senddata[0] = 0xFA;
@@ -1076,11 +1075,13 @@ void sendRobotInfo()
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
         temp = (char *)&omni.odom_speed[0];
+        //temp = (char *)&integ.vision_based_position[0];
         senddata[4] = temp[0];
         senddata[5] = temp[1];
         senddata[6] = temp[2];
         senddata[7] = temp[3];
         temp = (char *)&omni.odom_speed[1];
+        //temp = (char *)&integ.vision_based_position[1];
         senddata[8] = temp[0];
         senddata[9] = temp[1];
         senddata[10] = temp[2];
@@ -1149,10 +1150,12 @@ void resetAiCmdData()
   ai_cmd.global_target_position[0] = 0;
   ai_cmd.global_target_position[1] = 0;
 
+  // ローカルカメラ情報は消さない(デバッグ用)
+  /*
   ai_cmd.ball_local_x = 0;
   ai_cmd.ball_local_y = 0;
   ai_cmd.ball_local_radius = 0;
-  ai_cmd.ball_local_FPS = 0;
+  ai_cmd.ball_local_FPS = 0;*/
 
   ai_cmd.vision_lost_flag = true;
   ai_cmd.local_vision_en_flag = false;
@@ -1161,14 +1164,26 @@ void resetAiCmdData()
 
 void parseRxCmd()
 {
-  connection.cmd_cnt++;
   connection.check_ver = data_from_cm4[1];
-  if (connection.check_pre != connection.check_ver) {  // AIからのコマンドが来ている時
-    integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
-    integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
-    connection.pre_cmd_update_cycle_cnt = connection.cmd_update_cycle_cnt;
-    connection.cmd_update_cycle_cnt = 0;
+
+  if (connection.check_ver != connection.check_pre) {
+    connection.latest_ai_cmd_update_time = sys.system_time_ms;
+
+    connection.pre_vision_update_cycle_cnt = connection.vision_update_cycle_cnt;
+    connection.vision_update_cycle_cnt = 0;
+
+    connection.check_pre = connection.check_ver;
   }
+
+  float pre_update_time_ms = connection.latest_cm4_cmd_update_time;
+  connection.latest_cm4_cmd_update_time = sys.system_time_ms;
+  connection.cmd_rx_frq = (float)1000 / (connection.latest_cm4_cmd_update_time - pre_update_time_ms);
+
+  // aiコマンドに関係なくカメラ情報は入れる(デバッグ用)
+  ai_cmd.ball_local_x = data_from_cm4[RX_BUF_SIZE_ETHER - 7] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 6];
+  ai_cmd.ball_local_y = data_from_cm4[RX_BUF_SIZE_ETHER - 5] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 4];
+  ai_cmd.ball_local_radius = data_from_cm4[RX_BUF_SIZE_ETHER - 3] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 2];
+  ai_cmd.ball_local_FPS = data_from_cm4[RX_BUF_SIZE_ETHER - 1];
 
   // time out
   if (connection.connected_ai == 0) {
@@ -1191,17 +1206,19 @@ void parseRxCmd()
 
   ai_cmd.allow_local_flags = data_from_cm4[12];
 
-  ai_cmd.global_ball_position[0] = two_to_int(&data_from_cm4[13]);
-  ai_cmd.global_ball_position[1] = two_to_int(&data_from_cm4[15]);
-  ai_cmd.global_robot_position[0] = two_to_int(&data_from_cm4[17]);
-  ai_cmd.global_robot_position[1] = two_to_int(&data_from_cm4[19]);
-  ai_cmd.global_target_position[0] = two_to_int(&data_from_cm4[21]);
-  ai_cmd.global_target_position[1] = two_to_int(&data_from_cm4[23]);
+  // integとai_cmdで分けてるだけで同じ情報の now と pre
+  integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
+  integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
 
-  ai_cmd.ball_local_x = data_from_cm4[RX_BUF_SIZE_ETHER - 8] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 7];
-  ai_cmd.ball_local_y = data_from_cm4[RX_BUF_SIZE_ETHER - 6] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 5];
-  ai_cmd.ball_local_radius = data_from_cm4[RX_BUF_SIZE_ETHER - 4] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 3];
-  ai_cmd.ball_local_FPS = data_from_cm4[RX_BUF_SIZE_ETHER - 2];
+  // <int>[mm] -> <float>[m]
+  ai_cmd.global_ball_position[0] = (float)two_to_int(&data_from_cm4[13]) / 1000;
+  ai_cmd.global_ball_position[1] = (float)two_to_int(&data_from_cm4[15]) / 1000;
+  //ai_cmd.global_robot_position[0] = (float)two_to_int(&data_from_cm4[17]) / 1000;
+  //ai_cmd.global_robot_position[1] = (float)two_to_int(&data_from_cm4[19]) / 1000;
+  ai_cmd.global_robot_position[0] = 0;
+  ai_cmd.global_robot_position[1] = 0;
+  ai_cmd.global_target_position[0] = (float)two_to_int(&data_from_cm4[21]) / 1000;
+  ai_cmd.global_target_position[1] = (float)two_to_int(&data_from_cm4[23]) / 1000;
 
   if ((ai_cmd.allow_local_flags & FLAG_SSL_VISION_OK) != 0) {
     ai_cmd.vision_lost_flag = false;
@@ -1222,8 +1239,8 @@ void parseRxCmd()
   }
 
   // 目標座標の移動量と更新時間から推測される区間速度
-  integ.guess_target_speed[0] = (float)(ai_cmd.global_target_position[0] - integ.pre_global_target_position[0]) / connection.pre_cmd_update_cycle_cnt;
-  integ.guess_target_speed[1] = (float)(ai_cmd.global_target_position[1] - integ.pre_global_target_position[1]) / connection.pre_cmd_update_cycle_cnt;
+  integ.guess_target_speed[0] = (float)(ai_cmd.global_target_position[0] - integ.pre_global_target_position[0]) / connection.pre_vision_update_cycle_cnt;
+  integ.guess_target_speed[1] = (float)(ai_cmd.global_target_position[1] - integ.pre_global_target_position[1]) / connection.pre_vision_update_cycle_cnt;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)

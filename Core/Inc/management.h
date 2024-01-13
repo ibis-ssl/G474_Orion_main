@@ -46,8 +46,8 @@ extern float32_t motor_voltage[4];
 #define RX_BUF_SIZE_ETHER 64
 #define TX_BUF_SIZE_ETHER 128
 
-// logging time : 0.5s
-#define SPEED_LOG_BUF_SIZE (MAIN_LOOP_CYCLE / 2)
+// logging time : 0.5s -> 2s
+#define SPEED_LOG_BUF_SIZE (MAIN_LOOP_CYCLE * 2)
 
 typedef struct
 {
@@ -72,9 +72,9 @@ typedef struct
   float kick_power;
   bool chip_en;
   float local_target_speed[2];
-  int global_robot_position[2];
-  int global_target_position[2];
-  int global_ball_position[2];
+  float global_robot_position[2];
+  float global_target_position[2];
+  float global_ball_position[2];
   uint8_t allow_local_flags;
   int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
   bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag;
@@ -127,8 +127,9 @@ typedef struct
   float global_odom_vision_diff[2];  // vision座標を基準にした移動距離(global系)
   float vision_based_position[2];
   float position_diff[2];
-  int pre_global_target_position[2];
+  float pre_global_target_position[2];
   float guess_target_speed[2];
+  float move_dist, targed_dist_diff;
 } integration_control_t;
 
 typedef struct
@@ -145,10 +146,11 @@ typedef struct
   bool connected_cm4;
   uint8_t check_pre;
   uint8_t check_ver;
-  uint32_t cmd_cnt;
   float cmd_rx_frq;
-  uint32_t cmd_update_cycle_cnt;
-  uint32_t pre_cmd_update_cycle_cnt;
+  uint32_t vision_update_cycle_cnt;
+  uint32_t pre_vision_update_cycle_cnt;
+  uint32_t latest_ai_cmd_update_time;
+  uint32_t latest_cm4_cmd_update_time;
 } connection_t;
 
 typedef struct

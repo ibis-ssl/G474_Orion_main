@@ -73,13 +73,25 @@ void omniOdometory()
     odom_speed_index = 0;
   }
 
+  // local座標系で入れているodom speedを,global系に修正する
+  // vision座標だけ更新されているが、vision_update_cycle_cntが0になっていない場合に、1cycleだけpositionが飛ぶ
+  
   float latency_cycle = ai_cmd.latency_time_ms / (1000 / MAIN_LOOP_CYCLE);
   for (int i = 0; i < 2; i++) {
     enqueue(integ.odom_log[i], omni.odom_speed[i]);
-    integ.global_odom_vision_diff[i] = sumNewestN(integ.odom_log[i], latency_cycle + connection.cmd_update_cycle_cnt);
+    integ.global_odom_vision_diff[i] = sumNewestN(integ.odom_log[i], latency_cycle + connection.vision_update_cycle_cnt) / MAIN_LOOP_CYCLE;
     integ.vision_based_position[i] = ai_cmd.global_robot_position[i] + integ.global_odom_vision_diff[i];
     integ.position_diff[i] = ai_cmd.global_target_position[i] - integ.vision_based_position[i];
   }
+
+  float target_diff[2], move_diff[2];
+  for (int i = 0; i < 2; i++) {
+    target_diff[i] = ai_cmd.global_robot_position[i] - ai_cmd.global_target_position[i];
+    move_diff[i] = ai_cmd.global_robot_position[i] - integ.vision_based_position[i];
+  }
+
+  integ.targed_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
+  integ.move_dist = sqrt(pow(integ.position_diff[0], 2) + pow(integ.position_diff[1], 2));
 
   /*
   omni.odom_speed_log[0][odom_speed_index] = omni.odom_speed[0];
