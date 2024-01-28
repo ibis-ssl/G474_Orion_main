@@ -117,7 +117,6 @@ typedef struct
   float odom_floor_diff[2], robot_pos_diff[2];
   float odom[2], pre_odom[2], odom_raw[2];
   float odom_speed[2];
-  //, odom_speed_log[2][SPEED_LOG_BUF_SIZE];
   float local_odom_speed[2];
 } omni_t;
 
@@ -125,11 +124,12 @@ typedef struct
 {
   RingBuffer * odom_log[2];
   float global_odom_vision_diff[2];  // vision座標を基準にした移動距離(global系)
-  float vision_based_position[2];
-  float position_diff[2];
+  float vision_based_position[2];    // Visionによって更新された自己位置
+  float position_diff[2];            // ai_cmdとvision_based_positionの差分
   float pre_global_target_position[2];
-  float guess_target_speed[2];
-  float move_dist, targed_dist_diff;
+  float guess_target_speed[2];  // targetSpeed + 位置制御の場合、使わんかも
+  float move_dist;              // Visionとtargetが更新されてからの移動量
+  float targed_dist_diff;       // Visionが更新された時点での現在地とtargetの距離
 } integration_control_t;
 
 typedef struct
