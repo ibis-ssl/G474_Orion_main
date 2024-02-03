@@ -139,8 +139,9 @@ uint8_t uart2_rx_it_buffer = 0;
 #define AI_CMD_VEL_MAX_MPS (7.0)
 
 #define FLAG_SSL_VISION_OK (0x01)
-#define FLAG_ENABLE_LOCAL_VISION (0x08)
 #define FLAG_ENABLE_KEEPER_MODE (0x02)
+#define FLAG_STOP_REQUEST (0x04)
+#define FLAG_ENABLE_LOCAL_VISION (0x08)
 
 // main state
 uint32_t adc_sw_data;
@@ -338,7 +339,7 @@ int main(void)
         p("\e[31mDIS\e[37m ", connection.check_ver, connection.cmd_rx_frq);
       }*/
 
-      //p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
+      p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
       //p("kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
       p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
       //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
@@ -351,7 +352,7 @@ int main(void)
       p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
       //p("spd X %+8.3f Y %+8.3f  ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
-      p("log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
+      //p("log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
       p("cycle %6d ", connection.vision_update_cycle_cnt);
       p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
 
@@ -489,8 +490,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   omniOdometory();
 
   switch (sys.main_mode) {
-    case 0:  // with ai
-    case 1:  //
+    case 0:  // ローカル統合制御あり
+    case 1:  // ローカル統合制御なし
       if (connection.connected_ai == false || sys.stop_flag) {
         maintask_stop();
       } else {
@@ -879,11 +880,11 @@ void maintask_run()
   if (ai_cmd.local_vision_en_flag == false) {
     for (int i = 0; i < 2; i++) {
       // 本当はこっち(ローカルのみだとVisionが0でクリアされ続けるので動かない)
-      //local_target_diff[i] = integ.position_diff[i];
+      local_target_diff[i] = integ.position_diff[i];
 
       // デバッグ用にomni.odomをそのままと、target_posにsepeed使う
       // 速度制御はodomベースなのでちょっとおかしなことになる
-      local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
+      //local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
 
       // 吹き飛び対策で+-1.0を上限にする
       // 本当はゲインを基準にして、フィードバック速度指令値の上限が3m/sあたりになるようにしたほうがいいかも
@@ -902,10 +903,11 @@ void maintask_run()
       // target.velocity[i] = -(local_target_diff[i] * 10);
       // デバッグ用なのでspeedは入れない
 
-      // target.velocity[i] = ai_cmd.local_target_speed[i]  -(local_target_diff[i] * 10);
-      // 本命
-
-      target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
+      if (sys.main_mode == 0) {
+        target.velocity[i] = ai_cmd.local_target_speed[i] - (local_target_diff[i] * 10);  //ローカル統合制御あり
+      } else {
+        target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
+      }
     }
   } else {
     //
@@ -1273,6 +1275,12 @@ void parseRxCmd()
     ai_cmd.keeper_mode_en_flag = true;
   } else {
     ai_cmd.keeper_mode_en_flag = false;
+  }
+
+  if ((ai_cmd.allow_local_flags & FLAG_STOP_REQUEST) != 0) {
+    ai_cmd.stop_request_flag = true;
+  } else {
+    ai_cmd.stop_request_flag = false;
   }
 
   // 目標座標の移動量と更新時間から推測される区間速度

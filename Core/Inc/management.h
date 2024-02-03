@@ -77,7 +77,7 @@ typedef struct
   float global_ball_position[2];
   uint8_t allow_local_flags;
   int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
-  bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag;
+  bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag, stop_request_flag;
   uint32_t latency_time_ms;
 } ai_cmd_t;
 
