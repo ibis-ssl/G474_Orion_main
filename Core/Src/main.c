@@ -309,41 +309,48 @@ int main(void)
         p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[0]);
       } else {
       }
+
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
       p("yaw=%+6.1f ", imu.yaw_angle);
       p("Batt=%3.1f ", can_raw.power_voltage[0]);
-      //p("tar=%+6.1f ", ai_cmd.target_theta * 180 / M_PI);
-      //p("omega = %+5.1f ",omega);
-      //p("vel rad %3.1f ", debug.vel_radian);
-      //p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f ",can_raw.motor_feedback[0],can_raw.motor_feedback[1],can_raw.motor_feedback[2],can_raw.motor_feedback[3]);
-      //p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f ",voltage[0],voltage[1],voltage[2],voltage[3]);
-      //p(" i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
-      //p(" FET=%.3f C1=%.3f C2=%.3f ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+
+      // Vision関係はここ
+      if (sys.main_mode <= 2) {
+        // 通信接続状態表示
+        if (connection.connected_ai) {
+          p("\e[32m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        } else if (connection.connected_cm4) {
+          p("\e[33m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        } else {
+          p("\e[31m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        }
+        /*if (connection.connected_ai) {
+          p("\e[32mAI \e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        } else if (connection.connected_cm4) {
+          p("\e[33mCM4\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        } else {
+          p("\e[31mDIS\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+        }*/
+
+        p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
+        p("kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
+        p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
+        //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+        p("G-tar X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+
+      } else if (sys.main_mode == 3) {  // Motorテスト
+        p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+        p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
+        p(" i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+        p(" FET=%.3f C1=%.3f C2=%.3f ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+
+      } else if (sys.main_mode == 4) {  // Dribblerテスト
+        p("ball_local x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
+      }
+
       //p(" Batt %3.1f Cap=%3.0f BattC %+6.1f ", can_raw.power_voltage[0], can_raw.power_voltage[6], can_raw.current[4]);
       //p(" omni.mouse:x=%+3d, y=%+3d ",omni.mouse[0],omni.mouse[1]);
       //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
-
-      // 通信接続状態表示
-      if (connection.connected_ai) {
-        p("\e[32m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-      } else if (connection.connected_cm4) {
-        p("\e[33m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-      } else {
-        p("\e[31m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-      }
-      /*if (connection.connected_ai) {
-        p("\e[32mAI \e[37m ", connection.check_ver, connection.cmd_rx_frq);
-      } else if (connection.connected_cm4) {
-        p("\e[33mCM4\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-      } else {
-        p("\e[31mDIS\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-      }*/
-
-      p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
-      //p("kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
-      p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
-      //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-      p("G-tar X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
 
       //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
 
@@ -377,7 +384,6 @@ int main(void)
       //p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
       //p("out local-c %+8.1f %+8.1f ", output.local_velocity_current[0] * 1000, output.local_velocity_current[1] * 1000);
 
-      //p("ball_local x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
       //p("Raw %02x %02x %02x %02x ", data_from_cm4[10], data_from_cm4[11], data_from_cm4[12], data_from_cm4[13]);
       //p("%02x %02x %02x %02x ", data_from_cm4[23], data_from_cm4[24], data_from_cm4[25], data_from_cm4[26]);
       //p("txRaw %6.3f", imu.yaw_angle - ai_cmd.global_vision_theta);
@@ -486,7 +492,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   // 以後sys.main_modeによる動作切り替え
 
-  yawFilter();  // mode == 2なら相補フィルタなし
+  yawFilter();
   omniOdometory();
 
   switch (sys.main_mode) {
@@ -498,7 +504,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         maintask_run();
       }
       break;
-    case 2:  // local test mode
+    case 2:  // local test mode, Visionなし前提。
+             // 相補フィルタなし、
       if (sys.stop_flag) {
         maintask_stop();
       } else {
@@ -697,14 +704,16 @@ void yawFilter()
   imu.pre_yaw_angle = imu.yaw_angle;
 
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
+  return;
   if (sys.main_mode == 2) {
     // targetへ補正する
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
 
   } else {
+    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
+
     if (ai_cmd.vision_lost_flag == false) {
       // AI制御かつVision見えている
-      imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
     } else {
       // AI制御だがVision見えていない、IMUのみを信じる
     }
@@ -730,55 +739,6 @@ void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
 
 void speed_control()
 {
-  // グローバル→ローカル座標系
-  /*
-  target.local_velocity[0] = target.velocity[0] * cos(-imu.yaw_angle_rad) - target.velocity[1] * sin(-imu.yaw_angle_rad);
-  target.local_velocity[1] = target.velocity[0] * sin(-imu.yaw_angle_rad) + target.velocity[1] * cos(-imu.yaw_angle_rad);
-
-  diff_global[0] = omni.odom[0] - target.position[0];
-  diff_global[1] = omni.odom[1] - target.position[1];
-
-  diff_local[0] = diff_global[0] * cos(-imu.yaw_angle_rad) - diff_global[1] * sin(-imu.yaw_angle_rad);
-  diff_local[1] = diff_global[0] * sin(-imu.yaw_angle_rad) + diff_global[1] * cos(-imu.yaw_angle_rad);
-
-  // 500Hz, m/s -> m / cycle
-  for (int i = 0; i < 2; i++) {
-    // 加速度制限
-    output.accel_limit[i] = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-    if (target.local_velocity[i] < target.local_velocity_current[i] && i == 0) {  // バック時だけ加速度制限変更
-      output.accel_limit[i] = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
-    }
-
-    // 減速方向は摩擦を使えるので制動力上げる
-    if (fabs(target.local_velocity[i]) < fabs(target.local_velocity_current[i])) {
-      output.accel_limit[i] *= 3;
-    }
-
-    // 目標移動位置を追い越してしまっている場合。速度ではないのはノイズが多いから
-    // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
-    // local_velocityに対して追従するlocal_velocity_currentの追従を早める
-    if (diff_local[i] > 0 && target.local_velocity[i] > 0) {
-      output.accel_limit[i] *= 5;
-    }
-    if (diff_local[i] < 0 && target.local_velocity[i] < 0) {
-      output.accel_limit[i] *= 5;
-    }
-
-    if (target.local_velocity[i] >= target.local_velocity_current[i]) {
-      if (target.local_velocity_current[i] + output.accel_limit[i] > target.local_velocity[i]) {
-        target.local_velocity_current[i] = target.local_velocity[i];
-      } else {
-        target.local_velocity_current[i] += output.accel_limit[i];
-      }
-    } else {
-      if (target.local_velocity_current[i] - output.accel_limit[i] < target.local_velocity[i]) {
-        target.local_velocity_current[i] = target.local_velocity[i];
-      } else {
-        target.local_velocity_current[i] -= output.accel_limit[i];
-      }
-    }*/
-  // ↑target_velがglobalだと何故か勘違いしていた時の実装
-
   target.local_velocity[0] = target.velocity[0];
   target.local_velocity[1] = target.velocity[1];
 
@@ -877,7 +837,7 @@ void maintask_run()
   // 高速域でvisionがlostしたら、復帰のために速度制限したほうがいいかも
 
   float local_target_diff[2];
-  if (ai_cmd.local_vision_en_flag == false) {
+  if (ai_cmd.local_vision_en_flag == false /* && ai_cmd.stop_request_flag == false*/) {
     for (int i = 0; i < 2; i++) {
       // 本当はこっち(ローカルのみだとVisionが0でクリアされ続けるので動かない)
       local_target_diff[i] = integ.position_diff[i];
@@ -911,6 +871,7 @@ void maintask_run()
     }
   } else {
     //
+    resetLocalSpeedControl();
     target.velocity[0] = 0;
     target.velocity[1] = 0;
   }
@@ -956,6 +917,7 @@ void send_accutuator_cmd_run()
         uint8_t kick_power_param = (float)ai_cmd.kick_power * 255.0;
         printf(" kick=%d\r\n", kick_power_param);
         actuator_kicker(3, (uint8_t)kick_power_param);
+        resetLocalSpeedControl();
         kick_state = 1;
       }
     } else {
