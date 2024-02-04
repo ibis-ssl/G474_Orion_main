@@ -142,6 +142,7 @@ uint8_t uart2_rx_it_buffer = 0;
 #define FLAG_ENABLE_KEEPER_MODE (0x02)
 #define FLAG_STOP_REQUEST (0x04)
 #define FLAG_ENABLE_LOCAL_VISION (0x08)
+#define FLAG_DRIBBLER_UP (0x10)
 
 // main state
 uint32_t adc_sw_data;
@@ -333,10 +334,12 @@ int main(void)
         }*/
 
         p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
-        p("kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
+        p("lost %d stop %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag,ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag,
+          ai_cmd.local_vision_en_flag);
         p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
         //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
         p("G-tar X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+        p("diff %6.2f %6.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
 
       } else if (sys.main_mode == 3) {  // Motorテスト
         p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
@@ -356,11 +359,11 @@ int main(void)
 
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
-      p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+      //p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
       //p("spd X %+8.3f Y %+8.3f  ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
       //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
       //p("log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
-      p("cycle %6d ", connection.vision_update_cycle_cnt);
+      //p("cycle %6d ", connection.vision_update_cycle_cnt);
       p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
 
       //p("TarDst %6.1f MvDst %6.1f", integ.targed_dist_diff, integ.move_dist);
@@ -704,19 +707,12 @@ void yawFilter()
   imu.pre_yaw_angle = imu.yaw_angle;
 
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
-  return;
   if (sys.main_mode == 2) {
     // targetへ補正する
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
 
   } else {
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
-
-    if (ai_cmd.vision_lost_flag == false) {
-      // AI制御かつVision見えている
-    } else {
-      // AI制御だがVision見えていない、IMUのみを信じる
-    }
   }
 
   imu.yaw_angle_rad = imu.yaw_angle * M_PI / 180;
@@ -733,8 +729,7 @@ void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
   if (output.omega < -OMEGA_LIMIT) {
     output.omega = -OMEGA_LIMIT;
   }
-  // omega = 0;
-  // out : omega
+  //output.omega = 0;
 }
 
 void speed_control()
@@ -836,35 +831,32 @@ void maintask_run()
 {
   // 高速域でvisionがlostしたら、復帰のために速度制限したほうがいいかも
 
-  float local_target_diff[2];
   if (ai_cmd.local_vision_en_flag == false /* && ai_cmd.stop_request_flag == false*/) {
-    for (int i = 0; i < 2; i++) {
-      // 本当はこっち(ローカルのみだとVisionが0でクリアされ続けるので動かない)
-      local_target_diff[i] = integ.position_diff[i];
+    // グローバル→ローカル座標系
+    integ.local_target_diff[0] = integ.position_diff[0] * cos(-imu.yaw_angle_rad) - integ.position_diff[1] * sin(-imu.yaw_angle_rad);
+    integ.local_target_diff[1] = integ.position_diff[0] * sin(-imu.yaw_angle_rad) + integ.position_diff[1] * cos(-imu.yaw_angle_rad);
 
+    for (int i = 0; i < 2; i++) {
       // デバッグ用にomni.odomをそのままと、target_posにsepeed使う
       // 速度制御はodomベースなのでちょっとおかしなことになる
-      //local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
-
-      // 吹き飛び対策で+-1.0を上限にする
-      // 本当はゲインを基準にして、フィードバック速度指令値の上限が3m/sあたりになるようにしたほうがいいかも
-      if (local_target_diff[i] < -1.0) {
-        local_target_diff[i] = -1.0;
-      } else if (local_target_diff[i] > 1.0) {
-        local_target_diff[i] = 1.0;
-      }
+      //integ.local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
 
       // 精密性はそれほどいらないので、振動対策に不感帯入れる
-      if (local_target_diff[i] < 0.1 && local_target_diff[i] > -0.1) {
-        local_target_diff[i] = 0;
+      if (integ.local_target_diff[i] < 0.03 && integ.local_target_diff[i] > -0.03) {
+        integ.local_target_diff[i] = 0;
       }
 
-      //
-      // target.velocity[i] = -(local_target_diff[i] * 10);
-      // デバッグ用なのでspeedは入れない
+      // 吹き飛び対策で+-3.0 m/sを上限にする
+      if (integ.local_target_diff[i] < -0.3) {
+        integ.local_target_diff[i] = -0.3;
+      } else if (integ.local_target_diff[i] > 0.3) {
+        integ.local_target_diff[i] = 0.3;
+      }
 
       if (sys.main_mode == 0) {
-        target.velocity[i] = ai_cmd.local_target_speed[i] - (local_target_diff[i] * 10);  //ローカル統合制御あり
+        //target.velocity[i] = +(integ.local_target_diff[i] * 10);  //ローカル統合制御あり(位置フィードバックのみ)
+
+        target.velocity[i] = ai_cmd.local_target_speed[i] + (integ.local_target_diff[i] * 10);  //ローカル統合制御あり
       } else {
         target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
       }
@@ -904,8 +896,13 @@ void maintask_run()
   speed_control();
   output_limit();
   theta_control();
+  if (ai_cmd.stop_request_flag) {
+    resetLocalSpeedControl();
+    omni_move(0.0, 0.0, 0.0, 0.0);
+  } else {
+    omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT);
+  }
 
-  omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT);
   send_accutuator_cmd_run();
 }
 
@@ -1052,12 +1049,12 @@ void sendRobotInfo()
         senddata[5] = temp[1];
         senddata[6] = temp[2];
         senddata[7] = temp[3];
-        temp = (char *)&omni.odom[0];
+        temp = (char *)&integ.vision_based_position[0];
         senddata[8] = temp[0];
         senddata[9] = temp[1];
         senddata[10] = temp[2];
         senddata[11] = temp[3];
-        temp = (char *)&omni.odom[1];
+        temp = (char *)&integ.vision_based_position[1];
         senddata[12] = temp[0];
         senddata[13] = temp[1];
         senddata[14] = temp[2];
@@ -1068,13 +1065,13 @@ void sendRobotInfo()
         senddata[1] = 0xFB;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
-        temp = (char *)&omni.odom_speed[0];
+        temp = (char *)&mouse.floor_odom[0];
         //temp = (char *)&integ.vision_based_position[0];
         senddata[4] = temp[0];
         senddata[5] = temp[1];
         senddata[6] = temp[2];
         senddata[7] = temp[3];
-        temp = (char *)&omni.odom_speed[1];
+        temp = (char *)&mouse.floor_odom[1];
         //temp = (char *)&integ.vision_based_position[1];
         senddata[8] = temp[0];
         senddata[9] = temp[1];
@@ -1189,9 +1186,9 @@ void parseRxCmd()
   ai_cmd.local_target_speed[1] = two_to_float(&data_from_cm4[4]) * AI_CMD_VEL_MAX_MPS;
   ai_cmd.global_vision_theta = two_to_float(&data_from_cm4[6]) * M_PI;
   ai_cmd.target_theta = two_to_float(&data_from_cm4[8]) * M_PI;
-  if (data_from_cm4[10] > 100) {
+  if (data_from_cm4[10] >= 101) {
     ai_cmd.chip_en = true;
-    ai_cmd.kick_power = (float)(data_from_cm4[10] - 100) / 20;
+    ai_cmd.kick_power = (float)(data_from_cm4[10] - 101) / 20;
   } else {
     ai_cmd.kick_power = (float)data_from_cm4[10] / 20;
     ai_cmd.chip_en = false;
@@ -1207,10 +1204,8 @@ void parseRxCmd()
   // <int>[mm] -> <float>[m]
   ai_cmd.global_ball_position[0] = (float)two_to_int(&data_from_cm4[13]) / 1000;
   ai_cmd.global_ball_position[1] = (float)two_to_int(&data_from_cm4[15]) / 1000;
-  //ai_cmd.global_robot_position[0] = (float)two_to_int(&data_from_cm4[17]) / 1000;
-  //ai_cmd.global_robot_position[1] = (float)two_to_int(&data_from_cm4[19]) / 1000;
-  ai_cmd.global_robot_position[0] = 0;
-  ai_cmd.global_robot_position[1] = 0;
+  ai_cmd.global_robot_position[0] = (float)two_to_int(&data_from_cm4[17]) / 1000;
+  ai_cmd.global_robot_position[1] = (float)two_to_int(&data_from_cm4[19]) / 1000;
   ai_cmd.global_target_position[0] = (float)two_to_int(&data_from_cm4[21]) / 1000;
   ai_cmd.global_target_position[1] = (float)two_to_int(&data_from_cm4[23]) / 1000;
 
@@ -1243,6 +1238,12 @@ void parseRxCmd()
     ai_cmd.stop_request_flag = true;
   } else {
     ai_cmd.stop_request_flag = false;
+  }
+
+  if ((ai_cmd.allow_local_flags & FLAG_DRIBBLER_UP) != 0) {
+    ai_cmd.dribbler_up_flag = true;
+  } else {
+    ai_cmd.dribbler_up_flag = false;
   }
 
   // 目標座標の移動量と更新時間から推測される区間速度

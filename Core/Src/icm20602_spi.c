@@ -383,7 +383,7 @@ void ICM20602_IMU_calibration2(void)
   double gyro_ave[3][10] = {{0.0}};
 
   printf("put the IMU still!\n");
-  
+
   HAL_Delay(200);
 
   while (cal_len < 5000.0) {
@@ -420,7 +420,8 @@ void ICM20602_IMU_calibration2(void)
   printf("length = %d\n", cal_len);
   printf("Gyro Yaw %+8.6f ", fabs(gyro_ave[2][9] - gyro_ave[2][0]));
 
-  if (cal_len == 5000) {
+  // たまにIMUのデータ取れない場合がある
+  if (cal_len == 5000 || cal_len == 1001) {
     NVIC_SystemReset();
   }
 

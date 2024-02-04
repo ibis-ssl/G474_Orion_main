@@ -77,7 +77,7 @@ typedef struct
   float global_ball_position[2];
   uint8_t allow_local_flags;
   int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
-  bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag, stop_request_flag;
+  bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag, stop_request_flag, dribbler_up_flag;
   uint32_t latency_time_ms;
 } ai_cmd_t;
 
@@ -130,6 +130,7 @@ typedef struct
   float guess_target_speed[2];  // targetSpeed + 位置制御の場合、使わんかも
   float move_dist;              // Visionとtargetが更新されてからの移動量
   float targed_dist_diff;       // Visionが更新された時点での現在地とtargetの距離
+  float local_target_diff[2];
 } integration_control_t;
 
 typedef struct
