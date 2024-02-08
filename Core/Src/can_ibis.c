@@ -7,7 +7,6 @@
 
 #include "can_ibis.h"
 
-
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
 
@@ -103,6 +102,9 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
         can_raw.error_no[1] = RxData[1];
         can_raw.error_no[2] = RxData[2];
         can_raw.error_no[3] = RxData[3];
+        sys.error_id = (uint16_t)((RxData[1] << 8) | RxData[0]);
+        sys.error_info = (uint16_t)((RxData[3] << 8) | RxData[2]);
+        sys.error_value = uchar4_to_float(&RxData[4]);
         sys.error_flag = true;
         break;
 

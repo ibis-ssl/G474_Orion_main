@@ -315,71 +315,93 @@ int main(void)
       p("yaw=%+6.1f ", imu.yaw_angle);
       p("Batt=%3.1f ", can_raw.power_voltage[0]);
 
-      // Vision関係はここ
-      if (sys.main_mode <= 2) {
-        // 通信接続状態表示
-        if (connection.connected_ai) {
-          p("\e[32m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-        } else if (connection.connected_cm4) {
-          p("\e[33m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-        } else {
-          p("\e[31m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-        }
-        /*if (connection.connected_ai) {
-          p("\e[32mAI \e[37m ", connection.check_ver, connection.cmd_rx_frq);
-        } else if (connection.connected_cm4) {
-          p("\e[33mCM4\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-        } else {
-          p("\e[31mDIS\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-        }*/
+      switch (sys.main_mode) {
+        case 0:
+        case 1:
+        case 2:
+          // 通信接続状態表示
+          if (connection.connected_ai) {
+            p("\e[32m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+          } else if (connection.connected_cm4) {
+            p("\e[33m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+          } else {
+            p("\e[31m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
+          }
 
-        p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
-        p("lost %d stop %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag,ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power, ai_cmd.keeper_mode_en_flag,
-          ai_cmd.local_vision_en_flag);
-        p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
-        //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-        p("G-tar X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
-        p("diff %6.2f %6.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
+          /*p("lost %d stop %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power,
+            ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);*/
 
-      } else if (sys.main_mode == 3) {  // Motorテスト
-        p(" motor0=%.3f motor1=%.3f motor2=%.3f motor3=%.3f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
-        p(" v0=%.3f v1=%.3f v2=%.3f v3=%.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
-        p(" i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
-        p(" FET=%.3f C1=%.3f C2=%.3f ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+          p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
+          if (sys.main_mode != 2) {
+            if (ai_cmd.vision_lost_flag) {  // SSL-Vision (Robot)
+              p("\e[33m");
+            }
+            p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
+            p("G-tar X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+            p("diff %6.2f %6.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
+            p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
+            p("\e[37m ");  // end color
+          } else {
+            p(" Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+            p(" Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+          }
 
-      } else if (sys.main_mode == 4) {  // Dribblerテスト
-        p("ball_local x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
+          // SSL-Vision (Ball)
+          //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+
+          break;
+        case 3:  //Motor
+          p(" Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+          p(" Pw v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
+          p(" Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+          p(" FET=%4.1f L1=%4.1f L2=%4.1f ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+
+          break;
+        case 4:  // Dribblerテスト
+          p("ball_local x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
+
+          break;
+        case 5:  // Kicker Test
+          p(" Batt %3.1f Cap=%3.0f BattC %+6.1f ", can_raw.power_voltage[0], can_raw.power_voltage[6], can_raw.current[4]);
+
+          break;
+        case 6:  // Mouse odom
+          p("raw_odom X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
+          p("mouse floor X %+8.3f Y %+8.3f ", -mouse.floor_odom[0] * 1000, -mouse.floor_odom[1] * 1000);
+          p("mouse X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
+          p("Error X %+8.3f Y %+8.3f ", (omni.odom[0] + mouse.odom[0]) * 1000, (omni.odom[1] + mouse.odom[1]) * 1000);
+          p("diff X %+8.3f Y %+8.3f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
+          p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
+          p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
+
+          break;
+        case 7:
+          p("ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
+          p("omni X %+8.3f Y %+8.3f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+
+          break;
+        case 8:
+          break;
+        case 9:
+          p("\e[31m error : ID %5d / Info %5d / Value %+8.3f \e[31m", sys.error_id, sys.error_info, sys.error_value);
+
+          break;
+        default:
+          break;
       }
-
-      //p(" Batt %3.1f Cap=%3.0f BattC %+6.1f ", can_raw.power_voltage[0], can_raw.power_voltage[6], can_raw.current[4]);
-      //p(" omni.mouse:x=%+3d, y=%+3d ",omni.mouse[0],omni.mouse[1]);
-      //p(" ENC %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
 
       //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
 
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
       //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
-      //p("omni X %+8.3f Y %+8.3f  ", omni.odom[0] * 1000, omni.odom[1] * 1000);
       //p("spd X %+8.3f Y %+8.3f  ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
-      //p("M0 %+4.1f M1 %+4.1f M2 %+4.1f M3 %+4.1f ", motor_voltage[0] + 20, motor_voltage[1] + 20, motor_voltage[2] + 20, motor_voltage[3] + 20);
       //p("log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
       //p("cycle %6d ", connection.vision_update_cycle_cnt);
-      p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
 
       //p("TarDst %6.1f MvDst %6.1f", integ.targed_dist_diff, integ.move_dist);
 
       //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
 
-      // omni odom
-      //p("raw_odom X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
-      //p("mouse floor X %+8.3f Y %+8.3f ", -mouse.floor_odom[0] * 1000, -mouse.floor_odom[1] * 1000);
-      //p("mouse X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
-      //p("Error X %+8.3f Y %+8.3f ", (omni.odom[0] + mouse.odom[0]) * 1000, (omni.odom[1] + mouse.odom[1]) * 1000);
-      //p("diff X %+8.3f Y %+8.3f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
-      //p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
-      //p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
-
-      //p("Local %+8.1f %+8.1f ", (diff_local[0]) * 1000, (diff_local[1]) * 1000);
       //p("tarVel X %+8.1f Y %+8.1f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
       //p("local X %+8.1f Y %+8.1f ", target.local_velocity[0] * 1000, target.local_velocity[1] * 1000);
       //p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
@@ -390,15 +412,6 @@ int main(void)
       //p("Raw %02x %02x %02x %02x ", data_from_cm4[10], data_from_cm4[11], data_from_cm4[12], data_from_cm4[13]);
       //p("%02x %02x %02x %02x ", data_from_cm4[23], data_from_cm4[24], data_from_cm4[25], data_from_cm4[26]);
       //p("txRaw %6.3f", imu.yaw_angle - ai_cmd.global_vision_theta);
-
-      /*if (ai_cmd.vision_lost_flag) {
-        p("\e[33mallow 0x%02x vision lost %d local en %d keeper en %d\e[37m ", ai_cmd.allow_local_flags, ai_cmd.vision_lost_flag, ai_cmd.local_vision_en_flag, ai_cmd.keeper_mode_en_flag);
-      } else {
-        p("\e[32mallow 0x%02x vision lost %d local en %d keeper en %d\e[31m ", ai_cmd.allow_local_flags, ai_cmd.vision_lost_flag, ai_cmd.local_vision_en_flag, ai_cmd.keeper_mode_en_flag);
-      }*/
-      if (sys.error_flag) {
-        p("\e[31m error : 0x%02x 0x%02x 0x%02x 0x%02x\e[31m", can_raw.error_no[0], can_raw.error_no[1], can_raw.error_no[2], can_raw.error_no[3]);
-      }
 
       if (debug.main_loop_cnt < 100000) {
         p("loop %6d", debug.main_loop_cnt);
@@ -545,11 +558,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 低電圧時ブザー
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
-  buzzer_cnt++;
-  if (buzzer_cnt > 100) {
-    buzzer_cnt = 0;
-
-    if (can_raw.power_voltage[0] < 21.0 || sys.error_flag) {
+  if (can_raw.power_voltage[0] < 21.0) {
+    buzzer_cnt++;
+    if (buzzer_cnt > 100) {
+      buzzer_cnt = 0;
       if (buzzer_state == false) {
         buzzer_state = true;
         actuator_buzzer_on();
@@ -557,10 +569,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         buzzer_state = false;
         actuator_buzzer_off();
       }
-    } else {
-      buzzer_state = false;
-      actuator_buzzer_off();
     }
+  } else if (sys.error_flag) {
+    buzzer_cnt++;
+    if (buzzer_cnt > 20) {
+      buzzer_cnt = 0;
+      if (buzzer_state == false) {
+        buzzer_state = true;
+        actuator_buzzer_on();
+      } else {
+        buzzer_state = false;
+        actuator_buzzer_off();
+      }
+    }
+  } else {
+    buzzer_state = false;
+    actuator_buzzer_off();
   }
 
   // AIとの通信状態チェック
@@ -1151,6 +1175,7 @@ void resetAiCmdData()
   ai_cmd.vision_lost_flag = true;
   ai_cmd.local_vision_en_flag = false;
   ai_cmd.keeper_mode_en_flag = false;
+  ai_cmd.stop_request_flag = false;  //
 }
 
 void parseRxCmd()
