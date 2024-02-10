@@ -342,8 +342,10 @@ int main(void)
             p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
             p("\e[37m ");  // end color
           } else {
-            p(" Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
-            p(" Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+            p("out %+6.1f ", output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3]);
+            p("total %+6.1f ", can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]);
+            //p("Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+            p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
           }
 
           // SSL-Vision (Ball)
@@ -771,7 +773,7 @@ void speed_control()
 
     // 減速方向は摩擦を使えるので制動力上げる
     if (fabs(target.local_velocity[i]) < fabs(target.local_velocity_current[i])) {
-      output.accel_limit[i] *= 3;
+      output.accel_limit[i] *= 2;
     }
 
     // 目標移動位置を追い越してしまっている場合。速度ではないのはノイズが多いから
@@ -784,6 +786,7 @@ void speed_control()
       output.accel_limit[i] *= 5;
     }
 
+    // 加速度→速度変換
     if (target.local_velocity[i] >= target.local_velocity_current[i]) {
       if (target.local_velocity_current[i] + output.accel_limit[i] > target.local_velocity[i]) {
         target.local_velocity_current[i] = target.local_velocity[i];

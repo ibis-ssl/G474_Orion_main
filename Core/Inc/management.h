@@ -139,6 +139,7 @@ typedef struct
   volatile float local_velocity_current[2];
   volatile float omega;
   volatile float accel_limit[2];
+  volatile float motor_voltage[4];
 } output_t;
 
 typedef struct
