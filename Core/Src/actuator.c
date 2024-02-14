@@ -124,8 +124,25 @@ void actuator_buzzer(uint16_t ontime, uint16_t offtime)
   HAL_Delay(offtime);
 }
 
-void actuator_buzzer_on() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 250); }
+void actuator_buzzer_on()
+{
+  __HAL_TIM_SET_PRESCALER(&htim5, 170);
+  __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 250);
+}
+
 void actuator_buzzer_off() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0); }
+
+void actuator_buzzer_frq_on(float frq)
+{
+  __HAL_TIM_SET_PRESCALER(&htim5, 170 * 2000 / frq);
+  __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 250);
+}
+void actuator_buzzer_frq(float frq, uint16_t time)
+{
+  actuator_buzzer_frq_on(frq);
+  HAL_Delay(time);
+  actuator_buzzer_off();
+}
 
 void morse_short() { actuator_buzzer(40, 20); }
 void morse_long() { actuator_buzzer(120, 20); }

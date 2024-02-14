@@ -216,11 +216,10 @@ int main(void)
   kick_state = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
 
-  for (int i = 0; i < 4; i++) {
-    actuator_buzzer(20, 20);
-  }
-
-  morse_long();
+  actuator_buzzer_frq(1046, 50);  //C5
+  actuator_buzzer_frq(1174, 50);  //D5
+  actuator_buzzer_frq(1318, 50);  //E5
+  actuator_buzzer_frq(1396, 50);  //F5
 
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
@@ -234,6 +233,16 @@ int main(void)
 
   HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
 
+  HAL_ADC_Start_DMA(&hadc5, &adc_sw_data, 1);
+
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, 1);
+  ICM20602_init();
+  ICM20602_IMU_calibration2();
+  ICM20602_clearAngle();
+
+  // CANより先にIMUのキャリブレーションする
+
   can1_init_ibis(&hfdcan1);
   can2_init_ibis(&hfdcan2);
 
@@ -246,8 +255,6 @@ int main(void)
   if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
     Error_Handler();
   }
-
-  HAL_ADC_Start_DMA(&hadc5, &adc_sw_data, 1);
 
   actuator_power_ONOFF(0);
   HAL_Delay(20);
@@ -266,25 +273,23 @@ int main(void)
   actuator_power_param(4, 90.0);  // max temp(fet)
   actuator_power_param(5, 90.0);  // max temp(solenoid)
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, 1);
-  ICM20602_init();
-  ICM20602_IMU_calibration2();
-  ICM20602_clearAngle();
-
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
   actuator_power_ONOFF(1);
 
-  for (int i = 0; i < 8; i++) {
-    actuator_buzzer(20, 20);
-  }
+  actuator_buzzer_frq(1046, 50);  //C5
+  actuator_buzzer_frq(1174, 50);  //D5
+  actuator_buzzer_frq(1046, 50);  //C5
+  actuator_buzzer_frq(1174, 50);  //D5
+  actuator_buzzer_frq(1318, 50);  //E5
+  actuator_buzzer_frq(1396, 50);  //F5
+  
   sys.system_time_ms = 0;
   sys.stop_flag_request_time = 1000;  // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
   HAL_Delay(100);
   HAL_TIM_Base_Start_IT(&htim7);
   // TIM interrupt is TIM7 only.
 
-  HAL_Delay(1000);
+  HAL_Delay(500);
   //target.velocity[1] = 1.0;
   /* USER CODE END 2 */
 
@@ -734,8 +739,11 @@ void yawFilter()
 
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
   if (sys.main_mode == 2) {
-    // targetへ補正する
+    // デバッグ用、targetへ補正する
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
+
+  } else if (ai_cmd.vision_lost_flag) {
+    // VisionLost時は補正しない
 
   } else {
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
@@ -923,7 +931,7 @@ void maintask_run()
   speed_control();
   output_limit();
   theta_control();
-  if (ai_cmd.stop_request_flag) {
+  if (ai_cmd.stop_request_flag || ai_cmd.vision_lost_flag) {
     resetLocalSpeedControl();
     omni_move(0.0, 0.0, 0.0, 0.0);
   } else {

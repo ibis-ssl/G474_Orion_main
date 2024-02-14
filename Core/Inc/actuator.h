@@ -25,6 +25,8 @@ void actuator_power_param(uint8_t id,float param);
 void actuator_buzzer(uint16_t ontime, uint16_t offtime);
 void actuator_buzzer_on();
 void actuator_buzzer_off();
+void actuator_buzzer_frq_on(float frq);
+void actuator_buzzer_frq(float frq,uint16_t time);
 void actuator_kicker_voltage(float voltage);
 
 void morse_machine_name();

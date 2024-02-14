@@ -83,6 +83,8 @@ void can2_send(int id, uint8_t senddata[])
   HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &TxHeader, senddata);
 }
 
+// CAN受信回ってねぇのでどうにかする
+
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs)
 {
   uint8_t RxData[CAN_RX_DATA_SIZE];
@@ -173,6 +175,12 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
         /*if (mouse.quality < 30 && sys.system_time_ms > 1000) {
           error_flag = true;
         }*/
+        break;
+
+      case 0x500:  // モーターパラメーター
+      case 0x501:
+      case 0x502:
+      case 0x503:
         break;
     }
   }
