@@ -238,6 +238,7 @@ int main(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, 1);
   ICM20602_init();
+  ICM20602_init();
   ICM20602_IMU_calibration2();
   ICM20602_clearAngle();
 
