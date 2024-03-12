@@ -385,6 +385,7 @@ int main(void)
 
           break;
         case 3:  //Motor
+          p(" SW %2d ",decode_SW(adc_sw_data));
           p(" Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
           p(" Pw v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
           p(" Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);

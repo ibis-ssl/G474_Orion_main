@@ -18,19 +18,22 @@
  *
  * */
 
-const float32_t rotation_length_omni = OMNI_DIAMETER * M_PI;
-const float32_t sinM1 = sin(M_PI / 6.0);
-const float32_t sinM2 = sin(7.0 * M_PI / 4.0);
-const float32_t sinM3 = sin(5.0 * M_PI / 4.0);
-const float32_t sinM4 = sin(5.0 * M_PI / 6.0);
-const float32_t cosM1 = cos(M_PI / 6.0);
-const float32_t cosM2 = cos(7.0 * M_PI / 4.0);
-const float32_t cosM3 = cos(5.0 * M_PI / 4.0);
-const float32_t cosM4 = cos(5.0 * M_PI / 6.0);
+float rotation_length_omni = OMNI_DIAMETER * M_PI;
+const float sinM1 = sin(30 * M_PI / 180);
+const float cosM1 = cos(30 * M_PI / 180);
 
-void omni_move(float32_t vel_y_robot, float32_t vel_x_robot, float32_t omega_roboot, float32_t duty_limit)
+const float sinM2 = sin(315 * M_PI / 180);
+const float cosM2 = cos(315 * M_PI / 180);
+
+const float sinM3 = sin(225 * M_PI / 180);
+const float cosM3 = cos(225 * M_PI / 180);
+
+const float sinM4 = sin(150 * M_PI / 180);
+const float cosM4 = cos(150 * M_PI / 180);
+
+void omni_move(float vel_y_robot, float vel_x_robot, float omega_roboot, float duty_limit)
 {
-  float32_t rotation_omega_motor;
+  float rotation_omega_motor;
 
   rotation_omega_motor = ROBOT_RADIUS * omega_roboot;
 
