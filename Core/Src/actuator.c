@@ -300,3 +300,13 @@ void morse_number(uint8_t value)
 
   HAL_Delay(80);
 }
+
+void actuator_motor_calib(int board)
+{
+  uint8_t dummy[8] = {0};
+  if (board == 0) {
+    can1_send(0x310, dummy);
+  } else if (board == 1) {
+    can2_send(0x310, dummy);
+  }
+}

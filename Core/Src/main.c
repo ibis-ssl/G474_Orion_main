@@ -96,6 +96,7 @@ void maintask_stop();
 void motor_test();
 void dribbler_test();
 void kicker_test(bool manual_mode);
+void motor_calibration();
 void send_accutuator_cmd_run();
 void send_can_error();
 void omniOdometory();
@@ -385,7 +386,7 @@ int main(void)
 
           break;
         case 3:  //Motor
-          p(" SW %2d ",decode_SW(adc_sw_data));
+          p(" SW %2d ", decode_SW(adc_sw_data));
           p(" Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
           p(" Pw v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
           p(" Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
@@ -589,6 +590,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       kicker_test(true);
       break;
 
+    case 8:
+      motor_calibration();
+      break;
+
     case 9:  // error
       maintask_stop();
       send_can_error();
@@ -767,6 +772,23 @@ void kicker_test(bool manual_mode)
     actuator_kicker_voltage(150.0);
   }
   omni_move(0.0, 0.0, 0.0, 0.0);
+}
+void motor_calibration()
+{
+  static uint32_t calib_start_cnt = 0;
+  if (decode_SW(adc_sw_data) & 0b00000100) {
+    calib_start_cnt++;
+    if (calib_start_cnt > 1000) {
+      actuator_motor_calib(0);
+    }
+  } else if (decode_SW(adc_sw_data) & 0b00001000) {
+    calib_start_cnt++;
+    if (calib_start_cnt > 1000) {
+      actuator_motor_calib(1);
+    }
+  } else {
+    calib_start_cnt = 0;
+  }
 }
 
 void yawFilter()

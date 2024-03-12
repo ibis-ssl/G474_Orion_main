@@ -35,4 +35,6 @@ void morse_long();
 void morse_period();
 void morse_number(uint8_t value);
 
+void actuator_motor_calib(int board);
+
 #endif /* ACTUATOR_H_ */
