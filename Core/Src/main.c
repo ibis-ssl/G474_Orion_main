@@ -1096,8 +1096,7 @@ void sendRobotInfo()
         senddata[5] = temp[1];
         senddata[6] = temp[2];
         senddata[7] = temp[3];
-        msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
-        temp = (char *)&msg.data.diff_angle;
+        temp = (char *)&(can_raw.power_voltage[0]);
         senddata[8] = temp[0];
         senddata[9] = temp[1];
         senddata[10] = temp[2];
@@ -1105,7 +1104,7 @@ void sendRobotInfo()
         senddata[12] = can_raw.ball_detection[0];
         senddata[13] = can_raw.ball_detection[1];
         senddata[14] = can_raw.ball_detection[2];
-        senddata[15] = can_raw.ball_detection[3];
+        senddata[15] = kick_state / 10;
         break;
       case 1:
         senddata[0] = 0xAB;
@@ -1131,7 +1130,7 @@ void sendRobotInfo()
         senddata[1] = 0xEA;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
-        senddata[4] = kick_state / 10;
+        senddata[4] = can_raw.ball_detection[3];
         senddata[5] = (uint8_t)can_raw.temperature[0];
         senddata[6] = (uint8_t)can_raw.temperature[1];
         senddata[7] = (uint8_t)can_raw.temperature[2];
@@ -1139,7 +1138,7 @@ void sendRobotInfo()
         senddata[9] = (uint8_t)can_raw.temperature[4];
         senddata[10] = (uint8_t)can_raw.temperature[5];
         senddata[11] = (uint8_t)can_raw.temperature[6];
-        temp = (char *)&(can_raw.power_voltage[0]);
+        temp = (char *)&(can_raw.power_voltage[6]);
         senddata[12] = temp[0];
         senddata[13] = temp[1];
         senddata[14] = temp[2];
@@ -1150,7 +1149,8 @@ void sendRobotInfo()
         senddata[1] = 0xEA;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
-        temp = (char *)&(can_raw.power_voltage[6]);
+        msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+        temp = (char *)&msg.data.diff_angle;
         senddata[4] = temp[0];
         senddata[5] = temp[1];
         senddata[6] = temp[2];
