@@ -129,7 +129,7 @@ extern float32_t motor_voltage[4];  // for debug
 
 struct
 {
-  volatile uint32_t main_loop_cnt, true_cycle_cnt;
+  volatile uint32_t main_loop_cnt, true_cycle_cnt, motor_zero_cnt;
   volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_toral_spin, true_yaw_speed, limited_output;
   volatile bool print_flag, acc_step_down_flag;
@@ -329,11 +329,11 @@ int main(void)
       debug.true_yaw_speed = imu.yaw_angle - debug.pre_yaw_angle;
 
       if (fabs(debug.true_yaw_speed - debug.true_fb_toral_spin) > 100 && fabs(ai_cmd.target_theta - imu.yaw_angle) > 5) {
-        actuator_buzzer_frq_on(1046);
-        debug.acc_step_down_flag = true;
+        //actuator_buzzer_frq_on(1046);
+        //debug.acc_step_down_flag = true;
 
       } else {
-        actuator_buzzer_off();
+        //actuator_buzzer_off();
         debug.acc_step_down_flag = false;
       }
 
@@ -1047,7 +1047,7 @@ void send_accutuator_cmd_run()
       break;
 
     case 2:
-      if (ai_cmd.chip_en == true) {
+      if (ai_cmd.chip_en == true || ai_cmd.dribbler_up_flag) {
         actuator_dribbler_up();
       } else {
         actuator_dribbler_down();
@@ -1084,11 +1084,11 @@ void sendRobotInfo()
   char * temp;
 
   uint8_t senddata[16];
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 1; i++) {
     switch (i) {
       case 0:
-        senddata[0] = 0xFA;
-        senddata[1] = 0xFB;
+        senddata[0] = 0xAB;
+        senddata[1] = 0xEA;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
         temp = (char *)&imu.yaw_angle;
@@ -1108,8 +1108,8 @@ void sendRobotInfo()
         senddata[15] = can_raw.ball_detection[3];
         break;
       case 1:
-        senddata[0] = 0xFA;
-        senddata[1] = 0xFB;
+        senddata[0] = 0xAB;
+        senddata[1] = 0xEA;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
         senddata[4] = can_raw.error_no[0];
@@ -1127,8 +1127,8 @@ void sendRobotInfo()
         senddata[15] = (uint8_t)(can_raw.current[3] * 10);
         break;
       case 2:
-        senddata[0] = 0xFA;
-        senddata[1] = 0xFB;
+        senddata[0] = 0xAB;
+        senddata[1] = 0xEA;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
         senddata[4] = kick_state / 10;
@@ -1146,8 +1146,8 @@ void sendRobotInfo()
         senddata[15] = temp[3];
         break;
       case 3:
-        senddata[0] = 0xFA;
-        senddata[1] = 0xFB;
+        senddata[0] = 0xAB;
+        senddata[1] = 0xEA;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
         temp = (char *)&(can_raw.power_voltage[6]);
@@ -1167,8 +1167,8 @@ void sendRobotInfo()
         senddata[15] = temp[3];
         break;
       case 4:
-        senddata[0] = 0xFA;
-        senddata[1] = 0xFB;
+        senddata[0] = 0xAB;
+        senddata[1] = 0xEA;
         senddata[2] = i + 10;
         senddata[3] = ring_counter;
         temp = (char *)&mouse.floor_odom[0];
@@ -1189,8 +1189,8 @@ void sendRobotInfo()
         senddata[15] = 0;
         break;
       default:
-        senddata[0] = 0xFA;
-        senddata[1] = 0xFB;
+        senddata[0] = 0xAB;
+        senddata[1] = 0xEA;
         senddata[2] = i + 100;
         senddata[3] = ring_counter;
         senddata[4] = connection.check_ver;
