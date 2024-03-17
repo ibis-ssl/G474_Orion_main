@@ -271,7 +271,7 @@ int main(void)
   actuator_motor5(0.0, 0.0);
 
   actuator_kicker(1, 1);
-  actuator_kicker_voltage(150.0);
+  actuator_kicker_voltage(0.0);
   actuator_power_param(1, 15.0);  // min voltage
   actuator_power_param(2, 35.0);  // max voltage
   actuator_power_param(3, 50.0);  // max can_raw.current
@@ -749,7 +749,8 @@ void kicker_test(bool manual_mode)
     if (can_raw.ball_detection[0] == 1 || manual_mode) {
       if (kick_state == 0) {
         actuator_kicker(2, 0);  // straight
-        actuator_kicker(3, 100);
+        actuator_kicker(3, 50);
+        //actuator_kicker(3, 100);
         kick_state = 1;
       }
     }
@@ -761,7 +762,8 @@ void kicker_test(bool manual_mode)
     if (can_raw.ball_detection[0] == 1 || manual_mode) {
       if (kick_state == 0) {
         actuator_kicker(2, 1);  // chip
-        actuator_kicker(3, 255);
+        actuator_kicker(3, 100);
+        //actuator_kicker(3, 255);
         kick_state = 1;
       }
     }
@@ -769,7 +771,7 @@ void kicker_test(bool manual_mode)
     actuator_motor5(0.0, 0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
     actuator_kicker(1, 1);  // charge enable
-    actuator_kicker_voltage(150.0);
+    actuator_kicker_voltage(400.0);
   }
   omni_move(0.0, 0.0, 0.0, 0.0);
 }
@@ -1059,7 +1061,7 @@ void send_accutuator_cmd_run()
       break;
 
     case 4:
-      actuator_kicker_voltage(150.0);
+      actuator_kicker_voltage(400.0);
       break;
 
     case 5:
@@ -1217,7 +1219,7 @@ void maintask_stop()
   omni_move(0.0, 0.0, 0.0, 0.0);
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
-  actuator_kicker_voltage(150.0);
+  actuator_kicker_voltage(0.0);
   actuator_dribbler_down();
 }
 
