@@ -246,10 +246,13 @@ int main(void)
   ICM20602_IMU_calibration2();
   ICM20602_clearAngle();
 
+  printf("\n\rcomplete imu init\r\n");
   // CANより先にIMUのキャリブレーションする
 
   can1_init_ibis(&hfdcan1);
   can2_init_ibis(&hfdcan2);
+
+  printf("\n\rstart can\r\n");
 
   HAL_FDCAN_Start(&hfdcan1);
   if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
@@ -316,14 +319,14 @@ int main(void)
       // 30:black 31:red 32:green 33:yellow 34:blue 35:magenta 36:cyan 37:white(default)
 
       //p("mode %2d ", sys.main_mode);
-      if (can_raw.power_voltage[0] < 22) {
-        p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[0]);
+      if (can_raw.power_voltage[5] < 22) {
+        p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[5]);
       } else {
       }
 
       //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
       p("yaw=%+6.1f ", imu.yaw_angle);
-      p("Batt=%3.1f ", can_raw.power_voltage[0]);
+      p("Batt=%3.1f ", can_raw.power_voltage[5]);
       debug.out_total_spin = output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
       debug.fb_total_spin = (can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]) / 1.5;
       debug.true_yaw_speed = imu.yaw_angle - debug.pre_yaw_angle;
@@ -389,19 +392,21 @@ int main(void)
 
           break;
         case 3:  //Motor
-          p(" SW %2d ", decode_SW(adc_sw_data));
-          p(" Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
-          p(" Pw v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
-          p(" Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
-          p(" FET=%4.1f L1=%4.1f L2=%4.1f ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+          p("SW %2d ", decode_SW(adc_sw_data));
+          p("Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+          p("Pw v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
+          p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+          p("FET=%4.1f L1=%4.1f L2=%4.1f ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
 
           break;
         case 4:  // Dribblerテスト
-          p("ball_local x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
+          p("ball_sensor %d %d / ESC Spd %+5.1f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
+          p("local_vision x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
 
           break;
         case 5:  // Kicker Test
-          p(" Batt %3.1f Cap=%3.0f BattC %+6.1f ", can_raw.power_voltage[0], can_raw.power_voltage[6], can_raw.current[4]);
+          p("Batt %3.1f Cap=%3.0f BattC %+6.1f Sub %3.1f ", can_raw.power_voltage[5], can_raw.power_voltage[6], can_raw.current[4], can_raw.power_voltage[4]);
+          p("BLDC v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
 
           break;
         case 6:  // Mouse odom
@@ -609,7 +614,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 低電圧時ブザー
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
-  if (can_raw.power_voltage[0] < 21.0) {
+  if (can_raw.power_voltage[5] < 21.0) {
     buzzer_cnt++;
     if (buzzer_cnt > 100) {
       buzzer_cnt = 0;
@@ -1121,7 +1126,7 @@ void sendRobotInfo()
         senddata[5] = temp[1];
         senddata[6] = temp[2];
         senddata[7] = temp[3];
-        temp = (char *)&(can_raw.power_voltage[0]);
+        temp = (char *)&(can_raw.power_voltage[5]);
         senddata[8] = temp[0];
         senddata[9] = temp[1];
         senddata[10] = temp[2];
