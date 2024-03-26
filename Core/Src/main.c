@@ -400,12 +400,13 @@ int main(void)
 
           break;
         case 4:  // Dribblerテスト
-          p("ball_sensor %d %d / ESC Spd %+5.1f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
+          p("Batt(Sub) %3.1f ", can_raw.power_voltage[4]);
+          p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
           p("local_vision x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
 
           break;
         case 5:  // Kicker Test
-          p("Batt %3.1f Cap=%3.0f BattC %+6.1f Sub %3.1f ", can_raw.power_voltage[5], can_raw.power_voltage[6], can_raw.current[4], can_raw.power_voltage[4]);
+          p("Batt(Pw) %3.1f Cap=%3.0f BattC %+6.1f Batt(Sub) %3.1f ", can_raw.power_voltage[5], can_raw.power_voltage[6], can_raw.current[4], can_raw.power_voltage[4]);
           p("BLDC v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
 
           break;
