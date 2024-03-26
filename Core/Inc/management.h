@@ -53,6 +53,7 @@ typedef struct
 {
   float yaw_angle, pre_yaw_angle;
   float yaw_angle_rad, pre_yaw_angle_rad;
+  float yaw_angle_diff_integral;
 } imu_t;
 typedef struct
 {

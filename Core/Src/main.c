@@ -132,7 +132,7 @@ struct
   volatile uint32_t main_loop_cnt, true_cycle_cnt, motor_zero_cnt;
   volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_toral_spin, true_yaw_speed, limited_output;
-  volatile bool print_flag, acc_step_down_flag;
+  volatile bool print_flag, acc_step_down_flag, theta_override_flag;
 } debug;
 
 // communication with CM4
@@ -350,19 +350,22 @@ int main(void)
             p("\e[31m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
           }
 
-          p("vel X %+4.1f Y %+4.1f TW %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
+          p("AIcmd Vx %+4.1f Vy %+4.1f Tw %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1], ai_cmd.target_theta * 180 / M_PI);
           if (sys.main_mode != 2) {
             if (ai_cmd.vision_lost_flag) {  // SSL-Vision (Robot)
               p("\e[33m");
             }
-            p("G-robot X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
-            p("G-tar X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+            p("Vision X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
+            p("AIcmd X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
+            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
             //p("diff %6.2f %6.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
             //p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
-            p("out %+6.1f ", output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3]);
-            p("total %+6.1f ", can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]);
-            p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+            //p("out %+6.1f ", output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3]);
+            //p("total %+6.1f ", can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]);
+            //p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
             p("\e[37m ");  // end color
+
+            p("update %d ", debug.theta_override_flag);
           } else {
             /*
             p("lost %d stop %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power,
@@ -373,7 +376,7 @@ int main(void)
             //p("diff %+6.1f ", debug.true_yaw_speed - debug.true_fb_toral_spin);
             //p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
             p("omni X %+8.3f Y %+8.3f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-            p("YawDiff%+6.2f ", ai_cmd.target_theta - imu.yaw_angle);
+            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
             //p("/ Mouse raw X %+8.3f Y %+8.3f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
             //p("raw X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
             //p("odom X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
@@ -516,7 +519,6 @@ void resetLocalSpeedControl()
     target.position[i] = omni.odom[i];
     ai_cmd.local_target_speed[i] = 0;
   }
-  imu.yaw_angle = ai_cmd.target_theta;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
@@ -637,6 +639,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   }
 
   // AIとの通信状態チェック
+
   if (sys.system_time_ms - connection.latest_ai_cmd_update_time < 1000) {  // AI コマンドタイムアウト
     connection.connected_ai = true;
 
@@ -662,6 +665,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   } else {
     connection.connected_cm4 = false;
     connection.connected_ai = false;
+    resetAiCmdData();
   }
 
   // interrupt : 500Hz
@@ -795,6 +799,25 @@ void motor_calibration()
 
 void yawFilter()
 {
+  static uint32_t yaw_angle_update_cnt = 0;
+  imu.yaw_angle_diff_integral += fabs(imu.pre_yaw_angle - imu.yaw_angle);
+  yaw_angle_update_cnt++;
+  if (yaw_angle_update_cnt > MAIN_LOOP_CYCLE / 2) {  // 2Hz
+    yaw_angle_update_cnt = 0;
+    if (imu.yaw_angle_diff_integral < 1) {
+      // 機体が旋回していないとき
+      debug.theta_override_flag = true;
+
+      // visionとの角度差があるときにアプデ
+      if (connection.connected_ai && !ai_cmd.vision_lost_flag && getAngleDiff(imu.yaw_angle, ai_cmd.global_vision_theta) > 10) {
+        imu.yaw_angle = ai_cmd.global_vision_theta;
+      }
+    } else {
+      debug.theta_override_flag = false;
+    }
+    imu.yaw_angle_diff_integral = 0;
+  }
+
   imu.pre_yaw_angle_rad = imu.yaw_angle_rad;
   imu.pre_yaw_angle = imu.yaw_angle;
 
