@@ -282,6 +282,7 @@ int main(void)
   actuator_power_param(5, 90.0);  // max temp(solenoid)
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+
   actuator_power_ONOFF(1);
 
   actuator_buzzer_frq(1046, 50);  //C5
@@ -290,6 +291,8 @@ int main(void)
   actuator_buzzer_frq(1174, 50);  //D5
   actuator_buzzer_frq(1318, 50);  //E5
   actuator_buzzer_frq(1396, 50);  //F5
+
+  actuator_power_ONOFF(1);
 
   sys.system_time_ms = 0;
   sys.stop_flag_request_time = 1000;  // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
@@ -615,7 +618,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 低電圧時ブザー
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
-  if (can_raw.power_voltage[5] < 21.0) {
+  if (can_raw.power_voltage[5] < 21.0 && can_raw.power_voltage[5] == 0.0) {
     buzzer_cnt++;
     if (buzzer_cnt > 100) {
       buzzer_cnt = 0;
@@ -624,7 +627,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_buzzer_on();
       } else {
         buzzer_state = false;
-        //actuator_buzzer_off();
+        actuator_buzzer_off();
       }
     }
   } else if (sys.error_flag) {
@@ -636,12 +639,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_buzzer_on();
       } else {
         buzzer_state = false;
-        //actuator_buzzer_off();
+        actuator_buzzer_off();
       }
     }
-  } else {
+  } else if (buzzer_state) {
     buzzer_state = false;
-    //actuator_buzzer_off();
+    actuator_buzzer_off();
   }
 
   // AIとの通信状態チェック
@@ -781,7 +784,7 @@ void kicker_test(bool manual_mode)
     actuator_motor5(0.0, 0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
     actuator_kicker(1, 1);  // charge enable
-    actuator_kicker_voltage(400.0);
+    actuator_kicker_voltage(300.0);
   }
   omni_move(0.0, 0.0, 0.0, 0.0);
 }
@@ -1050,6 +1053,13 @@ void send_accutuator_cmd_run()
       if (can_raw.ball_detection[0] == 1) {
         uint8_t kick_power_param = (float)ai_cmd.kick_power * 255.0;
         printf(" kick=%d\r\n", kick_power_param);
+
+        if (ai_cmd.chip_en == true) {
+          actuator_kicker(2, 1);
+        } else {
+          actuator_kicker(2, 0);
+        }
+
         actuator_kicker(3, (uint8_t)kick_power_param);
         resetLocalSpeedControl();
         kick_state = 1;
@@ -1070,11 +1080,7 @@ void send_accutuator_cmd_run()
   can_sending_index++;
   switch (can_sending_index) {
     case 1:
-      if (ai_cmd.chip_en == true) {
-        actuator_kicker(2, 1);
-      } else {
-        actuator_kicker(2, 0);
-      }
+
       break;
 
     case 2:
@@ -1090,7 +1096,7 @@ void send_accutuator_cmd_run()
       break;
 
     case 4:
-      actuator_kicker_voltage(400.0);
+      actuator_kicker_voltage(300.0);
       break;
 
     case 5:
