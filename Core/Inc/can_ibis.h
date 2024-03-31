@@ -17,5 +17,6 @@ void can1_send(int id, uint8_t senddata[]);
 void can2_init_ibis(FDCAN_HandleTypeDef* handler);
 void can2_send(int id, uint8_t senddata[]);
 
+uint32_t canTimeoutCnt();
 
 #endif /* CAN_IBIS_H_ */

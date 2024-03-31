@@ -48,6 +48,19 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+enum {
+  MAIN_MODE_COMBINATION_CONTROL = 0,
+  MAIN_MODE_SPEED_CONTROL_ONLY,
+  MAIN_MODE_CMD_DEBUG_MODE,
+  MAIN_MODE_MOTOR_TEST,
+  MAIN_MODE_DRIBBLER_TEST,
+  MAIN_MODE_KICKER_AUTO_TEST,
+  MAIN_MODE_KICKER_MANUAL,
+  MAIN_MODE_NONE,
+  MAIN_MODE_MOTOR_CALIBRATION,
+  MAIN_MODE_ERROR,
+};
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
