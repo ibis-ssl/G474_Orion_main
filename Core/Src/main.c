@@ -66,7 +66,7 @@
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (6.0)       // m/ss
+#define ACCEL_LIMIT (5.0)       // m/ss
 #define ACCEL_LIMIT_BACK (3.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
