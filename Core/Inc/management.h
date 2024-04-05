@@ -58,8 +58,8 @@ typedef struct
 typedef struct
 {
   uint8_t error_no[8];
-  float motor_feedback[5];
-  float motor_feedback_velocity[5];
+  float motor_feedback[5];           // rps
+  float motor_feedback_velocity[5];  // m/s
   float power_voltage[7];
   float temperature[7];
   float current[5];
@@ -91,12 +91,10 @@ typedef struct
 
 typedef struct
 {
-  float position[2];
-  float local_position[2];
-  float velocity[2];        // m/s
+  float position[2];      // X,Y
+  float velocity[2];        // m/s 速度指令値の入力
   float local_velocity[2];  // m/s
-  float acceleration[2];
-  float local_velocity_current[2];
+  float local_velocity_current[2];  // 現在の
 } target_t;
 
 typedef struct

@@ -70,6 +70,8 @@
 #define ACCEL_LIMIT_BACK (3.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
+#define LOW_VOLTAGE_LIMIT (22.0)
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -315,16 +317,13 @@ int main(void)
 
       // 文字色メモ
       // 30:black 31:red 32:green 33:yellow 34:blue 35:magenta 36:cyan 37:white(default)
-
-      //p("mode %2d ", sys.main_mode);
-      if (can_raw.power_voltage[5] < 22) {
+      p("\e[0m");
+      p("yaw=%+6.1f ", imu.yaw_angle);
+      if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT) {
         p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[5]);
       } else {
+        p("Batt=%3.1f ", can_raw.power_voltage[5]);
       }
-
-      //p("theta %+4.0f ", ai_cmd.global_vision_theta * 180 / M_PI);
-      p("yaw=%+6.1f ", imu.yaw_angle);
-      p("Batt=%3.1f ", can_raw.power_voltage[5]);
       debug.out_total_spin = output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
       debug.fb_total_spin = (can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]) / 1.5;
       debug.true_yaw_speed = imu.yaw_angle - debug.pre_yaw_angle;
@@ -362,56 +361,36 @@ int main(void)
             p("Vision X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
             p("AIcmd X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
             p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
-            //p("diff %6.2f %6.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
-            //p("VposX %6.1f ,VposY %6.1f, ", integ.vision_based_position[0] * 1000, integ.vision_based_position[1] * 1000);
-            //p("out %+6.1f ", output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3]);
-            //p("total %+6.1f ", can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]);
-            //p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
             p("\e[37m ");  // end color
-
             p("update %d ", debug.theta_override_flag);
           } else {
-            /*
-            p("lost %d stop %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power,
-              ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);//*/
-            //p("/ Ototal %+6.1f ", debug.true_out_total_spi / debug.true_cycle_cnt);
-            //p("FBtotal %+6.1f / ", debug.true_fb_toral_spin / debug.true_cycle_cnt);
-            //p("yadSpd %+6.1f ", debug.true_yaw_speed);
-            //p("diff %+6.1f ", debug.true_yaw_speed - debug.true_fb_toral_spin);
-            //p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
             p("omni X %+8.3f Y %+8.3f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
             p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
-            //p("/ Mouse raw X %+8.3f Y %+8.3f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
-            //p("raw X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
-            //p("odom X %+8.3f Y %+8.3f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
             p("Temp %3.0f %3.0f %3.0f %3.0f", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
-            //p("Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
           }
-
-          // SSL-Vision (Ball)
-          //p("G-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
 
           break;
         case 1:  //Motor
           p("MOTOR ");
           p("SW %2d ", decode_SW(adc_sw_data));
-          p("Speed M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
-          p("Pw v0=%+6.3f v1=%+6.3f v2=%+6.3f v3=%+6.3f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
-          p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
-          p("FET=%4.1f L1=%4.1f L2=%4.1f ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+          p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+          p("Pw v0=%5.1f v1=%5.1f v2=%5.1f v3=%5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
+          p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+          p("Temp m0=%3.0f m1=%3.0f m2=%3.0f m3=%3.0f ", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
 
           break;
         case 2:  // Dribblerテスト
           p("DRIBBLER ");
-          p("Batt(Sub) %3.1f ", can_raw.power_voltage[4]);
-          p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
+          p("Batt(Sub) %3.1f / ", can_raw.power_voltage[4]);
+          p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
           p("local_vision x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
 
           break;
         case 3:  // Kicker Test
           p("KICKER ");
-          p("Batt(Pw) %3.1f Cap=%3.0f BattC %+6.1f Batt(Sub) %3.1f ", can_raw.power_voltage[5], can_raw.power_voltage[6], can_raw.current[4], can_raw.power_voltage[4]);
-          p("BLDC v0=%+4.1f v1=%+4.1f v2=%+4.1f v3=%+4.1f ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
+          p("Batt(Pw) %3.1f Cap=%3.0f BattC %+6.1f Batt(Sub) %3.1f / ", can_raw.power_voltage[5], can_raw.power_voltage[6], can_raw.current[4], can_raw.power_voltage[4]);
+          p("FET=%5.1f L1=%5.1f L2=%5.1f / ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+          p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
 
           break;
         case 4:  // Mouse odom
@@ -421,16 +400,16 @@ int main(void)
           p("mouse X %+8.2f Y %+8.2f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
           p("Error X %+8.2f Y %+8.2f ", (omni.odom[0] + mouse.odom[0]) * 1000, (omni.odom[1] + mouse.odom[1]) * 1000);
           p("diff X %+8.2f Y %+8.2f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
-          p("mouseRaw X %+8.1f %+8.1f ", mouse.raw[0], mouse.raw[1]);
-          p("raw X %+4d %+4d %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
+          p("mouseRaw X %+8.1f Y %+8.1f ", mouse.raw[0], mouse.raw[1]);
+          p("raw X %+4d Y %+4d Q %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
 
           break;
         case 5:
           p("ODOM ");
           p("ENC angle %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           p("omni X %+8.2f Y %+8.2f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-          break;
 
+          break;
         case 6:
           p("CMD-ALL ");
           p("AIcmd Vx %+4.1f Vy %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
@@ -626,7 +605,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 低電圧時ブザー
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
-  if (can_raw.power_voltage[5] < 21.0 && can_raw.power_voltage[5] == 0.0) {
+  if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT && can_raw.power_voltage[5] != 0.0) {
     buzzer_cnt++;
     if (buzzer_cnt > 100) {
       buzzer_cnt = 0;
