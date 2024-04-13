@@ -1128,7 +1128,7 @@ void sendRobotInfo()
   ring_counter = connection.check_ver;
   char * temp;
 
-  uint8_t senddata[16];
+  uint8_t senddata[64];
   for (int i = 0; i < 1; i++) {
     switch (i) {
       case 0:
@@ -1150,88 +1150,68 @@ void sendRobotInfo()
         senddata[13] = can_raw.ball_detection[1];
         senddata[14] = can_raw.ball_detection[2];
         senddata[15] = kick_state / 10;
-        break;
-      case 1:
-        senddata[0] = 0xAB;
-        senddata[1] = 0xEA;
-        senddata[2] = i + 10;
-        senddata[3] = ring_counter;
-        senddata[4] = can_raw.error_no[0];
-        senddata[5] = can_raw.error_no[1];
-        senddata[6] = can_raw.error_no[2];
-        senddata[7] = can_raw.error_no[3];
-        senddata[8] = can_raw.error_no[4];
-        senddata[9] = can_raw.error_no[5];
-        senddata[10] = can_raw.error_no[6];
-        senddata[11] = can_raw.error_no[7];
-        // 小さすぎたので10倍してる
-        senddata[12] = (uint8_t)(can_raw.current[0] * 10);
-        senddata[13] = (uint8_t)(can_raw.current[1] * 10);
-        senddata[14] = (uint8_t)(can_raw.current[2] * 10);
-        senddata[15] = (uint8_t)(can_raw.current[3] * 10);
-        break;
-      case 2:
-        senddata[0] = 0xAB;
-        senddata[1] = 0xEA;
-        senddata[2] = i + 10;
-        senddata[3] = ring_counter;
-        senddata[4] = can_raw.ball_detection[3];
-        senddata[5] = (uint8_t)can_raw.temperature[0];
-        senddata[6] = (uint8_t)can_raw.temperature[1];
-        senddata[7] = (uint8_t)can_raw.temperature[2];
-        senddata[8] = (uint8_t)can_raw.temperature[3];
-        senddata[9] = (uint8_t)can_raw.temperature[4];
-        senddata[10] = (uint8_t)can_raw.temperature[5];
-        senddata[11] = (uint8_t)can_raw.temperature[6];
-        temp = (char *)&(can_raw.power_voltage[6]);
-        senddata[12] = temp[0];
-        senddata[13] = temp[1];
-        senddata[14] = temp[2];
-        senddata[15] = temp[3];
-        break;
-      case 3:
-        senddata[0] = 0xAB;
-        senddata[1] = 0xEA;
-        senddata[2] = i + 10;
-        senddata[3] = ring_counter;
+        senddata[16] = can_raw.error_no[0];
+        senddata[17] = can_raw.error_no[1];
+        senddata[18] = can_raw.error_no[2];
+        senddata[19] = can_raw.error_no[3];
+        senddata[20] = can_raw.error_no[4];
+        senddata[21] = can_raw.error_no[5];
+        senddata[22] = can_raw.error_no[6];
+        senddata[23] = can_raw.error_no[7];
+        senddata[24] = (uint8_t)(can_raw.current[0] * 10);
+        senddata[25] = (uint8_t)(can_raw.current[1] * 10);
+        senddata[26] = (uint8_t)(can_raw.current[2] * 10);
+        senddata[27] = (uint8_t)(can_raw.current[3] * 10);
+
+        senddata[28] = can_raw.ball_detection[3];
+
+        senddata[29] = (uint8_t)can_raw.temperature[0];
+        senddata[30] = (uint8_t)can_raw.temperature[1];
+        senddata[31] = (uint8_t)can_raw.temperature[2];
+        senddata[32] = (uint8_t)can_raw.temperature[3];
+        senddata[33] = (uint8_t)can_raw.temperature[4];
+        senddata[34] = (uint8_t)can_raw.temperature[5];
+        senddata[35] = (uint8_t)can_raw.temperature[6];
+
         msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
         temp = (char *)&msg.data.diff_angle;
-        senddata[4] = temp[0];
-        senddata[5] = temp[1];
-        senddata[6] = temp[2];
-        senddata[7] = temp[3];
+        senddata[36] = temp[0];
+        senddata[37] = temp[1];
+        senddata[38] = temp[2];
+        senddata[39] = temp[3];
+        temp = (char *)&(can_raw.power_voltage[6]);
+        senddata[40] = temp[0];
+        senddata[41] = temp[1];
+        senddata[42] = temp[2];
+        senddata[43] = temp[3];
         temp = (char *)&integ.vision_based_position[0];
-        senddata[8] = temp[0];
-        senddata[9] = temp[1];
-        senddata[10] = temp[2];
-        senddata[11] = temp[3];
+        senddata[44] = temp[0];
+        senddata[45] = temp[1];
+        senddata[46] = temp[2];
+        senddata[47] = temp[3];
         temp = (char *)&integ.vision_based_position[1];
-        senddata[12] = temp[0];
-        senddata[13] = temp[1];
-        senddata[14] = temp[2];
-        senddata[15] = temp[3];
-        break;
-      case 4:
-        senddata[0] = 0xAB;
-        senddata[1] = 0xEA;
-        senddata[2] = i + 10;
-        senddata[3] = ring_counter;
+        senddata[48] = temp[0];
+        senddata[49] = temp[1];
+        senddata[50] = temp[2];
+        senddata[51] = temp[3];
         temp = (char *)&mouse.floor_odom[0];
         //temp = (char *)&integ.vision_based_position[0];
-        senddata[4] = temp[0];
-        senddata[5] = temp[1];
-        senddata[6] = temp[2];
-        senddata[7] = temp[3];
+        senddata[52] = temp[0];
+        senddata[53] = temp[1];
+        senddata[54] = temp[2];
+        senddata[55] = temp[3];
         temp = (char *)&mouse.floor_odom[1];
         //temp = (char *)&integ.vision_based_position[1];
-        senddata[8] = temp[0];
-        senddata[9] = temp[1];
-        senddata[10] = temp[2];
-        senddata[11] = temp[3];
-        senddata[12] = connection.check_ver;
-        senddata[13] = 0;
-        senddata[14] = 0;
-        senddata[15] = 0;
+        senddata[56] = temp[0];
+        senddata[57] = temp[1];
+        senddata[58] = temp[2];
+        senddata[59] = temp[3];
+        senddata[60] = connection.check_ver;
+        senddata[61] = 0;
+        senddata[62] = 0;
+        senddata[63] = 0;
+
+
         break;
       default:
         senddata[0] = 0xAB;
@@ -1239,17 +1219,9 @@ void sendRobotInfo()
         senddata[2] = i + 100;
         senddata[3] = ring_counter;
         senddata[4] = connection.check_ver;
-        senddata[5] = 0;
-        senddata[6] = 0;
-        senddata[7] = 0;
-        senddata[8] = 0;
-        senddata[9] = 0;
-        senddata[10] = 0;
-        senddata[11] = 0;
-        senddata[12] = 0;
-        senddata[13] = 0;
-        senddata[14] = 0;
-        senddata[15] = 0;
+        for(int i=0; i<59;i++){
+            senddata[5+i] = 0;
+        }
         break;
     }
 
