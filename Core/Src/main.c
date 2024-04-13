@@ -126,7 +126,15 @@ struct
   volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_toral_spin, true_yaw_speed, limited_output;
   volatile bool print_flag, acc_step_down_flag, theta_override_flag;
+  volatile bool latency_check_mode;
+  volatile int latency_check_mode_cnt;
+  volatile float rotation_target_theta;
 } debug;
+
+struct
+{
+  bool enabled_flag;
+} latency_test;
 
 // communication with CM4
 uint8_t data_from_cm4[RX_BUF_SIZE_ETHER];
@@ -420,6 +428,11 @@ int main(void)
             ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
 
           break;
+        case 7:
+          p("LATENCY ");
+          p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(adc_sw_data), debug.latency_check_mode, debug.latency_check_mode_cnt, debug.rotation_target_theta,
+            getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
+          break;
         default:
           debug.print_idx = 0;
           break;
@@ -636,7 +649,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   // AIとの通信状態チェック
 
-  if (sys.system_time_ms - connection.latest_ai_cmd_update_time < 1000) {  // AI コマンドタイムアウト
+  if (sys.system_time_ms - connection.latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイムアウト
     connection.connected_ai = true;
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
@@ -652,11 +665,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     resetAiCmdData();
     connection.vision_update_cycle_cnt = 0;
 
-    sys.stop_flag_request_time = sys.system_time_ms + 1000;  // 前回のタイムアウト時から1.0s間は動かさない
+    sys.stop_flag_request_time = sys.system_time_ms + MAIN_LOOP_CYCLE;  // 前回のタイムアウト時から1.0s間は動かさない
   }
 
   // CM4との通信状態チェック
-  if (sys.system_time_ms - connection.latest_cm4_cmd_update_time < 200) {  // CM4 コマンドタイムアウト
+  if (sys.system_time_ms - connection.latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイムアウト
     connection.connected_cm4 = true;
   } else {
     connection.connected_cm4 = false;
@@ -795,6 +808,7 @@ void motor_calibration()
 
 void yawFilter()
 {
+  // 静止中に一気にvision角度を合わせるやつ
   static uint32_t yaw_angle_update_cnt = 0;
   imu.yaw_angle_diff_integral += fabs(imu.pre_yaw_angle - imu.yaw_angle);
   yaw_angle_update_cnt++;
@@ -806,7 +820,7 @@ void yawFilter()
 
       // visionとの角度差があるときにアプデ
       if (connection.connected_ai && !ai_cmd.vision_lost_flag && getAngleDiff(imu.yaw_angle, ai_cmd.global_vision_theta) > 10) {
-        imu.yaw_angle = ai_cmd.global_vision_theta;
+        imu.yaw_angle = ai_cmd.global_vision_theta * 180 / M_PI;
       }
     } else {
       debug.theta_override_flag = false;
@@ -817,7 +831,14 @@ void yawFilter()
   imu.pre_yaw_angle_rad = imu.yaw_angle_rad;
   imu.pre_yaw_angle = imu.yaw_angle;
 
+  // vision更新されたときに強制更新するやつ
+  if (ai_cmd.vision_lost_flag == false && ai_cmd.pre_vision_lost_flag == true) {
+    imu.yaw_angle = ai_cmd.global_vision_theta * 180 / M_PI;
+  }
+  ai_cmd.pre_vision_lost_flag = ai_cmd.vision_lost_flag;
+
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
+
   if (sys.main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
     // デバッグ用、targetへ補正する
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
@@ -832,10 +853,10 @@ void yawFilter()
   imu.yaw_angle_rad = imu.yaw_angle * M_PI / 180;
 }
 
-void theta_control(/*float global_target_thera,float robot_gyro_theta*/)
+void theta_control(float target_theta)
 {
   // PID
-  output.omega = (getAngleDiff(ai_cmd.target_theta, imu.yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu.yaw_angle_rad, imu.pre_yaw_angle_rad) * OMEGA_GAIN_KD);
+  output.omega = (getAngleDiff(target_theta, imu.yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu.yaw_angle_rad, imu.pre_yaw_angle_rad) * OMEGA_GAIN_KD);
 
   if (output.omega > OMEGA_LIMIT) {
     output.omega = OMEGA_LIMIT;
@@ -956,6 +977,19 @@ void output_limit()
 
 void maintask_run()
 {
+  if (debug.latency_check_mode == false) {
+    if (decode_SW(adc_sw_data) & 0b00000001) {
+      debug.latency_check_mode_cnt++;
+      if (debug.latency_check_mode_cnt > 1000) {
+        debug.latency_check_mode = true;
+        debug.latency_check_mode_cnt = MAIN_LOOP_CYCLE * 10;
+        debug.rotation_target_theta = imu.yaw_angle;
+      }
+    } else {
+      debug.latency_check_mode_cnt = 0;
+    }
+  }
+
   // 高速域でvisionがlostしたら、復帰のために速度制限したほうがいいかも
 
   if (ai_cmd.local_vision_en_flag == false /* && ai_cmd.stop_request_flag == false*/) {
@@ -997,7 +1031,18 @@ void maintask_run()
 
   speed_control();
   output_limit();
-  theta_control();
+  if (debug.latency_check_mode) {
+    if (debug.latency_check_mode_cnt > 0) {
+      debug.latency_check_mode_cnt--;
+    } else {
+      debug.latency_check_mode = false;
+      // complete!!
+    }
+    debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
+    theta_control(debug.rotation_target_theta);
+  } else {
+    theta_control(ai_cmd.target_theta);
+  }
   if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (ai_cmd.stop_request_flag || ai_cmd.vision_lost_flag)) {
     resetLocalSpeedControl();
     omni_move(0.0, 0.0, 0.0, 0.0);
@@ -1080,6 +1125,7 @@ void sendRobotInfo()
   if (ring_counter > 200) {
     ring_counter = 0;
   }
+  ring_counter = connection.check_ver;
   char * temp;
 
   uint8_t senddata[16];
