@@ -48,6 +48,7 @@ extern float32_t motor_voltage[4];
 
 // logging time : 0.5s -> 2s
 #define SPEED_LOG_BUF_SIZE (MAIN_LOOP_CYCLE * 2)
+#define SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE (10)
 
 typedef struct
 {
@@ -118,6 +119,8 @@ typedef struct
   float odom[2], pre_odom[2], odom_raw[2];
   float odom_speed[2];
   float local_odom_speed[2];
+  RingBuffer * local_speed_log[2];
+  float local_odom_speed_mvf[2];
 } omni_t;
 
 typedef struct

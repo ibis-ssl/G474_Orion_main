@@ -216,6 +216,8 @@ int main(void)
 
   integ.odom_log[0] = initRingBuffer(SPEED_LOG_BUF_SIZE);
   integ.odom_log[1] = initRingBuffer(SPEED_LOG_BUF_SIZE);
+  omni.local_speed_log[0] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
+  omni.local_speed_log[1] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
 
   // 本来はリアルタイムに更新できた方が良いが、まだそのシステムがないので固定値
   ai_cmd.latency_time_ms = 100;
@@ -414,8 +416,10 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
-          p("ENC angle %+4.1f %+4.1f %+4.1f %+4.1f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
+          p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           p("omni X %+8.2f Y %+8.2f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+          p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+          p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed_mvf[0] * 1000, omni.local_odom_speed_mvf[1] * 1000);
 
           break;
         case 6:
@@ -452,7 +456,7 @@ int main(void)
 
       //p("tarVel X %+8.1f Y %+8.1f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
       //p("local X %+8.1f Y %+8.1f ", target.local_velocity[0] * 1000, target.local_velocity[1] * 1000);
-      //p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+      //
       //p("tar-c %+8.1f %+8.1f ", target.local_velocity_current[0] * 1000, target.local_velocity_current[1] * 1000);
       //p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
       //p("out local-c %+8.1f %+8.1f ", output.local_velocity_current[0] * 1000, output.local_velocity_current[1] * 1000);
@@ -992,6 +996,12 @@ void maintask_run()
 
   // 高速域でvisionがlostしたら、復帰のために速度制限したほうがいいかも
 
+
+  const float CMB_CTRL_FACTOR_LIMIT = (3.0);    // [m/s]
+  const float CMB_CTRL_DIFF_DEAD_ZONE = (0.3);  // [m]
+  const float CMB_CTRL_GAIN = (10.0);
+  const float CMB_CTRL_DIFF_LIMIT = (CMB_CTRL_FACTOR_LIMIT / CMB_CTRL_GAIN);
+
   if (ai_cmd.local_vision_en_flag == false /* && ai_cmd.stop_request_flag == false*/) {
     // グローバル→ローカル座標系
     integ.local_target_diff[0] = integ.position_diff[0] * cos(-imu.yaw_angle_rad) - integ.position_diff[1] * sin(-imu.yaw_angle_rad);
@@ -1003,21 +1013,30 @@ void maintask_run()
       //integ.local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
 
       // 精密性はそれほどいらないので、振動対策に不感帯入れる
-      if (integ.local_target_diff[i] < 0.03 && integ.local_target_diff[i] > -0.03) {
+      if (integ.local_target_diff[i] < CMB_CTRL_DIFF_DEAD_ZONE && integ.local_target_diff[i] > -CMB_CTRL_DIFF_DEAD_ZONE) {
         integ.local_target_diff[i] = 0;
       }
 
+      // ゲインは x10
       // 吹き飛び対策で+-3.0 m/sを上限にする
-      if (integ.local_target_diff[i] < -0.3) {
-        integ.local_target_diff[i] = -0.3;
-      } else if (integ.local_target_diff[i] > 0.3) {
-        integ.local_target_diff[i] = 0.3;
+      if (integ.local_target_diff[i] < -CMB_CTRL_DIFF_LIMIT) {
+        integ.local_target_diff[i] = -CMB_CTRL_DIFF_LIMIT;
+      } else if (integ.local_target_diff[i] > CMB_CTRL_DIFF_LIMIT) {
+        integ.local_target_diff[i] = CMB_CTRL_DIFF_LIMIT;
       }
 
       if (sys.main_mode == MAIN_MODE_COMBINATION_CONTROL) {
-        //target.velocity[i] = +(integ.local_target_diff[i] * 10);  //ローカル統合制御あり(位置フィードバックのみ)
+        // 位置フィードバック項目のx10はゲイン (ベタ打ち)
 
-        target.velocity[i] = ai_cmd.local_target_speed[i] * 0.5 + (integ.local_target_diff[i] * 10) * 0.5;  //ローカル統合制御あり
+        //target.velocity[i] = +(integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり(位置フィードバックのみ)
+        //target.velocity[i] = ai_cmd.local_target_speed[i] * 0.5 + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
+
+        if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0) {                                       // 位置フィードバック項が制動方向の場合
+          target.velocity[i] = ai_cmd.local_target_speed[i] + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
+        } else {
+          target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
+        }
+
       } else {
         target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
       }

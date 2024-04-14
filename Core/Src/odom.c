@@ -67,6 +67,11 @@ void omniOdometory()
   omni.local_odom_speed[0] = omni.odom_speed[0] * cos(-imu.yaw_angle_rad) - omni.odom_speed[1] * sin(-imu.yaw_angle_rad);
   omni.local_odom_speed[1] = omni.odom_speed[0] * sin(-imu.yaw_angle_rad) + omni.odom_speed[1] * cos(-imu.yaw_angle_rad);
 
+  for (int i = 0; i < 2; i++) {
+    enqueue(omni.local_speed_log[i], omni.local_odom_speed[i]);
+    omni.local_odom_speed_mvf[i] = sumNewestN(omni.local_speed_log[i], SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE) / SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE;
+  }
+
   // local座標系で入れているodom speedを,global系に修正する
   // vision座標だけ更新されているが、vision_update_cycle_cntが0になっていない場合に、1cycleだけpositionが飛ぶ
 
@@ -81,9 +86,9 @@ void omniOdometory()
   float target_diff[2], move_diff[2];
   for (int i = 0; i < 2; i++) {
     target_diff[i] = ai_cmd.global_robot_position[i] - ai_cmd.global_target_position[i];  // Visionが更新された時点での現在地とtargetの距離
-    move_diff[i] = ai_cmd.global_robot_position[i] - integ.vision_based_position[i];  // Visionとtargetが更新されてからの移動量
+    move_diff[i] = ai_cmd.global_robot_position[i] - integ.vision_based_position[i];      // Visionとtargetが更新されてからの移動量
   }
 
-  integ.targed_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));  
-  integ.move_dist = sqrt(pow(integ.position_diff[0], 2) + pow(integ.position_diff[1], 2)); 
+  integ.targed_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
+  integ.move_dist = sqrt(pow(integ.position_diff[0], 2) + pow(integ.position_diff[1], 2));
 }
