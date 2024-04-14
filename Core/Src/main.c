@@ -1149,10 +1149,10 @@ void sendRobotInfo()
   senddata[14] = can_raw.ball_detection[2];
   senddata[15] = kick_state / 10;
 
-  senddata[16] = can_raw.error_no[0];
-  senddata[17] = can_raw.error_no[1];
-  senddata[18] = can_raw.error_no[2];
-  senddata[19] = can_raw.error_no[3];
+  senddata[16] = (uint8_t)(sys.error_id & 0xFF);
+  senddata[17] = (uint8_t)((sys.error_id >> 8) & 0xFF);
+  senddata[18] = (uint8_t)(sys.error_info & 0xFF);
+  senddata[19] = (uint8_t)((sys.error_info >> 8) & 0xFF);
   temp = (char *)&(sys.error_value);
   senddata[20] = temp[0];
   senddata[21] = temp[1];
