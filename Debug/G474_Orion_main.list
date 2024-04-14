@@ -21,19 +21,19 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, DATA
   8 .data         000001f0  20000000  0800fb68  00020000  2**3
                   CONTENTS, ALLOC, LOAD, DATA
-  9 .bss          00000eb4  200001f0  0800fd58  000201f0  2**3
+  9 .bss          00000ef4  200001f0  0800fd58  000201f0  2**3
                   ALLOC
- 10 ._user_heap_stack 00000604  200010a4  0800fd58  000210a4  2**0
+ 10 ._user_heap_stack 00000604  200010e4  0800fd58  000210e4  2**0
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  000201f0  2**0
                   CONTENTS, READONLY
  12 .comment      00000043  00000000  00000000  00020220  2**0
                   CONTENTS, READONLY
- 13 .debug_info   000382d5  00000000  00000000  00020263  2**0
+ 13 .debug_info   000382d3  00000000  00000000  00020263  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_abbrev 00005e15  00000000  00000000  00058538  2**0
+ 14 .debug_abbrev 00005e15  00000000  00000000  00058536  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_loclists 000169c8  00000000  00000000  0005e34d  2**0
+ 15 .debug_loclists 000169c8  00000000  00000000  0005e34b  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_aranges 000017f0  00000000  00000000  00074d18  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -41,13 +41,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  18 .debug_macro  0002d42f  00000000  00000000  000791b9  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_line   00036686  00000000  00000000  000a65e8  2**0
+ 19 .debug_line   00036725  00000000  00000000  000a65e8  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .debug_str    0011e98f  00000000  00000000  000dcc6e  2**0
+ 20 .debug_str    0011e973  00000000  00000000  000dcd0d  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_frame  000065b0  00000000  00000000  001fb600  2**2
+ 21 .debug_frame  000065bc  00000000  00000000  001fb680  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 22 .debug_line_str 00000073  00000000  00000000  00201bb0  2**0
+ 22 .debug_line_str 00000057  00000000  00000000  00201c3c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -1615,7 +1615,7 @@ void actuator_buzzer(uint16_t ontime, uint16_t offtime)
  8001208:	e8bd 4038 	ldmia.w	sp!, {r3, r4, r5, lr}
   HAL_Delay(offtime);
  800120c:	f005 b830 	b.w	8006270 <HAL_Delay>
- 8001210:	20000b84 	.word	0x20000b84
+ 8001210:	20000bc4 	.word	0x20000bc4
 
 08001214 <actuator_buzzer_on>:
 
@@ -1634,7 +1634,7 @@ void actuator_buzzer_on()
 }
  8001220:	4770      	bx	lr
  8001222:	bf00      	nop
- 8001224:	20000b84 	.word	0x20000b84
+ 8001224:	20000bc4 	.word	0x20000bc4
 
 08001228 <actuator_buzzer_off>:
 
@@ -1645,7 +1645,7 @@ void actuator_buzzer_off() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0); }
  800122e:	639a      	str	r2, [r3, #56]	; 0x38
  8001230:	4770      	bx	lr
  8001232:	bf00      	nop
- 8001234:	20000b84 	.word	0x20000b84
+ 8001234:	20000bc4 	.word	0x20000bc4
 
 08001238 <actuator_buzzer_frq>:
 
@@ -1681,7 +1681,7 @@ void actuator_buzzer_off() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0); }
  800125c:	bd10      	pop	{r4, pc}
  800125e:	bf00      	nop
  8001260:	48a60400 	.word	0x48a60400
- 8001264:	20000b84 	.word	0x20000b84
+ 8001264:	20000bc4 	.word	0x20000bc4
 
 08001268 <actuator_motor_calib>:
 
@@ -2901,7 +2901,7 @@ void can2_send(int id, uint8_t senddata[])
  8001930:	20000680 	.word	0x20000680
  8001934:	200007fc 	.word	0x200007fc
  8001938:	20000834 	.word	0x20000834
- 800193c:	20000adc 	.word	0x20000adc
+ 800193c:	20000b1c 	.word	0x20000b1c
 
 08001940 <MX_DMA_Init>:
   */
@@ -3897,7 +3897,7 @@ float ICM20602_setGyroRange(int Gscale)
  8001ef4:	e793      	b.n	8001e1e <ICM20602_init+0xea>
  8001ef6:	bf00      	nop
  8001ef8:	48000800 	.word	0x48000800
- 8001efc:	20000b20 	.word	0x20000b20
+ 8001efc:	20000b60 	.word	0x20000b60
  8001f00:	20000564 	.word	0x20000564
  8001f04:	20000568 	.word	0x20000568
  8001f08:	20000000 	.word	0x20000000
@@ -4474,7 +4474,7 @@ void ICM20602_IMU_compensate(void)
  800237e:	b004      	add	sp, #16
  8002380:	ecbd 8b02 	vpop	{d8}
  8002384:	e8bd 81f0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, pc}
- 8002388:	20000b20 	.word	0x20000b20
+ 8002388:	20000b60 	.word	0x20000b60
  800238c:	200005b4 	.word	0x200005b4
  8002390:	2000056c 	.word	0x2000056c
  8002394:	200005a8 	.word	0x200005a8
@@ -4830,7 +4830,7 @@ __NO_RETURN __STATIC_INLINE void __NVIC_SystemReset(void)
  8002698:	eb1c432d 	.word	0xeb1c432d
  800269c:	3f1a36e2 	.word	0x3f1a36e2
  80026a0:	0800ef98 	.word	0x0800ef98
- 80026a4:	20000b20 	.word	0x20000b20
+ 80026a4:	20000b60 	.word	0x20000b60
  80026a8:	3ff00000 	.word	0x3ff00000
  80026ac:	200005b8 	.word	0x200005b8
  80026b0:	200005b4 	.word	0x200005b4
@@ -4853,7 +4853,7 @@ uint32_t HAL_GetTick(void) { return uwTick; }
  80026d2:	6818      	ldr	r0, [r3, #0]
  80026d4:	4770      	bx	lr
  80026d6:	bf00      	nop
- 80026d8:	20000f50 	.word	0x20000f50
+ 80026d8:	20000f90 	.word	0x20000f90
 
 080026dc <__io_putchar>:
 /* USER CODE END PFP */
@@ -4874,7 +4874,7 @@ void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
  80026f4:	b003      	add	sp, #12
  80026f6:	f85d fb04 	ldr.w	pc, [sp], #4
  80026fa:	bf00      	nop
- 80026fc:	20000da0 	.word	0x20000da0
+ 80026fc:	20000de0 	.word	0x20000de0
 
 08002700 <p>:
 
@@ -5469,10 +5469,10 @@ void yawFilter()
  8002b68:	48b81fe5 	.word	0x48b81fe5
  8002b6c:	3fad55df 	.word	0x3fad55df
  8002b70:	200007a4 	.word	0x200007a4
- 8002b74:	20000b1c 	.word	0x20000b1c
+ 8002b74:	20000b5c 	.word	0x20000b5c
  8002b78:	20000620 	.word	0x20000620
  8002b7c:	3b03126f 	.word	0x3b03126f
- 8002b80:	20000adc 	.word	0x20000adc
+ 8002b80:	20000b1c 	.word	0x20000b1c
  8002b84:	43340000 	.word	0x43340000
  8002b88:	2000075c 	.word	0x2000075c
  8002b8c:	40490fdb 	.word	0x40490fdb
@@ -5875,7 +5875,7 @@ void speed_control()
  8002f26:	ee77 7a87 	vadd.f32	s15, s15, s14
  8002f2a:	ee17 0a90 	vmov	r0, s15
  8002f2e:	e68b      	b.n	8002c48 <speed_control+0xb4>
- 8002f30:	20000af4 	.word	0x20000af4
+ 8002f30:	20000b34 	.word	0x20000b34
  8002f34:	3c23d70a 	.word	0x3c23d70a
  8002f38:	3bc49ba6 	.word	0x3bc49ba6
  8002f3c:	20000798 	.word	0x20000798
@@ -6200,7 +6200,7 @@ void send_accutuator_cmd_run()
  80031e8:	43960000 	.word	0x43960000
  80031ec:	0800efd0 	.word	0x0800efd0
  80031f0:	20000874 	.word	0x20000874
- 80031f4:	20000af4 	.word	0x20000af4
+ 80031f4:	20000b34 	.word	0x20000b34
 
 080031f8 <maintask_run>:
 {
@@ -6528,8 +6528,8 @@ void send_accutuator_cmd_run()
  8003508:	2000075c 	.word	0x2000075c
  800350c:	20000620 	.word	0x20000620
  8003510:	20000874 	.word	0x20000874
- 8003514:	20000af4 	.word	0x20000af4
- 8003518:	20000adc 	.word	0x20000adc
+ 8003514:	20000b34 	.word	0x20000b34
+ 8003518:	20000b1c 	.word	0x20000b1c
  800351c:	3b03126f 	.word	0x3b03126f
  8003520:	40640000 	.word	0x40640000
  8003524:	40af4000 	.word	0x40af4000
@@ -6847,8 +6847,8 @@ void send_accutuator_cmd_run()
  80037aa:	b10b      	cbz	r3, 80037b0 <HAL_TIM_PeriodElapsedCallback+0x150>
  80037ac:	786b      	ldrb	r3, [r5, #1]
  80037ae:	b1f3      	cbz	r3, 80037ee <HAL_TIM_PeriodElapsedCallback+0x18e>
+  HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
 }
-
 
 void maintask_stop()
 {
@@ -7020,13 +7020,13 @@ void maintask_stop()
  8003900:	4e0c      	ldr	r6, [pc, #48]	; (8003934 <HAL_TIM_PeriodElapsedCallback+0x2d4>)
  8003902:	e776      	b.n	80037f2 <HAL_TIM_PeriodElapsedCallback+0x192>
  8003904:	20000834 	.word	0x20000834
- 8003908:	20000adc 	.word	0x20000adc
- 800390c:	20000ad8 	.word	0x20000ad8
+ 8003908:	20000b1c 	.word	0x20000b1c
+ 800390c:	20000b18 	.word	0x20000b18
  8003910:	200008e0 	.word	0x200008e0
  8003914:	48000400 	.word	0x48000400
  8003918:	48000c00 	.word	0x48000c00
  800391c:	20000874 	.word	0x20000874
- 8003920:	20000af4 	.word	0x20000af4
+ 8003920:	20000b34 	.word	0x20000b34
  8003924:	20000620 	.word	0x20000620
  8003928:	200008b4 	.word	0x200008b4
  800392c:	2000075c 	.word	0x2000075c
@@ -7314,260 +7314,268 @@ void resetAiCmdData()
 08003b20 <sendRobotInfo>:
 {
  8003b20:	e92d 4ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
-	senddata[7] = temp[3];
- 8003b24:	489d      	ldr	r0, [pc, #628]	; (8003d9c <sendRobotInfo+0x27c>)
-	senddata[8] = temp[0];
- 8003b26:	4b9e      	ldr	r3, [pc, #632]	; (8003da0 <sendRobotInfo+0x280>)
   ring_counter = connection.check_ver;
- 8003b28:	4a9e      	ldr	r2, [pc, #632]	; (8003da4 <sendRobotInfo+0x284>)
- 8003b2a:	78c4      	ldrb	r4, [r0, #3]
- 8003b2c:	78d6      	ldrb	r6, [r2, #3]
-	senddata[1] = 0xEA;
- 8003b2e:	f893 1044 	ldrb.w	r1, [r3, #68]	; 0x44
- 8003b32:	f893 c047 	ldrb.w	ip, [r3, #71]	; 0x47
-	senddata[3] = ring_counter;
- 8003b36:	7805      	ldrb	r5, [r0, #0]
-	msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
- 8003b38:	edd0 1a00 	vldr	s3, [r0]
-	senddata[24] = (uint8_t)(can_raw.current[0] * 10);
- 8003b3c:	ed93 6a1a 	vldr	s12, [r3, #104]	; 0x68
- 8003b40:	f8d3 7003 	ldr.w	r7, [r3, #3]
-	senddata[27] = (uint8_t)(can_raw.current[3] * 10);
- 8003b44:	edd3 6a1d 	vldr	s13, [r3, #116]	; 0x74
-	senddata[25] = (uint8_t)(can_raw.current[1] * 10);
- 8003b48:	ed93 7a1b 	vldr	s14, [r3, #108]	; 0x6c
-	senddata[26] = (uint8_t)(can_raw.current[2] * 10);
- 8003b4c:	edd3 7a1c 	vldr	s15, [r3, #112]	; 0x70
-	senddata[29] = (uint8_t)can_raw.temperature[0];
- 8003b50:	edd3 3a13 	vldr	s7, [r3, #76]	; 0x4c
-	senddata[30] = (uint8_t)can_raw.temperature[1];
- 8003b54:	edd3 4a14 	vldr	s9, [r3, #80]	; 0x50
-	senddata[31] = (uint8_t)can_raw.temperature[2];
- 8003b58:	edd3 2a15 	vldr	s5, [r3, #84]	; 0x54
-	senddata[32] = (uint8_t)can_raw.temperature[3];
- 8003b5c:	ed93 3a16 	vldr	s6, [r3, #88]	; 0x58
-	senddata[33] = (uint8_t)can_raw.temperature[4];
- 8003b60:	ed93 4a17 	vldr	s8, [r3, #92]	; 0x5c
-	senddata[34] = (uint8_t)can_raw.temperature[5];
- 8003b64:	ed93 5a18 	vldr	s10, [r3, #96]	; 0x60
- 8003b68:	2200      	movs	r2, #0
- 8003b6a:	f364 0207 	bfi	r2, r4, #0, #8
- 8003b6e:	f361 220f 	bfi	r2, r1, #8, #8
- 8003b72:	f893 1045 	ldrb.w	r1, [r3, #69]	; 0x45
- 8003b76:	f893 4046 	ldrb.w	r4, [r3, #70]	; 0x46
+ 8003b24:	4a9d      	ldr	r2, [pc, #628]	; (8003d9c <sendRobotInfo+0x27c>)
+  senddata[0] = 0xAB;
+ 8003b26:	499e      	ldr	r1, [pc, #632]	; (8003da0 <sendRobotInfo+0x280>)
+  senddata[7] = temp[3];
+ 8003b28:	4d9e      	ldr	r5, [pc, #632]	; (8003da4 <sendRobotInfo+0x284>)
+  ring_counter = connection.check_ver;
+ 8003b2a:	78d7      	ldrb	r7, [r2, #3]
+  senddata[8] = temp[0];
+ 8003b2c:	4b9e      	ldr	r3, [pc, #632]	; (8003da8 <sendRobotInfo+0x288>)
+ 8003b2e:	78e8      	ldrb	r0, [r5, #3]
+ 8003b30:	f893 c047 	ldrb.w	ip, [r3, #71]	; 0x47
+ 8003b34:	f893 407c 	ldrb.w	r4, [r3, #124]	; 0x7c
+  senddata[3] = ring_counter;
+ 8003b38:	782e      	ldrb	r6, [r5, #0]
+  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+ 8003b3a:	edd5 1a00 	vldr	s3, [r5]
+  senddata[27] = (uint8_t)(can_raw.current[3] * 10);
+ 8003b3e:	edd3 6a1d 	vldr	s13, [r3, #116]	; 0x74
+  senddata[24] = (uint8_t)(can_raw.current[0] * 10);
+ 8003b42:	ed93 6a1a 	vldr	s12, [r3, #104]	; 0x68
+  senddata[25] = (uint8_t)(can_raw.current[1] * 10);
+ 8003b46:	ed93 7a1b 	vldr	s14, [r3, #108]	; 0x6c
+  senddata[26] = (uint8_t)(can_raw.current[2] * 10);
+ 8003b4a:	edd3 7a1c 	vldr	s15, [r3, #112]	; 0x70
+  senddata[29] = (uint8_t)can_raw.temperature[0];
+ 8003b4e:	edd3 3a13 	vldr	s7, [r3, #76]	; 0x4c
+  senddata[30] = (uint8_t)can_raw.temperature[1];
+ 8003b52:	edd3 4a14 	vldr	s9, [r3, #80]	; 0x50
+  senddata[31] = (uint8_t)can_raw.temperature[2];
+ 8003b56:	edd3 2a15 	vldr	s5, [r3, #84]	; 0x54
+  senddata[32] = (uint8_t)can_raw.temperature[3];
+ 8003b5a:	ed93 3a16 	vldr	s6, [r3, #88]	; 0x58
+  senddata[33] = (uint8_t)can_raw.temperature[4];
+ 8003b5e:	ed93 4a17 	vldr	s8, [r3, #92]	; 0x5c
+  senddata[34] = (uint8_t)can_raw.temperature[5];
+ 8003b62:	ed93 5a18 	vldr	s10, [r3, #96]	; 0x60
+  senddata[0] = 0xAB;
+ 8003b66:	f64e 22ab 	movw	r2, #60075	; 0xeaab
+ 8003b6a:	800a      	strh	r2, [r1, #0]
+  senddata[2] = 10;
+ 8003b6c:	220a      	movs	r2, #10
+ 8003b6e:	708a      	strb	r2, [r1, #2]
+  senddata[10] = temp[2];
+ 8003b70:	2200      	movs	r2, #0
+ 8003b72:	f360 0207 	bfi	r2, r0, #0, #8
+ 8003b76:	f893 0044 	ldrb.w	r0, [r3, #68]	; 0x44
+ 8003b7a:	f360 220f 	bfi	r2, r0, #8, #8
+ 8003b7e:	2000      	movs	r0, #0
+ 8003b80:	f36c 0007 	bfi	r0, ip, #0, #8
+ 8003b84:	f364 200f 	bfi	r0, r4, #8, #8
+  senddata[3] = ring_counter;
+ 8003b88:	2400      	movs	r4, #0
+ 8003b8a:	f367 0407 	bfi	r4, r7, #0, #8
+ 8003b8e:	f366 240f 	bfi	r4, r6, #8, #8
+ 8003b92:	f893 6045 	ldrb.w	r6, [r3, #69]	; 0x45
+ 8003b96:	f366 4217 	bfi	r2, r6, #16, #8
+ 8003b9a:	f893 607d 	ldrb.w	r6, [r3, #125]	; 0x7d
+ 8003b9e:	f366 4017 	bfi	r0, r6, #16, #8
+ 8003ba2:	786e      	ldrb	r6, [r5, #1]
+ 8003ba4:	78ad      	ldrb	r5, [r5, #2]
+ 8003ba6:	f366 4417 	bfi	r4, r6, #16, #8
+ 8003baa:	f365 641f 	bfi	r4, r5, #24, #8
+ 8003bae:	f8c1 4003 	str.w	r4, [r1, #3]
+ 8003bb2:	f893 4046 	ldrb.w	r4, [r3, #70]	; 0x46
+  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+ 8003bb6:	4d7d      	ldr	r5, [pc, #500]	; (8003dac <sendRobotInfo+0x28c>)
+ 8003bb8:	f364 621f 	bfi	r2, r4, #24, #8
+  senddata[14] = can_raw.ball_detection[2];
+ 8003bbc:	f893 407e 	ldrb.w	r4, [r3, #126]	; 0x7e
+  senddata[3] = ring_counter;
+ 8003bc0:	f8c1 2007 	str.w	r2, [r1, #7]
+  senddata[15] = kick_state / 10;
+ 8003bc4:	4a7a      	ldr	r2, [pc, #488]	; (8003db0 <sendRobotInfo+0x290>)
+ 8003bc6:	f364 601f 	bfi	r0, r4, #24, #8
+  senddata[3] = ring_counter;
+ 8003bca:	f8c1 000b 	str.w	r0, [r1, #11]
+  senddata[15] = kick_state / 10;
+ 8003bce:	8812      	ldrh	r2, [r2, #0]
+ 8003bd0:	f8d3 0003 	ldr.w	r0, [r3, #3]
+  senddata[26] = (uint8_t)(can_raw.current[2] * 10);
+ 8003bd4:	79dc      	ldrb	r4, [r3, #7]
+ 8003bd6:	f893 607f 	ldrb.w	r6, [r3, #127]	; 0x7f
+  msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
+ 8003bda:	ed95 2a01 	vldr	s4, [r5, #4]
+  senddata[15] = kick_state / 10;
+ 8003bde:	f8c1 0013 	str.w	r0, [r1, #19]
+ 8003be2:	4d74      	ldr	r5, [pc, #464]	; (8003db4 <sendRobotInfo+0x294>)
+  senddata[44] = temp[0];
+ 8003be4:	4874      	ldr	r0, [pc, #464]	; (8003db8 <sendRobotInfo+0x298>)
+  senddata[60] = connection.check_ver;
+ 8003be6:	f881 703c 	strb.w	r7, [r1, #60]	; 0x3c
+  senddata[15] = kick_state / 10;
+ 8003bea:	b292      	uxth	r2, r2
+  senddata[24] = (uint8_t)(can_raw.current[0] * 10);
+ 8003bec:	eef2 5a04 	vmov.f32	s11, #36	; 0x41200000  10.0
+  senddata[15] = kick_state / 10;
+ 8003bf0:	fba5 5202 	umull	r5, r2, r5, r2
+ 8003bf4:	7fc5      	ldrb	r5, [r0, #31]
+ 8003bf6:	f893 a048 	ldrb.w	sl, [r3, #72]	; 0x48
+ 8003bfa:	f893 904b 	ldrb.w	r9, [r3, #75]	; 0x4b
+ 8003bfe:	f890 8018 	ldrb.w	r8, [r0, #24]
 {
- 8003b7a:	b093      	sub	sp, #76	; 0x4c
- 8003b7c:	f361 4217 	bfi	r2, r1, #16, #8
- 8003b80:	f364 621f 	bfi	r2, r4, #24, #8
-	senddata[3] = ring_counter;
- 8003b84:	f8cd 200f 	str.w	r2, [sp, #15]
-	senddata[15] = kick_state / 10;
- 8003b88:	4a87      	ldr	r2, [pc, #540]	; (8003da8 <sendRobotInfo+0x288>)
-	senddata[0] = 0xAB;
- 8003b8a:	f64e 21ab 	movw	r1, #60075	; 0xeaab
-	senddata[15] = kick_state / 10;
- 8003b8e:	8812      	ldrh	r2, [r2, #0]
-	senddata[0] = 0xAB;
- 8003b90:	f8ad 1008 	strh.w	r1, [sp, #8]
-	senddata[2] = 10;
- 8003b94:	210a      	movs	r1, #10
- 8003b96:	f88d 100a 	strb.w	r1, [sp, #10]
-	senddata[15] = kick_state / 10;
- 8003b9a:	b294      	uxth	r4, r2
- 8003b9c:	f893 107c 	ldrb.w	r1, [r3, #124]	; 0x7c
- 8003ba0:	2200      	movs	r2, #0
- 8003ba2:	f36c 0207 	bfi	r2, ip, #0, #8
- 8003ba6:	f361 220f 	bfi	r2, r1, #8, #8
-	senddata[3] = ring_counter;
- 8003baa:	2100      	movs	r1, #0
- 8003bac:	f366 0107 	bfi	r1, r6, #0, #8
- 8003bb0:	f365 210f 	bfi	r1, r5, #8, #8
- 8003bb4:	f893 507d 	ldrb.w	r5, [r3, #125]	; 0x7d
- 8003bb8:	f365 4217 	bfi	r2, r5, #16, #8
- 8003bbc:	7845      	ldrb	r5, [r0, #1]
- 8003bbe:	7880      	ldrb	r0, [r0, #2]
- 8003bc0:	f365 4117 	bfi	r1, r5, #16, #8
- 8003bc4:	f360 611f 	bfi	r1, r0, #24, #8
- 8003bc8:	f8cd 100b 	str.w	r1, [sp, #11]
- 8003bcc:	f893 107e 	ldrb.w	r1, [r3, #126]	; 0x7e
- 8003bd0:	79dd      	ldrb	r5, [r3, #7]
-	senddata[44] = temp[0];
- 8003bd2:	4876      	ldr	r0, [pc, #472]	; (8003dac <sendRobotInfo+0x28c>)
- 8003bd4:	f361 621f 	bfi	r2, r1, #24, #8
-	senddata[3] = ring_counter;
- 8003bd8:	f8cd 2013 	str.w	r2, [sp, #19]
-	msg.data.diff_angle = imu.yaw_angle - ai_cmd.global_vision_theta;
- 8003bdc:	4a74      	ldr	r2, [pc, #464]	; (8003db0 <sendRobotInfo+0x290>)
- 8003bde:	f893 107f 	ldrb.w	r1, [r3, #127]	; 0x7f
- 8003be2:	ed92 2a01 	vldr	s4, [r2, #4]
-	senddata[15] = kick_state / 10;
- 8003be6:	4a73      	ldr	r2, [pc, #460]	; (8003db4 <sendRobotInfo+0x294>)
- 8003be8:	f893 a048 	ldrb.w	sl, [r3, #72]	; 0x48
- 8003bec:	f893 904b 	ldrb.w	r9, [r3, #75]	; 0x4b
- 8003bf0:	f890 8018 	ldrb.w	r8, [r0, #24]
- 8003bf4:	f8cd 701b 	str.w	r7, [sp, #27]
-	senddata[24] = (uint8_t)(can_raw.current[0] * 10);
- 8003bf8:	eef2 5a04 	vmov.f32	s11, #36	; 0x41200000  10.0
- 8003bfc:	ee26 6a25 	vmul.f32	s12, s12, s11
-	senddata[27] = (uint8_t)(can_raw.current[3] * 10);
- 8003c00:	ee66 6aa5 	vmul.f32	s13, s13, s11
-	senddata[24] = (uint8_t)(can_raw.current[0] * 10);
- 8003c04:	eebc 6ac6 	vcvt.u32.f32	s12, s12
-	senddata[15] = kick_state / 10;
- 8003c08:	fba2 4204 	umull	r4, r2, r2, r4
- 8003c0c:	781c      	ldrb	r4, [r3, #0]
- 8003c0e:	9401      	str	r4, [sp, #4]
- 8003c10:	2400      	movs	r4, #0
-	senddata[27] = (uint8_t)(can_raw.current[3] * 10);
- 8003c12:	eefc 6ae6 	vcvt.u32.f32	s13, s13
- 8003c16:	f365 0407 	bfi	r4, r5, #0, #8
- 8003c1a:	ee16 5a10 	vmov	r5, s12
- 8003c1e:	f365 240f 	bfi	r4, r5, #8, #8
- 8003c22:	ee16 5a90 	vmov	r5, s13
-	senddata[31] = (uint8_t)can_raw.temperature[2];
- 8003c26:	eefc 2ae2 	vcvt.u32.f32	s5, s5
- 8003c2a:	f04f 0e00 	mov.w	lr, #0
-	senddata[25] = (uint8_t)(can_raw.current[1] * 10);
- 8003c2e:	ee27 7a25 	vmul.f32	s14, s14, s11
-	senddata[26] = (uint8_t)(can_raw.current[2] * 10);
- 8003c32:	ee67 7aa5 	vmul.f32	s15, s15, s11
- 8003c36:	f365 0e07 	bfi	lr, r5, #0, #8
-	senddata[35] = (uint8_t)can_raw.temperature[6];
- 8003c3a:	edd3 5a19 	vldr	s11, [r3, #100]	; 0x64
- 8003c3e:	7fc7      	ldrb	r7, [r0, #31]
-	senddata[60] = connection.check_ver;
- 8003c40:	f88d 6044 	strb.w	r6, [sp, #68]	; 0x44
-	senddata[32] = (uint8_t)can_raw.temperature[3];
+ 8003c02:	b085      	sub	sp, #20
+  senddata[24] = (uint8_t)(can_raw.current[0] * 10);
+ 8003c04:	ee26 6a25 	vmul.f32	s12, s12, s11
+ 8003c08:	462f      	mov	r7, r5
+  senddata[27] = (uint8_t)(can_raw.current[3] * 10);
+ 8003c0a:	ee66 6aa5 	vmul.f32	s13, s13, s11
+ 8003c0e:	f890 5030 	ldrb.w	r5, [r0, #48]	; 0x30
+ 8003c12:	9501      	str	r5, [sp, #4]
+  senddata[24] = (uint8_t)(can_raw.current[0] * 10);
+ 8003c14:	eebc 6ac6 	vcvt.u32.f32	s12, s12
+  senddata[15] = kick_state / 10;
+ 8003c18:	781d      	ldrb	r5, [r3, #0]
+ 8003c1a:	9503      	str	r5, [sp, #12]
+  senddata[27] = (uint8_t)(can_raw.current[3] * 10);
+ 8003c1c:	eefc 6ae6 	vcvt.u32.f32	s13, s13
+ 8003c20:	2500      	movs	r5, #0
+ 8003c22:	f364 0507 	bfi	r5, r4, #0, #8
+ 8003c26:	ee16 4a10 	vmov	r4, s12
+ 8003c2a:	ee16 ca90 	vmov	ip, s13
+  senddata[31] = (uint8_t)can_raw.temperature[2];
+ 8003c2e:	eefc 2ae2 	vcvt.u32.f32	s5, s5
+ 8003c32:	f364 250f 	bfi	r5, r4, #8, #8
+ 8003c36:	2400      	movs	r4, #0
+ 8003c38:	f36c 0407 	bfi	r4, ip, #0, #8
+  senddata[25] = (uint8_t)(can_raw.current[1] * 10);
+ 8003c3c:	ee27 7a25 	vmul.f32	s14, s14, s11
+  senddata[26] = (uint8_t)(can_raw.current[2] * 10);
+ 8003c40:	ee67 7aa5 	vmul.f32	s15, s15, s11
+  senddata[32] = (uint8_t)can_raw.temperature[3];
  8003c44:	eebc 3ac3 	vcvt.u32.f32	s6, s6
- 8003c48:	f361 2e0f 	bfi	lr, r1, #8, #8
- 8003c4c:	ee12 1a90 	vmov	r1, s5
-	senddata[35] = (uint8_t)can_raw.temperature[6];
- 8003c50:	eefc 5ae5 	vcvt.u32.f32	s11, s11
- 8003c54:	ee31 2ac2 	vsub.f32	s4, s3, s4
- 8003c58:	f04f 0c00 	mov.w	ip, #0
-	senddata[15] = kick_state / 10;
- 8003c5c:	08d2      	lsrs	r2, r2, #3
- 8003c5e:	f361 0c07 	bfi	ip, r1, #0, #8
- 8003c62:	ee13 1a10 	vmov	r1, s6
- 8003c66:	ee15 5a90 	vmov	r5, s11
- 8003c6a:	9200      	str	r2, [sp, #0]
- 8003c6c:	ee12 2a10 	vmov	r2, s4
- 8003c70:	f361 2c0f 	bfi	ip, r1, #8, #8
- 8003c74:	2100      	movs	r1, #0
- 8003c76:	ea4f 6b12 	mov.w	fp, r2, lsr #24
- 8003c7a:	f365 0107 	bfi	r1, r5, #0, #8
- 8003c7e:	2500      	movs	r5, #0
- 8003c80:	f36b 0507 	bfi	r5, fp, #0, #8
- 8003c84:	f36a 250f 	bfi	r5, sl, #8, #8
- 8003c88:	f04f 0a00 	mov.w	sl, #0
- 8003c8c:	f369 0a07 	bfi	sl, r9, #0, #8
- 8003c90:	f890 6030 	ldrb.w	r6, [r0, #48]	; 0x30
- 8003c94:	f368 2a0f 	bfi	sl, r8, #8, #8
- 8003c98:	f04f 0800 	mov.w	r8, #0
- 8003c9c:	f367 0807 	bfi	r8, r7, #0, #8
- 8003ca0:	9f00      	ldr	r7, [sp, #0]
- 8003ca2:	f366 280f 	bfi	r8, r6, #8, #8
- 8003ca6:	2600      	movs	r6, #0
- 8003ca8:	f367 0607 	bfi	r6, r7, #0, #8
- 8003cac:	9f01      	ldr	r7, [sp, #4]
- 8003cae:	f367 260f 	bfi	r6, r7, #8, #8
- 8003cb2:	f893 7049 	ldrb.w	r7, [r3, #73]	; 0x49
- 8003cb6:	f367 4517 	bfi	r5, r7, #16, #8
- 8003cba:	7e47      	ldrb	r7, [r0, #25]
- 8003cbc:	f367 4a17 	bfi	sl, r7, #16, #8
- 8003cc0:	f890 7031 	ldrb.w	r7, [r0, #49]	; 0x31
-	senddata[25] = (uint8_t)(can_raw.current[1] * 10);
- 8003cc4:	eebc 7ac7 	vcvt.u32.f32	s14, s14
- 8003cc8:	f367 4817 	bfi	r8, r7, #16, #8
-	senddata[15] = kick_state / 10;
- 8003ccc:	785f      	ldrb	r7, [r3, #1]
-	senddata[29] = (uint8_t)can_raw.temperature[0];
- 8003cce:	eefc 3ae3 	vcvt.u32.f32	s7, s7
-	senddata[15] = kick_state / 10;
- 8003cd2:	f367 4617 	bfi	r6, r7, #16, #8
- 8003cd6:	ee17 7a10 	vmov	r7, s14
-	senddata[33] = (uint8_t)can_raw.temperature[4];
- 8003cda:	eebc 4ac4 	vcvt.u32.f32	s8, s8
- 8003cde:	f367 4417 	bfi	r4, r7, #16, #8
- 8003ce2:	ee13 7a90 	vmov	r7, s7
- 8003ce6:	f367 4e17 	bfi	lr, r7, #16, #8
- 8003cea:	ee14 7a10 	vmov	r7, s8
- 8003cee:	f367 4c17 	bfi	ip, r7, #16, #8
- 8003cf2:	f893 704a 	ldrb.w	r7, [r3, #74]	; 0x4a
-	senddata[15] = kick_state / 10;
- 8003cf6:	789b      	ldrb	r3, [r3, #2]
- 8003cf8:	f363 661f 	bfi	r6, r3, #24, #8
- 8003cfc:	7e83      	ldrb	r3, [r0, #26]
- 8003cfe:	f8cd 6017 	str.w	r6, [sp, #23]
-	senddata[26] = (uint8_t)(can_raw.current[2] * 10);
- 8003d02:	eefc 7ae7 	vcvt.u32.f32	s15, s15
- 8003d06:	f363 6a1f 	bfi	sl, r3, #24, #8
- 8003d0a:	f890 3032 	ldrb.w	r3, [r0, #50]	; 0x32
-	senddata[15] = kick_state / 10;
- 8003d0e:	f8cd a033 	str.w	sl, [sp, #51]	; 0x33
-	senddata[30] = (uint8_t)can_raw.temperature[1];
- 8003d12:	eefc 4ae4 	vcvt.u32.f32	s9, s9
- 8003d16:	f363 681f 	bfi	r8, r3, #24, #8
- 8003d1a:	ee17 3a90 	vmov	r3, s15
- 8003d1e:	f363 641f 	bfi	r4, r3, #24, #8
- 8003d22:	ee14 3a90 	vmov	r3, s9
-	senddata[34] = (uint8_t)can_raw.temperature[5];
- 8003d26:	eebc 5ac5 	vcvt.u32.f32	s10, s10
- 8003d2a:	f363 6e1f 	bfi	lr, r3, #24, #8
- 8003d2e:	f367 651f 	bfi	r5, r7, #24, #8
-	senddata[59] = temp[3];
- 8003d32:	f890 3037 	ldrb.w	r3, [r0, #55]	; 0x37
-	senddata[15] = kick_state / 10;
- 8003d36:	f8cd 502f 	str.w	r5, [sp, #47]	; 0x2f
-	senddata[59] = temp[3];
- 8003d3a:	f88d 3043 	strb.w	r3, [sp, #67]	; 0x43
- 8003d3e:	f3c2 2507 	ubfx	r5, r2, #8, #8
- 8003d42:	ee15 3a10 	vmov	r3, s10
- 8003d46:	f362 210f 	bfi	r1, r2, #8, #8
- 8003d4a:	f365 4117 	bfi	r1, r5, #16, #8
- 8003d4e:	f3c2 4207 	ubfx	r2, r2, #16, #8
- 8003d52:	f363 6c1f 	bfi	ip, r3, #24, #8
-	senddata[38] = temp[2];
- 8003d56:	f362 611f 	bfi	r1, r2, #24, #8
-	senddata[15] = kick_state / 10;
- 8003d5a:	f8cd 401f 	str.w	r4, [sp, #31]
- 8003d5e:	f8cd e023 	str.w	lr, [sp, #35]	; 0x23
- 8003d62:	f8cd c027 	str.w	ip, [sp, #39]	; 0x27
- 8003d66:	f8cd 803b 	str.w	r8, [sp, #59]	; 0x3b
- 8003d6a:	f8cd 102b 	str.w	r1, [sp, #43]	; 0x2b
- 8003d6e:	f8d0 501b 	ldr.w	r5, [r0, #27]
-	senddata[55] = temp[3];
- 8003d72:	f8d0 0033 	ldr.w	r0, [r0, #51]	; 0x33
-	senddata[15] = kick_state / 10;
- 8003d76:	f8cd 003f 	str.w	r0, [sp, #63]	; 0x3f
-	senddata[61] = 0;
- 8003d7a:	2400      	movs	r4, #0
-    HAL_UART_Transmit(&huart2, senddata, sizeof(senddata), 0xff);
- 8003d7c:	23ff      	movs	r3, #255	; 0xff
- 8003d7e:	2240      	movs	r2, #64	; 0x40
- 8003d80:	a902      	add	r1, sp, #8
- 8003d82:	480d      	ldr	r0, [pc, #52]	; (8003db8 <sendRobotInfo+0x298>)
-	senddata[15] = kick_state / 10;
- 8003d84:	f8cd 5037 	str.w	r5, [sp, #55]	; 0x37
-	senddata[61] = 0;
- 8003d88:	f8ad 4045 	strh.w	r4, [sp, #69]	; 0x45
-	senddata[63] = 0;
- 8003d8c:	f88d 4047 	strb.w	r4, [sp, #71]	; 0x47
-    HAL_UART_Transmit(&huart2, senddata, sizeof(senddata), 0xff);
- 8003d90:	f006 fdd8 	bl	800a944 <HAL_UART_Transmit>
+  senddata[35] = (uint8_t)can_raw.temperature[6];
+ 8003c48:	edd3 5a19 	vldr	s11, [r3, #100]	; 0x64
+ 8003c4c:	f366 240f 	bfi	r4, r6, #8, #8
+ 8003c50:	ee12 6a90 	vmov	r6, s5
+ 8003c54:	f04f 0e00 	mov.w	lr, #0
+ 8003c58:	ee31 2ac2 	vsub.f32	s4, s3, s4
+ 8003c5c:	eefc 5ae5 	vcvt.u32.f32	s11, s11
+ 8003c60:	f366 0e07 	bfi	lr, r6, #0, #8
+ 8003c64:	ee13 6a10 	vmov	r6, s6
+  senddata[15] = kick_state / 10;
+ 8003c68:	08d2      	lsrs	r2, r2, #3
+ 8003c6a:	9202      	str	r2, [sp, #8]
+ 8003c6c:	f366 2e0f 	bfi	lr, r6, #8, #8
+ 8003c70:	ee12 2a10 	vmov	r2, s4
+ 8003c74:	ee15 6a90 	vmov	r6, s11
+ 8003c78:	f04f 0c00 	mov.w	ip, #0
+ 8003c7c:	ea4f 6b12 	mov.w	fp, r2, lsr #24
+ 8003c80:	f366 0c07 	bfi	ip, r6, #0, #8
+ 8003c84:	2600      	movs	r6, #0
+ 8003c86:	f36b 0607 	bfi	r6, fp, #0, #8
+ 8003c8a:	f36a 260f 	bfi	r6, sl, #8, #8
+ 8003c8e:	f04f 0a00 	mov.w	sl, #0
+ 8003c92:	f369 0a07 	bfi	sl, r9, #0, #8
+ 8003c96:	f368 2a0f 	bfi	sl, r8, #8, #8
+ 8003c9a:	f04f 0800 	mov.w	r8, #0
+ 8003c9e:	f367 0807 	bfi	r8, r7, #0, #8
+ 8003ca2:	9f01      	ldr	r7, [sp, #4]
+ 8003ca4:	f367 280f 	bfi	r8, r7, #8, #8
+ 8003ca8:	9f02      	ldr	r7, [sp, #8]
+ 8003caa:	f04f 0900 	mov.w	r9, #0
+ 8003cae:	f367 0907 	bfi	r9, r7, #0, #8
+ 8003cb2:	9f03      	ldr	r7, [sp, #12]
+ 8003cb4:	f367 290f 	bfi	r9, r7, #8, #8
+ 8003cb8:	f893 7049 	ldrb.w	r7, [r3, #73]	; 0x49
+ 8003cbc:	f367 4617 	bfi	r6, r7, #16, #8
+ 8003cc0:	7e47      	ldrb	r7, [r0, #25]
+ 8003cc2:	f367 4a17 	bfi	sl, r7, #16, #8
+ 8003cc6:	f890 7031 	ldrb.w	r7, [r0, #49]	; 0x31
+  senddata[25] = (uint8_t)(can_raw.current[1] * 10);
+ 8003cca:	eebc 7ac7 	vcvt.u32.f32	s14, s14
+ 8003cce:	f367 4817 	bfi	r8, r7, #16, #8
+  senddata[15] = kick_state / 10;
+ 8003cd2:	785f      	ldrb	r7, [r3, #1]
+  senddata[29] = (uint8_t)can_raw.temperature[0];
+ 8003cd4:	eefc 3ae3 	vcvt.u32.f32	s7, s7
+  senddata[15] = kick_state / 10;
+ 8003cd8:	f367 4917 	bfi	r9, r7, #16, #8
+ 8003cdc:	ee17 7a10 	vmov	r7, s14
+  senddata[33] = (uint8_t)can_raw.temperature[4];
+ 8003ce0:	eebc 4ac4 	vcvt.u32.f32	s8, s8
+ 8003ce4:	f367 4517 	bfi	r5, r7, #16, #8
+ 8003ce8:	ee13 7a90 	vmov	r7, s7
+ 8003cec:	f367 4417 	bfi	r4, r7, #16, #8
+ 8003cf0:	ee14 7a10 	vmov	r7, s8
+ 8003cf4:	f367 4e17 	bfi	lr, r7, #16, #8
+ 8003cf8:	f893 704a 	ldrb.w	r7, [r3, #74]	; 0x4a
+  senddata[15] = kick_state / 10;
+ 8003cfc:	789b      	ldrb	r3, [r3, #2]
+ 8003cfe:	f363 691f 	bfi	r9, r3, #24, #8
+ 8003d02:	7e83      	ldrb	r3, [r0, #26]
+ 8003d04:	f8c1 900f 	str.w	r9, [r1, #15]
+ 8003d08:	f363 6a1f 	bfi	sl, r3, #24, #8
+  senddata[26] = (uint8_t)(can_raw.current[2] * 10);
+ 8003d0c:	eefc 7ae7 	vcvt.u32.f32	s15, s15
+ 8003d10:	f890 3032 	ldrb.w	r3, [r0, #50]	; 0x32
+  senddata[15] = kick_state / 10;
+ 8003d14:	f8c1 a02b 	str.w	sl, [r1, #43]	; 0x2b
+ 8003d18:	f363 681f 	bfi	r8, r3, #24, #8
+  senddata[30] = (uint8_t)can_raw.temperature[1];
+ 8003d1c:	eefc 4ae4 	vcvt.u32.f32	s9, s9
+ 8003d20:	ee17 3a90 	vmov	r3, s15
+  senddata[34] = (uint8_t)can_raw.temperature[5];
+ 8003d24:	eebc 5ac5 	vcvt.u32.f32	s10, s10
+ 8003d28:	f363 651f 	bfi	r5, r3, #24, #8
+  senddata[30] = (uint8_t)can_raw.temperature[1];
+ 8003d2c:	ee14 3a90 	vmov	r3, s9
+ 8003d30:	f363 641f 	bfi	r4, r3, #24, #8
+  senddata[34] = (uint8_t)can_raw.temperature[5];
+ 8003d34:	ee15 3a10 	vmov	r3, s10
+  senddata[15] = kick_state / 10;
+ 8003d38:	f8c1 401b 	str.w	r4, [r1, #27]
+ 8003d3c:	f363 6e1f 	bfi	lr, r3, #24, #8
+  senddata[38] = temp[2];
+ 8003d40:	f3c2 2407 	ubfx	r4, r2, #8, #8
+ 8003d44:	f362 2c0f 	bfi	ip, r2, #8, #8
+ 8003d48:	f367 661f 	bfi	r6, r7, #24, #8
+  senddata[15] = kick_state / 10;
+ 8003d4c:	f8c1 6027 	str.w	r6, [r1, #39]	; 0x27
+ 8003d50:	f8c1 8033 	str.w	r8, [r1, #51]	; 0x33
+ 8003d54:	f8c1 5017 	str.w	r5, [r1, #23]
+ 8003d58:	f8c1 e01f 	str.w	lr, [r1, #31]
+ 8003d5c:	f364 4c17 	bfi	ip, r4, #16, #8
+  senddata[59] = temp[3];
+ 8003d60:	f890 3037 	ldrb.w	r3, [r0, #55]	; 0x37
+ 8003d64:	f8d0 401b 	ldr.w	r4, [r0, #27]
+ 8003d68:	f8d0 0033 	ldr.w	r0, [r0, #51]	; 0x33
+  senddata[15] = kick_state / 10;
+ 8003d6c:	f8c1 0037 	str.w	r0, [r1, #55]	; 0x37
+ 8003d70:	f3c2 4207 	ubfx	r2, r2, #16, #8
+  HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
+ 8003d74:	4811      	ldr	r0, [pc, #68]	; (8003dbc <sendRobotInfo+0x29c>)
+  senddata[59] = temp[3];
+ 8003d76:	f881 303b 	strb.w	r3, [r1, #59]	; 0x3b
+ 8003d7a:	f362 6c1f 	bfi	ip, r2, #24, #8
+  senddata[61] = 0;
+ 8003d7e:	2300      	movs	r3, #0
+  HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
+ 8003d80:	2240      	movs	r2, #64	; 0x40
+  senddata[15] = kick_state / 10;
+ 8003d82:	f8c1 c023 	str.w	ip, [r1, #35]	; 0x23
+ 8003d86:	f8c1 402f 	str.w	r4, [r1, #47]	; 0x2f
+  senddata[61] = 0;
+ 8003d8a:	f8a1 303d 	strh.w	r3, [r1, #61]	; 0x3d
+  senddata[63] = 0;
+ 8003d8e:	f881 303f 	strb.w	r3, [r1, #63]	; 0x3f
 }
- 8003d94:	b013      	add	sp, #76	; 0x4c
- 8003d96:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
- 8003d9a:	bf00      	nop
- 8003d9c:	200007a4 	.word	0x200007a4
- 8003da0:	20000680 	.word	0x20000680
- 8003da4:	20000704 	.word	0x20000704
- 8003da8:	200007f8 	.word	0x200007f8
- 8003dac:	20000874 	.word	0x20000874
- 8003db0:	20000620 	.word	0x20000620
+ 8003d92:	b005      	add	sp, #20
+ 8003d94:	e8bd 4ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+  HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
+ 8003d98:	f005 be9e 	b.w	8009ad8 <HAL_UART_Transmit_DMA>
+ 8003d9c:	20000704 	.word	0x20000704
+ 8003da0:	20000ad8 	.word	0x20000ad8
+ 8003da4:	200007a4 	.word	0x200007a4
+ 8003da8:	20000680 	.word	0x20000680
+ 8003dac:	20000620 	.word	0x20000620
+ 8003db0:	200007f8 	.word	0x200007f8
  8003db4:	cccccccd 	.word	0xcccccccd
- 8003db8:	20000e30 	.word	0x20000e30
- 8003dbc:	00000000 	.word	0x00000000
+ 8003db8:	20000874 	.word	0x20000874
+ 8003dbc:	20000e70 	.word	0x20000e70
 
 08003dc0 <parseRxCmd>:
 
@@ -7929,7 +7937,7 @@ void parseRxCmd()
  8004044:	400921fb 	.word	0x400921fb
  8004048:	20000704 	.word	0x20000704
  800404c:	2000071c 	.word	0x2000071c
- 8004050:	20000adc 	.word	0x20000adc
+ 8004050:	20000b1c 	.word	0x20000b1c
  8004054:	447a0000 	.word	0x447a0000
  8004058:	20000620 	.word	0x20000620
  800405c:	2000071e 	.word	0x2000071e
@@ -8046,10 +8054,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
  8004110:	3301      	adds	r3, #1
  8004112:	e7db      	b.n	80040cc <HAL_UART_RxCpltCallback+0x30>
  8004114:	40004400 	.word	0x40004400
- 8004118:	20000da0 	.word	0x20000da0
- 800411c:	20000b14 	.word	0x20000b14
- 8004120:	20000e30 	.word	0x20000e30
- 8004124:	20000b18 	.word	0x20000b18
+ 8004118:	20000de0 	.word	0x20000de0
+ 800411c:	20000b54 	.word	0x20000b54
+ 8004120:	20000e70 	.word	0x20000e70
+ 8004124:	20000b58 	.word	0x20000b58
  8004128:	2000071c 	.word	0x2000071c
  800412c:	2000075c 	.word	0x2000075c
  8004130:	200007fa 	.word	0x200007fa
@@ -8577,15 +8585,15 @@ void Error_Handler(void)
  8004594:	20000620 	.word	0x20000620
  8004598:	2000006c 	.word	0x2000006c
  800459c:	200007f8 	.word	0x200007f8
- 80045a0:	20000b84 	.word	0x20000b84
+ 80045a0:	20000bc4 	.word	0x20000bc4
  80045a4:	4482c000 	.word	0x4482c000
  80045a8:	4492c000 	.word	0x4492c000
  80045ac:	44a4c000 	.word	0x44a4c000
  80045b0:	44ae8000 	.word	0x44ae8000
- 80045b4:	20000da0 	.word	0x20000da0
- 80045b8:	20000e30 	.word	0x20000e30
+ 80045b4:	20000de0 	.word	0x20000de0
+ 80045b8:	20000e70 	.word	0x20000e70
  80045bc:	0800efdc 	.word	0x0800efdc
- 80045c0:	20000b14 	.word	0x20000b14
+ 80045c0:	20000b54 	.word	0x20000b54
  80045c4:	200007fa 	.word	0x200007fa
  80045c8:	2000061c 	.word	0x2000061c
  80045cc:	200002e8 	.word	0x200002e8
@@ -8602,13 +8610,13 @@ void Error_Handler(void)
  80045f8:	420c0000 	.word	0x420c0000
  80045fc:	42480000 	.word	0x42480000
  8004600:	42b40000 	.word	0x42b40000
- 8004604:	20000bd0 	.word	0x20000bd0
+ 8004604:	20000c10 	.word	0x20000c10
  8004608:	2000075c 	.word	0x2000075c
  800460c:	200008e4 	.word	0x200008e4
  8004610:	0800f01c 	.word	0x0800f01c
  8004614:	0800f024 	.word	0x0800f024
  8004618:	0800f030 	.word	0x0800f030
- 800461c:	20000adc 	.word	0x20000adc
+ 800461c:	20000b1c 	.word	0x20000b1c
  8004620:	200007a4 	.word	0x200007a4
  8004624:	200008b4 	.word	0x200008b4
  8004628:	20000834 	.word	0x20000834
@@ -8818,7 +8826,7 @@ void Error_Handler(void)
  800483c:	0001869f 	.word	0x0001869f
  8004840:	0800f598 	.word	0x0800f598
  8004844:	0800f5a4 	.word	0x0800f5a4
- 8004848:	20000da0 	.word	0x20000da0
+ 8004848:	20000de0 	.word	0x20000de0
  800484c:	0800f480 	.word	0x0800f480
  8004850:	0800f48c 	.word	0x0800f48c
  8004854:	0800f4a8 	.word	0x0800f4a8
@@ -10355,7 +10363,7 @@ void MX_SPI1_Init(void)
     Error_Handler();
  800570a:	f7fe bd13 	b.w	8004134 <Error_Handler>
  800570e:	bf00      	nop
- 8005710:	20000b20 	.word	0x20000b20
+ 8005710:	20000b60 	.word	0x20000b60
  8005714:	40013000 	.word	0x40013000
 
 08005718 <HAL_SPI_MspInit>:
@@ -10549,7 +10557,7 @@ void DMA1_Channel2_IRQHandler(void)
  80057e4:	4801      	ldr	r0, [pc, #4]	; (80057ec <DMA1_Channel2_IRQHandler+0x8>)
  80057e6:	f001 bcad 	b.w	8007144 <HAL_DMA_IRQHandler>
  80057ea:	bf00      	nop
- 80057ec:	20000d3c 	.word	0x20000d3c
+ 80057ec:	20000d7c 	.word	0x20000d7c
 
 080057f0 <DMA1_Channel3_IRQHandler>:
 void DMA1_Channel3_IRQHandler(void)
@@ -10597,7 +10605,7 @@ void DMA1_Channel6_IRQHandler(void)
  8005814:	4801      	ldr	r0, [pc, #4]	; (800581c <DMA1_Channel6_IRQHandler+0x8>)
  8005816:	f001 bc95 	b.w	8007144 <HAL_DMA_IRQHandler>
  800581a:	bf00      	nop
- 800581c:	20000c1c 	.word	0x20000c1c
+ 800581c:	20000c5c 	.word	0x20000c5c
 
 08005820 <DMA1_Channel7_IRQHandler>:
 void DMA1_Channel7_IRQHandler(void)
@@ -10609,7 +10617,7 @@ void DMA1_Channel7_IRQHandler(void)
  8005820:	4801      	ldr	r0, [pc, #4]	; (8005828 <DMA1_Channel7_IRQHandler+0x8>)
  8005822:	f001 bc8f 	b.w	8007144 <HAL_DMA_IRQHandler>
  8005826:	bf00      	nop
- 8005828:	20000c7c 	.word	0x20000c7c
+ 8005828:	20000cbc 	.word	0x20000cbc
 
 0800582c <FDCAN1_IT0_IRQHandler>:
 void FDCAN1_IT0_IRQHandler(void)
@@ -10639,7 +10647,7 @@ void USART2_IRQHandler(void)
  8005844:	4801      	ldr	r0, [pc, #4]	; (800584c <USART2_IRQHandler+0x8>)
  8005846:	f004 ba43 	b.w	8009cd0 <HAL_UART_IRQHandler>
  800584a:	bf00      	nop
- 800584c:	20000e30 	.word	0x20000e30
+ 800584c:	20000e70 	.word	0x20000e70
 
 08005850 <TIM7_DAC_IRQHandler>:
 void TIM7_DAC_IRQHandler(void)
@@ -10651,7 +10659,7 @@ void TIM7_DAC_IRQHandler(void)
  8005850:	4801      	ldr	r0, [pc, #4]	; (8005858 <TIM7_DAC_IRQHandler+0x8>)
  8005852:	f003 bdb5 	b.w	80093c0 <HAL_TIM_IRQHandler>
  8005856:	bf00      	nop
- 8005858:	20000bd0 	.word	0x20000bd0
+ 8005858:	20000c10 	.word	0x20000c10
 
 0800585c <FDCAN2_IT0_IRQHandler>:
 void FDCAN2_IT0_IRQHandler(void)
@@ -10681,7 +10689,7 @@ void LPUART1_IRQHandler(void)
  8005874:	4801      	ldr	r0, [pc, #4]	; (800587c <LPUART1_IRQHandler+0x8>)
  8005876:	f004 ba2b 	b.w	8009cd0 <HAL_UART_IRQHandler>
  800587a:	bf00      	nop
- 800587c:	20000da0 	.word	0x20000da0
+ 800587c:	20000de0 	.word	0x20000de0
 
 08005880 <DMA1_Channel8_IRQHandler>:
 void DMA1_Channel8_IRQHandler(void)
@@ -10693,7 +10701,7 @@ void DMA1_Channel8_IRQHandler(void)
  8005880:	4801      	ldr	r0, [pc, #4]	; (8005888 <DMA1_Channel8_IRQHandler+0x8>)
  8005882:	f001 bc5f 	b.w	8007144 <HAL_DMA_IRQHandler>
  8005886:	bf00      	nop
- 8005888:	20000cdc 	.word	0x20000cdc
+ 8005888:	20000d1c 	.word	0x20000d1c
 
 0800588c <_getpid>:
 }
@@ -11025,7 +11033,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
  80059e4:	00000000 	.word	0x00000000
  80059e8:	00001000 	.word	0x00001000
  80059ec:	00000002 	.word	0x00000002
- 80059f0:	20000b84 	.word	0x20000b84
+ 80059f0:	20000bc4 	.word	0x20000bc4
  80059f4:	40000c00 	.word	0x40000c00
  80059f8:	48000800 	.word	0x48000800
 
@@ -11080,7 +11088,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
 }
  8005a42:	b005      	add	sp, #20
  8005a44:	f85d fb04 	ldr.w	pc, [sp], #4
- 8005a48:	20000bd0 	.word	0x20000bd0
+ 8005a48:	20000c10 	.word	0x20000c10
  8005a4c:	40001400 	.word	0x40001400
 
 08005a50 <HAL_TIM_PWM_MspInit>:
@@ -11248,7 +11256,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
  8005b42:	f7fe baf7 	b.w	8004134 <Error_Handler>
  8005b46:	bf00      	nop
 	...
- 8005b50:	20000da0 	.word	0x20000da0
+ 8005b50:	20000de0 	.word	0x20000de0
  8005b54:	40008000 	.word	0x40008000
  8005b58:	001e8480 	.word	0x001e8480
 
@@ -11354,7 +11362,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
     Error_Handler();
  8005bde:	f7fe baa9 	b.w	8004134 <Error_Handler>
  8005be2:	bf00      	nop
- 8005be4:	20000e30 	.word	0x20000e30
+ 8005be4:	20000e70 	.word	0x20000e70
  8005be8:	40004400 	.word	0x40004400
 
 08005bec <MX_USART3_UART_Init>:
@@ -11455,7 +11463,7 @@ void MX_USART3_UART_Init(void)
     Error_Handler();
  8005c66:	f7fe ba65 	b.w	8004134 <Error_Handler>
  8005c6a:	bf00      	nop
- 8005c6c:	20000ec0 	.word	0x20000ec0
+ 8005c6c:	20000f00 	.word	0x20000f00
  8005c70:	40004800 	.word	0x40004800
 
 08005c74 <HAL_UART_MspInit>:
@@ -11866,15 +11874,15 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
  8005ee4:	40004400 	.word	0x40004400
  8005ee8:	40004800 	.word	0x40004800
  8005eec:	40021000 	.word	0x40021000
- 8005ef0:	20000c1c 	.word	0x20000c1c
+ 8005ef0:	20000c5c 	.word	0x20000c5c
  8005ef4:	4002006c 	.word	0x4002006c
- 8005ef8:	20000c7c 	.word	0x20000c7c
+ 8005ef8:	20000cbc 	.word	0x20000cbc
  8005efc:	40020080 	.word	0x40020080
  8005f00:	48000400 	.word	0x48000400
- 8005f04:	20000cdc 	.word	0x20000cdc
+ 8005f04:	20000d1c 	.word	0x20000d1c
  8005f08:	40020094 	.word	0x40020094
  8005f0c:	48000800 	.word	0x48000800
- 8005f10:	20000d3c 	.word	0x20000d3c
+ 8005f10:	20000d7c 	.word	0x20000d7c
  8005f14:	4002001c 	.word	0x4002001c
 
 08005f18 <uchar4_to_float>:
@@ -12282,7 +12290,7 @@ LoopForever:
   ldr r2, =_sbss
  80061e0:	200001f0 	.word	0x200001f0
   ldr r4, =_ebss
- 80061e4:	200010a4 	.word	0x200010a4
+ 80061e4:	200010e4 	.word	0x200010e4
 
 080061e8 <ADC1_2_IRQHandler>:
  * @retval : None
@@ -12388,7 +12396,7 @@ __weak void HAL_IncTick(void)
 }
  8006264:	4770      	bx	lr
  8006266:	bf00      	nop
- 8006268:	20000f50 	.word	0x20000f50
+ 8006268:	20000f90 	.word	0x20000f90
  800626c:	2000000c 	.word	0x2000000c
 
 08006270 <HAL_Delay>:
@@ -24445,7 +24453,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800ad3c:	f04f 34ff 	mov.w	r4, #4294967295
  800ad40:	4620      	mov	r0, r4
  800ad42:	bd70      	pop	{r4, r5, r6, pc}
- 800ad44:	20000f58 	.word	0x20000f58
+ 800ad44:	20000f98 	.word	0x20000f98
 
 0800ad48 <_malloc_r>:
  800ad48:	e92d 43f8 	stmdb	sp!, {r3, r4, r5, r6, r7, r8, r9, lr}
@@ -24556,19 +24564,19 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800ae3e:	605b      	str	r3, [r3, #4]
  800ae40:	deff      	udf	#255	; 0xff
  800ae42:	bf00      	nop
- 800ae44:	20000f54 	.word	0x20000f54
+ 800ae44:	20000f94 	.word	0x20000f94
 
 0800ae48 <__malloc_lock>:
  800ae48:	4801      	ldr	r0, [pc, #4]	; (800ae50 <__malloc_lock+0x8>)
  800ae4a:	f000 bfc9 	b.w	800bde0 <__retarget_lock_acquire_recursive>
  800ae4e:	bf00      	nop
- 800ae50:	2000109c 	.word	0x2000109c
+ 800ae50:	200010dc 	.word	0x200010dc
 
 0800ae54 <__malloc_unlock>:
  800ae54:	4801      	ldr	r0, [pc, #4]	; (800ae5c <__malloc_unlock+0x8>)
  800ae56:	f000 bfc4 	b.w	800bde2 <__retarget_lock_release_recursive>
  800ae5a:	bf00      	nop
- 800ae5c:	2000109c 	.word	0x2000109c
+ 800ae5c:	200010dc 	.word	0x200010dc
 
 0800ae60 <__cvt>:
  800ae60:	e92d 47ff 	stmdb	sp!, {r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, sl, lr}
@@ -25554,9 +25562,9 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800b7b8:	f002 b87a 	b.w	800d8b0 <_fflush_r>
  800b7bc:	bd10      	pop	{r4, pc}
  800b7be:	bf00      	nop
- 800b7c0:	20000f5c 	.word	0x20000f5c
- 800b7c4:	20000fc4 	.word	0x20000fc4
- 800b7c8:	2000102c 	.word	0x2000102c
+ 800b7c0:	20000f9c 	.word	0x20000f9c
+ 800b7c4:	20001004 	.word	0x20001004
+ 800b7c8:	2000106c 	.word	0x2000106c
 
 0800b7cc <global_stdio_init.part.0>:
  800b7cc:	b510      	push	{r4, lr}
@@ -25577,21 +25585,21 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800b7f2:	e8bd 4010 	ldmia.w	sp!, {r4, lr}
  800b7f6:	2112      	movs	r1, #18
  800b7f8:	f7ff bf98 	b.w	800b72c <std>
- 800b7fc:	20001094 	.word	0x20001094
- 800b800:	20000f5c 	.word	0x20000f5c
+ 800b7fc:	200010d4 	.word	0x200010d4
+ 800b800:	20000f9c 	.word	0x20000f9c
  800b804:	0800b775 	.word	0x0800b775
 
 0800b808 <__sfp_lock_acquire>:
  800b808:	4801      	ldr	r0, [pc, #4]	; (800b810 <__sfp_lock_acquire+0x8>)
  800b80a:	f000 bae9 	b.w	800bde0 <__retarget_lock_acquire_recursive>
  800b80e:	bf00      	nop
- 800b810:	2000109d 	.word	0x2000109d
+ 800b810:	200010dd 	.word	0x200010dd
 
 0800b814 <__sfp_lock_release>:
  800b814:	4801      	ldr	r0, [pc, #4]	; (800b81c <__sfp_lock_release+0x8>)
  800b816:	f000 bae4 	b.w	800bde2 <__retarget_lock_release_recursive>
  800b81a:	bf00      	nop
- 800b81c:	2000109d 	.word	0x2000109d
+ 800b81c:	200010dd 	.word	0x200010dd
 
 0800b820 <__sinit>:
  800b820:	b510      	push	{r4, lr}
@@ -25611,7 +25619,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800b844:	e7f2      	b.n	800b82c <__sinit+0xc>
  800b846:	bf00      	nop
  800b848:	0800b78d 	.word	0x0800b78d
- 800b84c:	20001094 	.word	0x20001094
+ 800b84c:	200010d4 	.word	0x200010d4
 
 0800b850 <_fwalk_sglue>:
  800b850:	e92d 43f8 	stmdb	sp!, {r3, r4, r5, r6, r7, r8, r9, lr}
@@ -26144,7 +26152,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800bcf6:	b103      	cbz	r3, 800bcfa <_close_r+0x1a>
  800bcf8:	6023      	str	r3, [r4, #0]
  800bcfa:	bd38      	pop	{r3, r4, r5, pc}
- 800bcfc:	20001098 	.word	0x20001098
+ 800bcfc:	200010d8 	.word	0x200010d8
 
 0800bd00 <_lseek_r>:
  800bd00:	b538      	push	{r3, r4, r5, lr}
@@ -26162,7 +26170,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800bd1a:	b103      	cbz	r3, 800bd1e <_lseek_r+0x1e>
  800bd1c:	6023      	str	r3, [r4, #0]
  800bd1e:	bd38      	pop	{r3, r4, r5, pc}
- 800bd20:	20001098 	.word	0x20001098
+ 800bd20:	200010d8 	.word	0x200010d8
 
 0800bd24 <_read_r>:
  800bd24:	b538      	push	{r3, r4, r5, lr}
@@ -26180,7 +26188,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800bd3e:	b103      	cbz	r3, 800bd42 <_read_r+0x1e>
  800bd40:	6023      	str	r3, [r4, #0]
  800bd42:	bd38      	pop	{r3, r4, r5, pc}
- 800bd44:	20001098 	.word	0x20001098
+ 800bd44:	200010d8 	.word	0x200010d8
 
 0800bd48 <_sbrk_r>:
  800bd48:	b538      	push	{r3, r4, r5, lr}
@@ -26196,7 +26204,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800bd5e:	b103      	cbz	r3, 800bd62 <_sbrk_r+0x1a>
  800bd60:	6023      	str	r3, [r4, #0]
  800bd62:	bd38      	pop	{r3, r4, r5, pc}
- 800bd64:	20001098 	.word	0x20001098
+ 800bd64:	200010d8 	.word	0x200010d8
 
 0800bd68 <_write_r>:
  800bd68:	b538      	push	{r3, r4, r5, lr}
@@ -26214,7 +26222,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800bd82:	b103      	cbz	r3, 800bd86 <_write_r+0x1e>
  800bd84:	6023      	str	r3, [r4, #0]
  800bd86:	bd38      	pop	{r3, r4, r5, pc}
- 800bd88:	20001098 	.word	0x20001098
+ 800bd88:	200010d8 	.word	0x200010d8
 
 0800bd8c <__errno>:
  800bd8c:	4b01      	ldr	r3, [pc, #4]	; (800bd94 <__errno+0x8>)
@@ -27630,7 +27638,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800cb6a:	e7ca      	b.n	800cb02 <_free_r+0x26>
  800cb6c:	b003      	add	sp, #12
  800cb6e:	bd30      	pop	{r4, r5, pc}
- 800cb70:	20000f54 	.word	0x20000f54
+ 800cb70:	20000f94 	.word	0x20000f94
 
 0800cb74 <_Balloc>:
  800cb74:	b570      	push	{r4, r5, r6, lr}
@@ -29167,7 +29175,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800da12:	6023      	str	r3, [r4, #0]
  800da14:	bd38      	pop	{r3, r4, r5, pc}
  800da16:	bf00      	nop
- 800da18:	20001098 	.word	0x20001098
+ 800da18:	200010d8 	.word	0x200010d8
 
 0800da1c <_isatty_r>:
  800da1c:	b538      	push	{r3, r4, r5, lr}
@@ -29183,7 +29191,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800da32:	b103      	cbz	r3, 800da36 <_isatty_r+0x1a>
  800da34:	6023      	str	r3, [r4, #0]
  800da36:	bd38      	pop	{r3, r4, r5, pc}
- 800da38:	20001098 	.word	0x20001098
+ 800da38:	200010d8 	.word	0x200010d8
 
 0800da3c <memcpy>:
  800da3c:	440a      	add	r2, r1
@@ -29409,7 +29417,7 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800dc1a:	6023      	str	r3, [r4, #0]
  800dc1c:	bd38      	pop	{r3, r4, r5, pc}
  800dc1e:	bf00      	nop
- 800dc20:	20001098 	.word	0x20001098
+ 800dc20:	200010d8 	.word	0x200010d8
 
 0800dc24 <_getpid_r>:
  800dc24:	f7f7 be32 	b.w	800588c <_getpid>
@@ -31178,8 +31186,8 @@ static void UART_RxISR_16BIT_FIFOEN(UART_HandleTypeDef *huart)
  800ef6e:	4403      	add	r3, r0
  800ef70:	6013      	str	r3, [r2, #0]
  800ef72:	4770      	bx	lr
- 800ef74:	200010a0 	.word	0x200010a0
- 800ef78:	200010a8 	.word	0x200010a8
+ 800ef74:	200010e0 	.word	0x200010e0
+ 800ef78:	200010e8 	.word	0x200010e8
 
 0800ef7c <_init>:
  800ef7c:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
