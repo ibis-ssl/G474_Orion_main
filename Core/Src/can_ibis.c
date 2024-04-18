@@ -117,7 +117,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
       case 0x203:
         motor.enc_angle[rx_can_id - 0x200] = uchar4_to_float(&RxData[4]);
         can_raw.motor_feedback[rx_can_id - 0x200] = uchar4_to_float(RxData);
-        can_raw.motor_feedback_velocity[rx_can_id - 0x200] = can_raw.motor_feedback[3] * OMNI_DIAMETER * M_PI;
+        can_raw.motor_feedback_velocity[rx_can_id - 0x200] = uchar4_to_float(RxData) * OMNI_DIAMETER * M_PI;
         break;
       case 0x204:
         can_raw.motor_feedback_velocity[4] = uchar4_to_float(RxData);

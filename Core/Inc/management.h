@@ -50,6 +50,14 @@ extern float32_t motor_voltage[4];
 #define SPEED_LOG_BUF_SIZE (MAIN_LOOP_CYCLE * 2)
 #define SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE (10)
 
+#define AI_CMD_VEL_MAX_MPS (7.0)
+
+#define FLAG_SSL_VISION_OK (0x01)
+#define FLAG_ENABLE_KEEPER_MODE (0x02)
+#define FLAG_STOP_REQUEST (0x04)
+#define FLAG_ENABLE_LOCAL_VISION (0x08)
+#define FLAG_DRIBBLER_UP (0x10)
+
 typedef struct
 {
   float yaw_angle, pre_yaw_angle;
@@ -93,9 +101,9 @@ typedef struct
 
 typedef struct
 {
-  float position[2];      // X,Y
-  float velocity[2];        // m/s 速度指令値の入力
-  float local_velocity[2];  // m/s
+  float position[2];                // X,Y
+  float velocity[2];                // m/s 速度指令値の入力
+  float local_velocity[2];          // m/s
   float local_velocity_current[2];  // 現在の
 } target_t;
 
@@ -166,6 +174,8 @@ typedef struct
   uint8_t main_mode;
   uint32_t system_time_ms;
   uint32_t stop_flag_request_time;
+  uint16_t kick_state;
+
 } system_t;
 
 typedef union {
