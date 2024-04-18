@@ -404,8 +404,10 @@ int main(void)
           p("ODOM ");
           p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           p("omni X %+8.2f Y %+8.2f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-          p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+          p("diff X %+8.2f Y %+8.2f ", omni.odom_floor_diff[0] * 1000, omni.odom_floor_diff[1] * 1000);
+          //p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
           p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed_mvf[0] * 1000, omni.local_odom_speed_mvf[1] * 1000);
+          p("out %+5.2f %+5.2f ", output.velocity[0], output.velocity[1]);
 
           break;
         case 6:
@@ -532,8 +534,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   sw_mode = getModeSwitch();
 
   if (sys.error_flag) {
-    sys.main_mode = MAIN_MODE_ERROR;
-    resetLocalSpeedControl();
+    // 一定回数はリセットを許容する
+    if (sys.error_id < 4 && sys.error_info == BLDC_ERROR_OVER_CURRENT && sys.error_resume_cnt < 10) {
+      sys.error_flag = 0;
+      sys.error_info = 0;
+      sys.error_value = 0;
+
+      sys.error_resume_cnt++;
+
+      // しばらくstopに落とす
+      sys.stop_flag_request_time = sys.system_time_ms + 3000;
+
+      // OFFコマンドでリセット
+      actuator_power_ONOFF(0);
+    } else {
+      sys.main_mode = MAIN_MODE_ERROR;
+      resetLocalSpeedControl();
+    }
   } else if (sw_mode != pre_sw_mode) {  // reset
     sys.main_mode = MAIN_MODE_NONE;
     resetLocalSpeedControl();
@@ -768,7 +785,8 @@ void speed_control()
       output.accel_limit[i] *= 2;
     }
 
-    // 目標移動位置を追い越してしまっている場合。速度ではないのはノイズが多いから
+    // 目標移動位置を追い越してしまっている場合、目標移動位置側を追従させる。
+    // 速度ではないのはノイズが多いから
     // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
     // local_velocityに対して追従するlocal_velocity_currentの追従を早める
     if (diff_local[i] > 0 && target.local_velocity[i] > 0) {
@@ -816,7 +834,6 @@ void speed_control()
       target.position[i] = omni.odom[i] - odom_diff_max;
     }
 
-
     // odom基準の絶対座標系
     omni.odom_floor_diff[i] = omni.odom[i] - target.position[i];
   }
@@ -827,7 +844,7 @@ void speed_control()
 
   diff_local[0] = omni.robot_pos_diff[0];
   diff_local[1] = omni.robot_pos_diff[1];
-  
+
   output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[0] * OMNI_OUTPUT_GAIN_FF;
   output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[1] * OMNI_OUTPUT_GAIN_FF;
 }
