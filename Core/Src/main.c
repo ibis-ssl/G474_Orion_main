@@ -32,9 +32,10 @@
 /* USER CODE BEGIN Includes */
 #include <stdarg.h>
 
+#include "ai_comm.h"
 #include "management.h"
 #include "ring_buffer.h"
-#include "ai_comm.h"
+#include "test_func.h"
 
 /* USER CODE END Includes */
 
@@ -84,16 +85,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 uint8_t getModeSwitch();
 void maintask_run();
-void sendRobotInfo();
 void maintask_stop();
-void motor_test();
-void dribbler_test();
-void kicker_test(bool manual_mode);
-void motor_calibration();
 void send_accutuator_cmd_run();
 void send_can_error();
-void omniOdometory();
-void mouseOdometory();
 void yawFilter();
 void resetLocalSpeedControl();
 //void resetAiCmdData();
@@ -147,9 +141,6 @@ struct
 uint8_t data_from_cm4[RX_BUF_SIZE_ETHER];
 uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_it_buffer = 0;
-
-// main state
-uint32_t adc_sw_data;
 
 /* USER CODE END PFP */
 
@@ -237,7 +228,7 @@ int main(void)
   HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
   HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_it_buffer, 1);
 
-  HAL_ADC_Start_DMA(&hadc5, &adc_sw_data, 1);
+  HAL_ADC_Start_DMA(&hadc5, &sys.sw_data, 1);
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, 1);
@@ -377,7 +368,7 @@ int main(void)
           break;
         case 1:  //Motor
           p("MOTOR ");
-          p("SW %2d ", decode_SW(adc_sw_data));
+          p("SW %2d ", decode_SW(sys.sw_data));
           p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
           p("Pw v0=%5.1f v1=%5.1f v2=%5.1f v3=%5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
           p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
@@ -429,7 +420,7 @@ int main(void)
           break;
         case 7:
           p("LATENCY ");
-          p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(adc_sw_data), debug.latency_check_mode, debug.latency_check_mode_cnt, debug.rotation_target_theta,
+          p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(sys.sw_data), debug.latency_check_mode, debug.latency_check_mode_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
         default:
@@ -586,23 +577,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case MAIN_MODE_MOTOR_TEST:  // motor test
-      motor_test();
+      motor_test(&sys);
       break;
 
     case MAIN_MODE_DRIBBLER_TEST:  // drible test
-      dribbler_test();
+      dribbler_test(&sys);
       break;
 
     case MAIN_MODE_KICKER_AUTO_TEST:  // kicker test (auto)
-      kicker_test(false);
+      kicker_test(&sys, &can_raw, false);
       break;
 
     case MAIN_MODE_KICKER_MANUAL:  // kicker test (manual)
-      kicker_test(true);
+      kicker_test(&sys, &can_raw, true);
       break;
 
     case MAIN_MODE_MOTOR_CALIBRATION:
-      motor_calibration();
+      motor_calibration(&sys);
       break;
 
     case MAIN_MODE_ERROR:  // error
@@ -696,116 +687,6 @@ uint8_t getModeSwitch()
   return 15 - (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) + (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1) + (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) << 3) + (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2) << 2));
 }
 
-void motor_test()
-{
-  if (decode_SW(adc_sw_data) & 0b00000001) {
-    omni_move(4.0, 0.0, 0.0, 4.0);  // fwd
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(adc_sw_data) & 0b00000010) {
-    omni_move(-4.0, 0.0, 0.0, 4.0);  // back
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(adc_sw_data) & 0b00000100) {
-    omni_move(0.0, -4.0, 0.0, 4.0);  // left
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(adc_sw_data) & 0b00001000) {
-    omni_move(0.0, 4.0, 0.0, 4.0);  // right
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(adc_sw_data) & 0b00010000) {
-    omni_move(0.0, 0.0, 20.0, 4.0);  // spin
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else {
-    omni_move(0.0, 0.0, 0.0, 0.0);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-  }
-  actuator_motor5(0.0, 0.0);
-}
-
-void dribbler_test()
-{
-  if (decode_SW(adc_sw_data) & 0b00010000) {
-    actuator_motor5(0.5, 1.0);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else {
-    actuator_motor5(0.0, 0.0);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-  }
-  omni_move(0.0, 0.0, 0.0, 0.0);
-}
-
-void kicker_test(bool manual_mode)
-{
-  static bool dribbler_up = false;
-
-  if (sys.kick_state != 0) {
-    if (sys.kick_state > MAIN_LOOP_CYCLE / 2) {
-      if (can_raw.ball_detection[0] == 0) {
-        sys.kick_state = 0;
-      }
-    } else {
-      sys.kick_state++;
-    }
-  }
-
-  if (dribbler_up == false && decode_SW(adc_sw_data) & 0b00000100) {
-    dribbler_up = true;
-    actuator_dribbler_down();
-  } else if (dribbler_up == true && decode_SW(adc_sw_data) & 0b00001000) {
-    dribbler_up = false;
-    actuator_dribbler_up();
-  }
-
-  if (decode_SW(adc_sw_data) & 0b00010000) {
-    if (!manual_mode) {
-      actuator_motor5(0.5, 1.0);
-    }
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-    if (can_raw.ball_detection[0] == 1 || manual_mode) {
-      if (sys.kick_state == 0) {
-        actuator_kicker(2, 0);  // straight
-        actuator_kicker(3, 50);
-        //actuator_kicker(3, 100);
-        sys.kick_state = 1;
-      }
-    }
-  } else if (decode_SW(adc_sw_data) & 0b00000010) {
-    if (!manual_mode) {
-      actuator_motor5(0.5, 1.0);
-    }
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-    if (can_raw.ball_detection[0] == 1 || manual_mode) {
-      if (sys.kick_state == 0) {
-        actuator_kicker(2, 1);  // chip
-        actuator_kicker(3, 100);
-        //actuator_kicker(3, 255);
-        sys.kick_state = 1;
-      }
-    }
-  } else {
-    actuator_motor5(0.0, 0.0);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-    actuator_kicker(1, 1);  // charge enable
-    actuator_kicker_voltage(300.0);
-  }
-  omni_move(0.0, 0.0, 0.0, 0.0);
-}
-void motor_calibration()
-{
-  static uint32_t calib_start_cnt = 0;
-  if (decode_SW(adc_sw_data) & 0b00000100) {
-    calib_start_cnt++;
-    if (calib_start_cnt > 1000) {
-      actuator_motor_calib(0);
-    }
-  } else if (decode_SW(adc_sw_data) & 0b00001000) {
-    calib_start_cnt++;
-    if (calib_start_cnt > 1000) {
-      actuator_motor_calib(1);
-    }
-  } else {
-    calib_start_cnt = 0;
-  }
-}
-
 void yawFilter()
 {
   // 静止中に一気にvision角度を合わせるやつ
@@ -869,7 +750,7 @@ void theta_control(float target_theta)
 
 void speed_control()
 {
-  static float diff_local[2];
+  static float diff_local[2] = {0, 0};
 
   target.local_velocity[0] = target.velocity[0];
   target.local_velocity[1] = target.velocity[1];
@@ -935,6 +816,7 @@ void speed_control()
       target.position[i] = omni.odom[i] - odom_diff_max;
     }
 
+
     // odom基準の絶対座標系
     omni.odom_floor_diff[i] = omni.odom[i] - target.position[i];
   }
@@ -943,6 +825,9 @@ void speed_control()
   omni.robot_pos_diff[0] = omni.odom_floor_diff[0] * cos(-imu.yaw_angle_rad) - omni.odom_floor_diff[1] * sin(-imu.yaw_angle_rad);
   omni.robot_pos_diff[1] = omni.odom_floor_diff[0] * sin(-imu.yaw_angle_rad) + omni.odom_floor_diff[1] * cos(-imu.yaw_angle_rad);
 
+  diff_local[0] = omni.robot_pos_diff[0];
+  diff_local[1] = omni.robot_pos_diff[1];
+  
   output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[0] * OMNI_OUTPUT_GAIN_FF;
   output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[1] * OMNI_OUTPUT_GAIN_FF;
 }
@@ -1005,7 +890,7 @@ void slipDetection(void)
 void maintask_run()
 {
   if (debug.latency_check_mode == false) {
-    if (decode_SW(adc_sw_data) & 0b00000001) {
+    if (decode_SW(sys.sw_data) & 0b00000001) {
       debug.latency_check_mode_cnt++;
       if (debug.latency_check_mode_cnt > 1000) {
         debug.latency_check_mode = true;
@@ -1174,135 +1059,6 @@ void send_can_error()
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
 }
 
-/*void resetAiCmdData()
-{
-  ai_cmd.local_target_speed[0] = 0;
-  ai_cmd.local_target_speed[1] = 0;
-  ai_cmd.global_vision_theta = 0;
-  ai_cmd.target_theta = 0;
-  ai_cmd.chip_en = false;
-  ai_cmd.kick_power = 0;
-  ai_cmd.drible_power = 0;
-  ai_cmd.allow_local_flags = 0;
-
-  ai_cmd.global_ball_position[0] = 0;
-  ai_cmd.global_ball_position[1] = 0;
-  ai_cmd.global_robot_position[0] = 0;
-  ai_cmd.global_robot_position[1] = 0;
-  ai_cmd.global_target_position[0] = 0;
-  ai_cmd.global_target_position[1] = 0;
-
-  // ローカルカメラ情報は消さない(デバッグ用)
-  
-  //ai_cmd.ball_local_x = 0;
-  //ai_cmd.ball_local_y = 0;
-  //ai_cmd.ball_local_radius = 0;
-  //ai_cmd.ball_local_FPS = 0;
-
-  ai_cmd.vision_lost_flag = true;
-  ai_cmd.local_vision_en_flag = false;
-  ai_cmd.keeper_mode_en_flag = false;
-  ai_cmd.stop_request_flag = false;  //
-}*/
-
-/*void parseRxCmd()
-{
-  connection.check_ver = data_from_cm4[1];
-
-  if (connection.check_ver != connection.check_pre) {
-    connection.latest_ai_cmd_update_time = sys.system_time_ms;
-
-    connection.pre_vision_update_cycle_cnt = connection.vision_update_cycle_cnt;
-    connection.vision_update_cycle_cnt = 0;
-
-    connection.check_pre = connection.check_ver;
-  }
-
-  float pre_update_time_ms = connection.latest_cm4_cmd_update_time;
-  connection.latest_cm4_cmd_update_time = sys.system_time_ms;
-  connection.cmd_rx_frq = (float)1000 / (connection.latest_cm4_cmd_update_time - pre_update_time_ms);
-
-  // aiコマンドに関係なくカメラ情報は入れる(デバッグ用)
-  ai_cmd.ball_local_x = data_from_cm4[RX_BUF_SIZE_ETHER - 7] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 6];
-  ai_cmd.ball_local_y = data_from_cm4[RX_BUF_SIZE_ETHER - 5] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 4];
-  ai_cmd.ball_local_radius = data_from_cm4[RX_BUF_SIZE_ETHER - 3] << 8 | data_from_cm4[RX_BUF_SIZE_ETHER - 2];
-  ai_cmd.ball_local_FPS = data_from_cm4[RX_BUF_SIZE_ETHER - 1];
-
-  // time out
-  if (connection.connected_ai == 0) {
-    resetAiCmdData(&ai_cmd);
-    return;
-  }
-
-  ai_cmd.local_target_speed[0] = two_to_float(&data_from_cm4[2]) * AI_CMD_VEL_MAX_MPS;
-  ai_cmd.local_target_speed[1] = two_to_float(&data_from_cm4[4]) * AI_CMD_VEL_MAX_MPS;
-  ai_cmd.global_vision_theta = two_to_float(&data_from_cm4[6]) * M_PI;
-  ai_cmd.target_theta = two_to_float(&data_from_cm4[8]) * M_PI;
-  if (data_from_cm4[10] >= 101) {
-    ai_cmd.chip_en = true;
-    ai_cmd.kick_power = (float)(data_from_cm4[10] - 101) / 20;
-  } else {
-    ai_cmd.kick_power = (float)data_from_cm4[10] / 20;
-    ai_cmd.chip_en = false;
-  }
-  ai_cmd.drible_power = (float)data_from_cm4[11] / 20;
-
-  ai_cmd.allow_local_flags = data_from_cm4[12];
-
-  // integとai_cmdで分けてるだけで同じ情報の now と pre
-  integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
-  integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
-
-  // <int>[mm] -> <float>[m]
-  ai_cmd.global_ball_position[0] = (float)two_to_int(&data_from_cm4[13]) / 1000;
-  ai_cmd.global_ball_position[1] = (float)two_to_int(&data_from_cm4[15]) / 1000;
-  ai_cmd.global_robot_position[0] = (float)two_to_int(&data_from_cm4[17]) / 1000;
-  ai_cmd.global_robot_position[1] = (float)two_to_int(&data_from_cm4[19]) / 1000;
-  ai_cmd.global_target_position[0] = (float)two_to_int(&data_from_cm4[21]) / 1000;
-  ai_cmd.global_target_position[1] = (float)two_to_int(&data_from_cm4[23]) / 1000;
-
-  // 値がおかしい時は0にする (+-30を超えることはない)
-  for (int i = 0; i < 2; i++) {
-    if (ai_cmd.global_target_position[i] > 30.0 || ai_cmd.global_target_position[i] < -30) {
-      ai_cmd.global_target_position[i] = 0;
-    }
-  }
-
-  if ((ai_cmd.allow_local_flags & FLAG_SSL_VISION_OK) != 0) {
-    ai_cmd.vision_lost_flag = false;
-  } else {
-    ai_cmd.vision_lost_flag = true;
-  }
-
-  if ((ai_cmd.allow_local_flags & FLAG_ENABLE_LOCAL_VISION) != 0) {
-    ai_cmd.local_vision_en_flag = true;
-  } else {
-    ai_cmd.local_vision_en_flag = false;
-  }
-
-  if ((ai_cmd.allow_local_flags & FLAG_ENABLE_KEEPER_MODE) != 0) {
-    ai_cmd.keeper_mode_en_flag = true;
-  } else {
-    ai_cmd.keeper_mode_en_flag = false;
-  }
-
-  if ((ai_cmd.allow_local_flags & FLAG_STOP_REQUEST) != 0) {
-    ai_cmd.stop_request_flag = true;
-  } else {
-    ai_cmd.stop_request_flag = false;
-  }
-
-  if ((ai_cmd.allow_local_flags & FLAG_DRIBBLER_UP) != 0) {
-    ai_cmd.dribbler_up_flag = true;
-  } else {
-    ai_cmd.dribbler_up_flag = false;
-  }
-
-  // 目標座標の移動量と更新時間から推測される区間速度
-  integ.guess_target_speed[0] = (float)(ai_cmd.global_target_position[0] - integ.pre_global_target_position[0]) / connection.pre_vision_update_cycle_cnt;
-  integ.guess_target_speed[1] = (float)(ai_cmd.global_target_position[1] - integ.pre_global_target_position[1]) / connection.pre_vision_update_cycle_cnt;
-}*/
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   static int32_t uart_rx_cmd_idx = 0;
@@ -1330,7 +1086,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     if (uart_rx_cmd_idx == RX_BUF_SIZE_ETHER) {
       uart_rx_cmd_idx = -1;
       parseRxCmd(&connection, &sys, &ai_cmd, &integ, data_from_cm4);
-      sendRobotInfo();
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd, &connection);
     }
   }
 

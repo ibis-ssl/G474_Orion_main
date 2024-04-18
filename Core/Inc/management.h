@@ -175,7 +175,7 @@ typedef struct
   uint32_t system_time_ms;
   uint32_t stop_flag_request_time;
   uint16_t kick_state;
-
+  uint32_t sw_data;
 } system_t;
 
 typedef union {
