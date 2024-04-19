@@ -57,10 +57,12 @@
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (20)     //
-#define OMNI_OUTPUT_GAIN_KP (150)  // ~ m/s / m : -250 -> 4cm : 1m/s
+#define OMNI_OUTPUT_LIMIT (20)           //
+#define OMNI_OUTPUT_GAIN_KP (150 * 0.5)  // ~ m/s / m : -250 -> 4cm : 1m/s
 #define OMNI_OUTPUT_GAIN_KD (2)
-#define OMNI_OUTPUT_GAIN_FF (1.0)
+#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.0 * 0.5)
+#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0 * 0.5)
+#define FF_TARGET_FINAL_DIFF_LIMIT (1.0)
 
 #define OUTPUT_XY_LIMIT (10)  //
 
@@ -219,7 +221,6 @@ int main(void)
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
-
   HAL_UART_Init(&hlpuart1);
   HAL_UART_Init(&huart2);
 
@@ -294,6 +295,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
+  debug.print_idx = 5;
   //target.velocity[1] = 1.0;
   /* USER CODE END 2 */
 
@@ -335,6 +337,9 @@ int main(void)
 
       if (sys.main_mode == MAIN_MODE_ERROR) {
         p("\e[31m error : ID %5d / Info %5d / Value %+8.3f \e[31m", sys.error_id, sys.error_info, sys.error_value);
+      }
+      if (sys.system_time_ms < sys.stop_flag_request_time) {
+        p("\e[33m");
       }
 
       switch (debug.print_idx) {
@@ -402,12 +407,16 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
-          p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
-          p("omni X %+8.2f Y %+8.2f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-          p("diff X %+8.2f Y %+8.2f ", omni.odom_floor_diff[0] * 1000, omni.odom_floor_diff[1] * 1000);
-          //p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
-          p("speedX %+8.1f speedY %+8.1f ", omni.local_odom_speed_mvf[0] * 1000, omni.local_odom_speed_mvf[1] * 1000);
-          p("out %+5.2f %+5.2f ", output.velocity[0], output.velocity[1]);
+          //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
+          //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+          //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_pos[0] * 1000, target.global_pos[1] * 1000);
+          p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
+          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000, output.accel[1] * 1000);
+          p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
+          p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+          p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
+          p("POS %+5.1f FF-N %+5.1f FF-T %+5.1f", -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP, target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW,
+            target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);
 
           break;
         case 6:
@@ -418,7 +427,6 @@ int main(void)
           p("Gbrl-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
           p("lost %d stop %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power,
             ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
-
           break;
         case 7:
           p("LATENCY ");
@@ -430,10 +438,9 @@ int main(void)
           break;
       }
 
-      //p("tarPos X %+8.3f Y %+8.3f ", target.position[0] * 1000, target.position[1] * 1000);
+      //p("tarPos X %+8.3f Y %+8.3f ", target.global_pos[0] * 1000, target.global_pos[1] * 1000);
 
       //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
-      //p("PD %+5.2f  %+5.2f ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);
       //p("spd X %+8.3f Y %+8.3f  ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
       //p("log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
       //p("cycle %6d ", connection.vision_update_cycle_cnt);
@@ -443,18 +450,18 @@ int main(void)
       //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
 
       //p("tarVel X %+8.1f Y %+8.1f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
-      //p("local X %+8.1f Y %+8.1f ", target.local_velocity[0] * 1000, target.local_velocity[1] * 1000);
+      //p("local X %+8.1f Y %+8.1f ", target.local_vel[0] * 1000, target.local_vel[1] * 1000);
       //
-      //p("tar-c %+8.1f %+8.1f ", target.local_velocity_current[0] * 1000, target.local_velocity_current[1] * 1000);
+      //p("tar-c %+8.1f %+8.1f ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
       //p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
-      //p("out local-c %+8.1f %+8.1f ", output.local_velocity_current[0] * 1000, output.local_velocity_current[1] * 1000);
+      //p("out local-c %+8.1f %+8.1f ", output.global_vel_now[0] * 1000, output.global_vel_now[1] * 1000);
 
       //p("Raw %02x %02x %02x %02x ", data_from_cm4[10], data_from_cm4[11], data_from_cm4[12], data_from_cm4[13]);
       //p("%02x %02x %02x %02x ", data_from_cm4[23], data_from_cm4[24], data_from_cm4[25], data_from_cm4[26]);
       //p("txRaw %6.3f", imu.yaw_angle - ai_cmd.global_vision_theta);
 
       if (debug.main_loop_cnt < 100000) {
-        p("loop %6d", debug.main_loop_cnt);
+        p("loop %6d", debug.main_loop_cnt / 10);
       }
       p("\n");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
@@ -517,7 +524,7 @@ void SystemClock_Config(void)
 void resetLocalSpeedControl()
 {
   for (int i = 0; i < 2; i++) {
-    target.position[i] = omni.odom[i];
+    target.global_pos[i] = omni.odom[i];
     ai_cmd.local_target_speed[i] = 0;
   }
 }
@@ -688,7 +695,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // interrupt : 500Hz
   static uint16_t cnt_time_50Hz;
   cnt_time_50Hz++;
-  if (cnt_time_50Hz > 10) {
+  if (cnt_time_50Hz >= 10) {
     cnt_time_50Hz = 0;
 
     debug.print_flag = true;
@@ -767,86 +774,111 @@ void theta_control(float target_theta)
 
 void speed_control()
 {
-  static float diff_local[2] = {0, 0};
-
-  target.local_velocity[0] = target.velocity[0];
-  target.local_velocity[1] = target.velocity[1];
+  target.local_vel[0] = target.velocity[0];
+  target.local_vel[1] = target.velocity[1];
 
   // 500Hz, m/s -> m / cycle
   for (int i = 0; i < 2; i++) {
     // 加速度制限
     output.accel_limit[i] = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-    if (target.local_velocity[i] < target.local_velocity_current[i] && i == 0) {  // バック時だけ加速度制限変更
+    if (target.local_vel[i] < target.local_vel_now[i] && i == 0) {  // バック時だけ加速度制限変更
       output.accel_limit[i] = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
     }
 
     // 減速方向は摩擦を使えるので制動力上げる
-    if (fabs(target.local_velocity[i]) < fabs(target.local_velocity_current[i])) {
-      output.accel_limit[i] *= 2;
+    if (fabs(target.local_vel[i]) < fabs(target.local_vel_now[i]) || target.local_vel[i] * target.local_vel_now[i] < 0) {
+      output.accel_limit[i] *= 1.2;
+    }
+
+    /*if (debug.acc_step_down_flag) {  // スリップ対策 (加速度指令クリア)
+      output.accel_limit[i] = 0;
+      //output.global_vel_now[i] = 0;
+    }*/
+
+    // 加速度→速度変換
+    if (target.local_vel[i] > target.local_vel_now[i]) {
+      // 加速方向が正
+      if (omni.robot_pos_diff[i] > 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
+        output.accel_limit[i] *= 3.0;
+      }
+      // 加速度に応じて目標速度を更新
+      if (target.local_vel_now[i] + output.accel_limit[i] > target.local_vel[i]) {
+        target.local_vel_now[i] = target.local_vel[i];
+        output.accel[i] = 0;
+      } else {
+        target.local_vel_now[i] += output.accel_limit[i];
+        output.accel[i] = +output.accel_limit[i];
+      }
+    } else if (target.local_vel[i] < target.local_vel_now[i]) {
+      // 加速方向が負
+      if (omni.robot_pos_diff[i] < 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
+        output.accel_limit[i] *= 3.0;
+      }
+      // 加速度に応じて目標速度を更新
+      if (target.local_vel_now[i] - output.accel_limit[i] < target.local_vel[i]) {
+        target.local_vel_now[i] = target.local_vel[i];
+        output.accel[i] = 0;
+      } else {
+        target.local_vel_now[i] -= output.accel_limit[i];
+        output.accel[i] = -output.accel_limit[i];
+      }
+    } else {
+      //target.local_vel_now[i] == target.local_vel[i]
+      output.accel[i] = 0;
     }
 
     // 目標移動位置を追い越してしまっている場合、目標移動位置側を追従させる。
     // 速度ではないのはノイズが多いから
     // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
     // local_velocityに対して追従するlocal_velocity_currentの追従を早める
-    if (diff_local[i] > 0 && target.local_velocity[i] > 0) {
-      output.accel_limit[i] *= 5;
-    }
-    if (diff_local[i] < 0 && target.local_velocity[i] < 0) {
-      output.accel_limit[i] *= 5;
-    }
-
-    /*if (debug.acc_step_down_flag) {  // スリップ対策 (加速度指令クリア)
-      output.accel_limit[i] = 0;
-      //output.local_velocity_current[i] = 0;
+    /*if (omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) {
+      //target.local_vel_now[i] +=
+      output.accel[i] *= 2;
+    } else if (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0) {
+      //target.local_vel_now[i] += output.accel[i];
+      output.accel[i] *= 2;
     }*/
-
-    // 加速度→速度変換
-    if (target.local_velocity[i] >= target.local_velocity_current[i]) {
-      if (target.local_velocity_current[i] + output.accel_limit[i] > target.local_velocity[i]) {
-        target.local_velocity_current[i] = target.local_velocity[i];
-      } else {
-        target.local_velocity_current[i] += output.accel_limit[i];
-      }
-    } else {
-      if (target.local_velocity_current[i] - output.accel_limit[i] < target.local_velocity[i]) {
-        target.local_velocity_current[i] = target.local_velocity[i];
-      } else {
-        target.local_velocity_current[i] -= output.accel_limit[i];
-      }
-    }
   }
 
   // ローカル→グローバル座標系
-  output.local_velocity_current[0] = target.local_velocity_current[0] * cos(imu.yaw_angle_rad) - target.local_velocity_current[1] * sin(imu.yaw_angle_rad);
-  output.local_velocity_current[1] = target.local_velocity_current[0] * sin(imu.yaw_angle_rad) + target.local_velocity_current[1] * cos(imu.yaw_angle_rad);
-  target.position[0] += output.local_velocity_current[0] / MAIN_LOOP_CYCLE;  // speed to position
-  target.position[1] += output.local_velocity_current[1] / MAIN_LOOP_CYCLE;  // speed to position
+  output.global_vel_now[0] = (target.local_vel_now[0]) * cos(imu.yaw_angle_rad) - (target.local_vel_now[1]) * sin(imu.yaw_angle_rad);
+  output.global_vel_now[1] = (target.local_vel_now[0]) * sin(imu.yaw_angle_rad) + (target.local_vel_now[1]) * cos(imu.yaw_angle_rad);
+  target.global_pos[0] += output.global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
+  target.global_pos[1] += output.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
 
   // ここから位置制御
   for (int i = 0; i < 2; i++) {
     // targetとodomの差分に上限をつける(吹っ飛び対策)
     // 出力が上限に張り付いたら、出力制限でそれ以上の加速度は出しようがないのでそれに合わせる
     float odom_diff_max = (float)OUTPUT_XY_LIMIT / OMNI_OUTPUT_GAIN_KP;
-    if (target.position[i] - omni.odom[i] > odom_diff_max) {
-      target.position[i] = omni.odom[i] + odom_diff_max;
-    } else if (target.position[i] - omni.odom[i] < -odom_diff_max) {
-      target.position[i] = omni.odom[i] - odom_diff_max;
+    if (target.global_pos[i] - omni.odom[i] > odom_diff_max) {
+      target.global_pos[i] = omni.odom[i] + odom_diff_max;
+    } else if (target.global_pos[i] - omni.odom[i] < -odom_diff_max) {
+      target.global_pos[i] = omni.odom[i] - odom_diff_max;
     }
 
     // odom基準の絶対座標系
-    omni.odom_floor_diff[i] = omni.odom[i] - target.position[i];
+    omni.global_odom_diff[i] = omni.odom[i] - target.global_pos[i];
+
+    // 速度に対する応答性を稼ぐ
+    target.local_vel_ff_factor[i] = target.local_vel[i] - omni.local_odom_speed_mvf[i];
+    if (target.local_vel_ff_factor[i] > FF_TARGET_FINAL_DIFF_LIMIT) {
+      target.local_vel_ff_factor[i] = FF_TARGET_FINAL_DIFF_LIMIT;
+    } else if (target.local_vel_ff_factor[i] < -FF_TARGET_FINAL_DIFF_LIMIT) {
+      target.local_vel_ff_factor[i] = -FF_TARGET_FINAL_DIFF_LIMIT;
+    }
   }
 
   // グローバル→ローカル座標系
-  omni.robot_pos_diff[0] = omni.odom_floor_diff[0] * cos(-imu.yaw_angle_rad) - omni.odom_floor_diff[1] * sin(-imu.yaw_angle_rad);
-  omni.robot_pos_diff[1] = omni.odom_floor_diff[0] * sin(-imu.yaw_angle_rad) + omni.odom_floor_diff[1] * cos(-imu.yaw_angle_rad);
+  omni.robot_pos_diff[0] = omni.global_odom_diff[0] * cos(-imu.yaw_angle_rad) - omni.global_odom_diff[1] * sin(-imu.yaw_angle_rad);
+  omni.robot_pos_diff[1] = omni.global_odom_diff[0] * sin(-imu.yaw_angle_rad) + omni.global_odom_diff[1] * cos(-imu.yaw_angle_rad);
 
-  diff_local[0] = omni.robot_pos_diff[0];
-  diff_local[1] = omni.robot_pos_diff[1];
+  // local_vel_ff_factorに含まれるので要らなくなった
+  /*- omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
+  /*- omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD */
 
-  output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[0] * OMNI_OUTPUT_GAIN_FF;
-  output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP - omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD + target.local_velocity[1] * OMNI_OUTPUT_GAIN_FF;
+  output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP + target.local_vel_now[0] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
+  output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP + target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
 }
 
 void output_limit()

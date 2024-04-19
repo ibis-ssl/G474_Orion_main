@@ -101,10 +101,11 @@ typedef struct
 
 typedef struct
 {
-  float position[2];                // X,Y
-  float velocity[2];                // m/s 速度指令値の入力
-  float local_velocity[2];          // m/s
-  float local_velocity_current[2];  // 現在の
+  float global_pos[2];           // X,Y
+  float velocity[2];             // m/s 速度指令値の入力
+  float local_vel[2];            // m/s
+  float local_vel_now[2];        // 台形制御指令値
+  float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
 } target_t;
 
 typedef struct
@@ -123,7 +124,7 @@ typedef struct
 typedef struct
 {
   float travel_distance[2];
-  float odom_floor_diff[2], robot_pos_diff[2];
+  float global_odom_diff[2], robot_pos_diff[2];
   float odom[2], pre_odom[2], odom_raw[2];
   float odom_speed[2];
   float local_odom_speed[2];
@@ -147,9 +148,9 @@ typedef struct
 typedef struct
 {
   volatile float velocity[2];
-  volatile float local_velocity_current[2];
+  volatile float global_vel_now[2];
   volatile float omega;
-  volatile float accel_limit[2];
+  volatile float accel_limit[2], accel[2];
   volatile float motor_voltage[4];
 } output_t;
 
