@@ -57,11 +57,14 @@
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (20)           //
-#define OMNI_OUTPUT_GAIN_KP (150 * 0.5)  // ~ m/s / m : -250 -> 4cm : 1m/s
+#define OMNI_OUTPUT_LIMIT (20)     //
+#define OMNI_OUTPUT_GAIN_KP (150)  // ~ m/s / m : -250 -> 4cm : 1m/s
+//#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
 #define OMNI_OUTPUT_GAIN_KD (2)
-#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.0 * 0.5)
-#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0 * 0.5)
+#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.0)
+//#define OMNI_OUTPUT_GAIN_KD (0)
+//#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (0)
+#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0)
 #define FF_TARGET_FINAL_DIFF_LIMIT (1.0)
 
 #define OUTPUT_XY_LIMIT (10)  //
@@ -70,8 +73,8 @@
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (5.0)       // m/ss
-#define ACCEL_LIMIT_BACK (3.0)  // m/ss
+#define ACCEL_LIMIT (2.0)       // m/ss
+#define ACCEL_LIMIT_BACK (2.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
 #define LOW_VOLTAGE_LIMIT (22.0)
@@ -123,8 +126,8 @@ struct
   volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_toral_spin, true_yaw_speed, limited_output;
   volatile bool print_flag, acc_step_down_flag, theta_override_flag;
-  volatile bool latency_check_mode;
-  volatile int latency_check_mode_cnt;
+  volatile bool latency_check_enabled;
+  volatile int latency_check_seq_cnt;
   volatile float rotation_target_theta;
 } debug;
 
@@ -430,7 +433,7 @@ int main(void)
           break;
         case 7:
           p("LATENCY ");
-          p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(sys.sw_data), debug.latency_check_mode, debug.latency_check_mode_cnt, debug.rotation_target_theta,
+          p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(sys.sw_data), debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
         default:
@@ -438,32 +441,10 @@ int main(void)
           break;
       }
 
-      //p("tarPos X %+8.3f Y %+8.3f ", target.global_pos[0] * 1000, target.global_pos[1] * 1000);
-
-      //p("raw X %+8.3f Y %+8.3f  ", omni.odom_raw[0] * 1000, omni.odom_raw[1] * 1000);
-      //p("spd X %+8.3f Y %+8.3f  ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
-      //p("log X %+6.1f Y %+6.1f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
-      //p("cycle %6d ", connection.vision_update_cycle_cnt);
-
-      //p("TarDst %6.1f MvDst %6.1f", integ.targed_dist_diff, integ.move_dist);
-
-      //p("output x %+6.2f y %+6.2f ", output.velocity[0], output.velocity[1]);
-
-      //p("tarVel X %+8.1f Y %+8.1f ", target.velocity[0] * 1000, target.velocity[1] * 1000);
-      //p("local X %+8.1f Y %+8.1f ", target.local_vel[0] * 1000, target.local_vel[1] * 1000);
-      //
-      //p("tar-c %+8.1f %+8.1f ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
-      //p("limitX %+8.1f, limitY %+8.1f", output.accel_limit[0] * MAIN_LOOP_CYCLE * 50, output.accel_limit[1] * MAIN_LOOP_CYCLE * 50 + 10);
-      //p("out local-c %+8.1f %+8.1f ", output.global_vel_now[0] * 1000, output.global_vel_now[1] * 1000);
-
-      //p("Raw %02x %02x %02x %02x ", data_from_cm4[10], data_from_cm4[11], data_from_cm4[12], data_from_cm4[13]);
-      //p("%02x %02x %02x %02x ", data_from_cm4[23], data_from_cm4[24], data_from_cm4[25], data_from_cm4[26]);
-      //p("txRaw %6.3f", imu.yaw_angle - ai_cmd.global_vision_theta);
-
       if (debug.main_loop_cnt < 100000) {
         p("loop %6d", debug.main_loop_cnt / 10);
       }
-      p("\n");
+      p("\n\r");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
 
       debug.main_loop_cnt = 0;
@@ -748,8 +729,9 @@ void yawFilter()
     // デバッグ用、targetへ補正する
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
 
-  } else if (ai_cmd.vision_lost_flag) {
+  } else if (ai_cmd.vision_lost_flag || debug.latency_check_enabled) {
     // VisionLost時は補正しない
+    // レイテンシチェック中(一定速度での旋回中)は相補フィルタ切る
 
   } else {
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
@@ -799,7 +781,7 @@ void speed_control()
     if (target.local_vel[i] > target.local_vel_now[i]) {
       // 加速方向が正
       if (omni.robot_pos_diff[i] > 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
-        output.accel_limit[i] *= 3.0;
+        output.accel_limit[i] *= 2.0;
       }
       // 加速度に応じて目標速度を更新
       if (target.local_vel_now[i] + output.accel_limit[i] > target.local_vel[i]) {
@@ -812,7 +794,7 @@ void speed_control()
     } else if (target.local_vel[i] < target.local_vel_now[i]) {
       // 加速方向が負
       if (omni.robot_pos_diff[i] < 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
-        output.accel_limit[i] *= 3.0;
+        output.accel_limit[i] *= 2.0;
       }
       // 加速度に応じて目標速度を更新
       if (target.local_vel_now[i] - output.accel_limit[i] < target.local_vel[i]) {
@@ -832,11 +814,9 @@ void speed_control()
     // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
     // local_velocityに対して追従するlocal_velocity_currentの追従を早める
     /*if (omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) {
-      //target.local_vel_now[i] +=
-      output.accel[i] *= 2;
+      target.local_vel_now[i] += output.accel[i];
     } else if (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0) {
-      //target.local_vel_now[i] += output.accel[i];
-      output.accel[i] *= 2;
+      target.local_vel_now[i] += output.accel[i];
     }*/
   }
 
@@ -938,16 +918,16 @@ void slipDetection(void)
 
 void maintask_run()
 {
-  if (debug.latency_check_mode == false) {
+  if (debug.latency_check_enabled == false) {
     if (decode_SW(sys.sw_data) & 0b00000001) {
-      debug.latency_check_mode_cnt++;
-      if (debug.latency_check_mode_cnt > 1000) {
-        debug.latency_check_mode = true;
-        debug.latency_check_mode_cnt = MAIN_LOOP_CYCLE * 10;
+      debug.latency_check_seq_cnt++;
+      if (debug.latency_check_seq_cnt > 1000) {
+        debug.latency_check_enabled = true;
+        debug.latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
         debug.rotation_target_theta = imu.yaw_angle;
       }
     } else {
-      debug.latency_check_mode_cnt = 0;
+      debug.latency_check_seq_cnt = 0;
     }
   }
 
@@ -1005,11 +985,11 @@ void maintask_run()
   }
   speed_control();
   output_limit();
-  if (debug.latency_check_mode) {
-    if (debug.latency_check_mode_cnt > 0) {
-      debug.latency_check_mode_cnt--;
+  if (debug.latency_check_enabled) {
+    if (debug.latency_check_seq_cnt > 0) {
+      debug.latency_check_seq_cnt--;
     } else {
-      debug.latency_check_mode = false;
+      debug.latency_check_enabled = false;
       // complete!!
     }
     debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
