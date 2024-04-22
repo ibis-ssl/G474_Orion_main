@@ -110,6 +110,12 @@ typedef struct
 
 typedef struct
 {
+  float vel_error_xy[2];
+  float vel_error_scalar, vel_error_rad;
+} accel_vector_t;
+
+typedef struct
+{
   float velocity[2];
   float raw_odom[2];
   float floor_odom[2];

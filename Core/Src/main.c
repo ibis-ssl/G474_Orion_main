@@ -73,8 +73,8 @@
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (2.0)       // m/ss
-#define ACCEL_LIMIT_BACK (2.0)  // m/ss
+#define ACCEL_LIMIT (5.0)       // m/ss
+#define ACCEL_LIMIT_BACK (3.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
 #define LOW_VOLTAGE_LIMIT (22.0)
@@ -111,6 +111,7 @@ motor_t motor;
 connection_t connection;
 system_t sys;
 integration_control_t integ;
+accel_vector_t acc_vel;
 
 UART_HandleTypeDef * huart_xprintf;
 
@@ -413,13 +414,15 @@ int main(void)
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_pos[0] * 1000, target.global_pos[1] * 1000);
-          p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
+          p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
+          p("vel-now %+5.2f, %+5.2f, ", target.local_vel_now[0], target.local_vel_now[1]);
+          p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
+          //p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
           p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000, output.accel[1] * 1000);
-          p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
+          //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
           p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
-          p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
-          p("POS %+5.1f FF-N %+5.1f FF-T %+5.1f", -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP, target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW,
-            target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);
+          /*p("POS %+5.1f FF-N %+5.1f FF-T %+5.1f", -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP, target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW,
+            target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);*/
 
           break;
         case 6:
@@ -754,70 +757,124 @@ void theta_control(float target_theta)
   //output.omega = 0;
 }
 
-void speed_control()
+void accel_control()
 {
   target.local_vel[0] = target.velocity[0];
   target.local_vel[1] = target.velocity[1];
 
+  // XY -> rad/scalarに変換
+
+  for (int i = 0; i < 2; i++) {
+    acc_vel.vel_error_xy[i] = target.local_vel[i] - target.local_vel_now[i];
+  }
+  acc_vel.vel_error_scalar = pow(pow(acc_vel.vel_error_xy[0], 2) + pow(acc_vel.vel_error_xy[1], 2), 0.5);
+  if (acc_vel.vel_error_xy[0] != 0 || acc_vel.vel_error_xy[1] != 0) {
+    acc_vel.vel_error_rad = atan2(acc_vel.vel_error_xy[1], acc_vel.vel_error_xy[0]);
+  }
+
+  // 目標速度と差が小さい場合は目標速度をそのまま代入する
+  // 目標速度が連続的に変化する場合に適切でないかも
+  if (acc_vel.vel_error_scalar < ACCEL_LIMIT / MAIN_LOOP_CYCLE) {
+    target.local_vel_now[0] = target.local_vel[0];
+    target.local_vel_now[1] = target.local_vel[1];
+    output.accel[0] = 0;
+    output.accel[1] = 0;
+    return;
+  }
+
+  // スカラは使わず、常に最大加速度
+  output.accel[0] = cos(acc_vel.vel_error_rad) * ACCEL_LIMIT / MAIN_LOOP_CYCLE;
+  output.accel[1] = sin(acc_vel.vel_error_rad) * ACCEL_LIMIT / MAIN_LOOP_CYCLE;
+
+  // バック方向だけ加速度制限
+  if (output.accel[0] < -(ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE)) {
+    output.accel[0] = -(ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE);
+  }
+
+  // 減速方向は制動力2倍
+  for (int i = 0; i < 2; i++) {
+    if (target.local_vel_now[i] * output.accel[i] < 0) {
+      output.accel[i] *= 2;
+    }
+
+    // 目標座標を追い越した場合、加速度を2倍にして追従
+    if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
+      output.accel[i] *= 2;
+    }
+  }
+}
+
+void speed_control()
+{
+  //target.local_vel[0] = target.velocity[0];
+  //target.local_vel[1] = target.velocity[1];
+
   // 500Hz, m/s -> m / cycle
   for (int i = 0; i < 2; i++) {
     // 加速度制限
-    output.accel_limit[i] = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-    if (target.local_vel[i] < target.local_vel_now[i] && i == 0) {  // バック時だけ加速度制限変更
+    //output.accel_limit[i] = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
+    /*if (target.local_vel[i] < target.local_vel_now[i] && i == 0) {  // バック時だけ加速度制限変更
       output.accel_limit[i] = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
-    }
+    }*/
 
     // 減速方向は摩擦を使えるので制動力上げる
-    if (fabs(target.local_vel[i]) < fabs(target.local_vel_now[i]) || target.local_vel[i] * target.local_vel_now[i] < 0) {
+    /*if (fabs(target.local_vel[i]) < fabs(target.local_vel_now[i]) || target.local_vel[i] * target.local_vel_now[i] < 0) {
       output.accel_limit[i] *= 1.2;
-    }
+    }*/
 
     /*if (debug.acc_step_down_flag) {  // スリップ対策 (加速度指令クリア)
       output.accel_limit[i] = 0;
       //output.global_vel_now[i] = 0;
     }*/
 
-    // 加速度→速度変換
+    /*
+
+    // 現在速度 & 加速度制限 -> 加速度 変換
     if (target.local_vel[i] > target.local_vel_now[i]) {
       // 加速方向が正
-      if (omni.robot_pos_diff[i] > 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
-        output.accel_limit[i] *= 2.0;
-      }
-      // 加速度に応じて目標速度を更新
+
       if (target.local_vel_now[i] + output.accel_limit[i] > target.local_vel[i]) {
-        target.local_vel_now[i] = target.local_vel[i];
+        //target.local_vel_now[i] = target.local_vel[i];
+        // 正確には0じゃないけど1cycleなので無視する
         output.accel[i] = 0;
       } else {
-        target.local_vel_now[i] += output.accel_limit[i];
+        //target.local_vel_now[i] += output.accel_limit[i];
         output.accel[i] = +output.accel_limit[i];
       }
+
+      if (omni.robot_pos_diff[i] > 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
+        output.accel[i] *= 2.0;
+      }
+
     } else if (target.local_vel[i] < target.local_vel_now[i]) {
       // 加速方向が負
-      if (omni.robot_pos_diff[i] < 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
-        output.accel_limit[i] *= 2.0;
-      }
-      // 加速度に応じて目標速度を更新
+
       if (target.local_vel_now[i] - output.accel_limit[i] < target.local_vel[i]) {
-        target.local_vel_now[i] = target.local_vel[i];
+        //target.local_vel_now[i] = target.local_vel[i];
         output.accel[i] = 0;
+        // 正確には0じゃないけど1cycleなので無視する
       } else {
-        target.local_vel_now[i] -= output.accel_limit[i];
+        //target.local_vel_now[i] -= output.accel_limit[i];
         output.accel[i] = -output.accel_limit[i];
+      }
+
+      if (omni.robot_pos_diff[i] < 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
+        output.accel[i] *= 2.0;
       }
     } else {
       //target.local_vel_now[i] == target.local_vel[i]
       output.accel[i] = 0;
     }
+    */
+    //デバッグ用に加速度代入しない
+    //    output.global_vel_now[i] += output.accel[i];
 
     // 目標移動位置を追い越してしまっている場合、目標移動位置側を追従させる。
     // 速度ではないのはノイズが多いから
     // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
     // local_velocityに対して追従するlocal_velocity_currentの追従を早める
-    /*if (omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) {
-      target.local_vel_now[i] += output.accel[i];
-    } else if (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0) {
-      target.local_vel_now[i] += output.accel[i];
-    }*/
+
+    target.local_vel_now[i] += output.accel[i];
   }
 
   // ローカル→グローバル座標系
@@ -983,6 +1040,7 @@ void maintask_run()
     target.velocity[0] = 0;
     target.velocity[1] = 0;
   }
+  accel_control();
   speed_control();
   output_limit();
   if (debug.latency_check_enabled) {
