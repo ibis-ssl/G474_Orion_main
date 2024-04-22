@@ -101,11 +101,12 @@ typedef struct
 
 typedef struct
 {
-  float global_pos[2];           // X,Y
   float velocity[2];             // m/s 速度指令値の入力
-  float local_vel[2];            // m/s
+  float local_vel[2];            // m/s 上記とほぼ同じ
   float local_vel_now[2];        // 台形制御指令値
   float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
+  float global_vel_now[2];       // ターゲットグローバル速度
+  float global_pos[2];           // 上記で移動するX,Y座標
 } target_t;
 
 typedef struct
@@ -154,9 +155,8 @@ typedef struct
 typedef struct
 {
   volatile float velocity[2];
-  volatile float global_vel_now[2];
   volatile float omega;
-  volatile float accel_limit[2], accel[2];
+  volatile float accel[2];
   volatile float motor_voltage[4];
 } output_t;
 

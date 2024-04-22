@@ -797,7 +797,7 @@ void accel_control()
       output.accel[i] *= 2;
     }
 
-    // 目標座標を追い越した場合、加速度を2倍にして追従
+    // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
     if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
       output.accel[i] *= 2;
     }
@@ -811,77 +811,14 @@ void speed_control()
 
   // 500Hz, m/s -> m / cycle
   for (int i = 0; i < 2; i++) {
-    // 加速度制限
-    //output.accel_limit[i] = ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-    /*if (target.local_vel[i] < target.local_vel_now[i] && i == 0) {  // バック時だけ加速度制限変更
-      output.accel_limit[i] = ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE;
-    }*/
-
-    // 減速方向は摩擦を使えるので制動力上げる
-    /*if (fabs(target.local_vel[i]) < fabs(target.local_vel_now[i]) || target.local_vel[i] * target.local_vel_now[i] < 0) {
-      output.accel_limit[i] *= 1.2;
-    }*/
-
-    /*if (debug.acc_step_down_flag) {  // スリップ対策 (加速度指令クリア)
-      output.accel_limit[i] = 0;
-      //output.global_vel_now[i] = 0;
-    }*/
-
-    /*
-
-    // 現在速度 & 加速度制限 -> 加速度 変換
-    if (target.local_vel[i] > target.local_vel_now[i]) {
-      // 加速方向が正
-
-      if (target.local_vel_now[i] + output.accel_limit[i] > target.local_vel[i]) {
-        //target.local_vel_now[i] = target.local_vel[i];
-        // 正確には0じゃないけど1cycleなので無視する
-        output.accel[i] = 0;
-      } else {
-        //target.local_vel_now[i] += output.accel_limit[i];
-        output.accel[i] = +output.accel_limit[i];
-      }
-
-      if (omni.robot_pos_diff[i] > 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
-        output.accel[i] *= 2.0;
-      }
-
-    } else if (target.local_vel[i] < target.local_vel_now[i]) {
-      // 加速方向が負
-
-      if (target.local_vel_now[i] - output.accel_limit[i] < target.local_vel[i]) {
-        //target.local_vel_now[i] = target.local_vel[i];
-        output.accel[i] = 0;
-        // 正確には0じゃないけど1cycleなので無視する
-      } else {
-        //target.local_vel_now[i] -= output.accel_limit[i];
-        output.accel[i] = -output.accel_limit[i];
-      }
-
-      if (omni.robot_pos_diff[i] < 0) {  // 目標座標を追い越してしまっている場合、加速度上限を上げて追従
-        output.accel[i] *= 2.0;
-      }
-    } else {
-      //target.local_vel_now[i] == target.local_vel[i]
-      output.accel[i] = 0;
-    }
-    */
-    //デバッグ用に加速度代入しない
-    //    output.global_vel_now[i] += output.accel[i];
-
-    // 目標移動位置を追い越してしまっている場合、目標移動位置側を追従させる。
-    // 速度ではないのはノイズが多いから
-    // ノイズ対策であまりodom情報でアップデートはできないが、最大加速度側を増やして追従する
-    // local_velocityに対して追従するlocal_velocity_currentの追従を早める
-
     target.local_vel_now[i] += output.accel[i];
   }
 
   // ローカル→グローバル座標系
-  output.global_vel_now[0] = (target.local_vel_now[0]) * cos(imu.yaw_angle_rad) - (target.local_vel_now[1]) * sin(imu.yaw_angle_rad);
-  output.global_vel_now[1] = (target.local_vel_now[0]) * sin(imu.yaw_angle_rad) + (target.local_vel_now[1]) * cos(imu.yaw_angle_rad);
-  target.global_pos[0] += output.global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
-  target.global_pos[1] += output.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
+  target.global_vel_now[0] = (target.local_vel_now[0]) * cos(imu.yaw_angle_rad) - (target.local_vel_now[1]) * sin(imu.yaw_angle_rad);
+  target.global_vel_now[1] = (target.local_vel_now[0]) * sin(imu.yaw_angle_rad) + (target.local_vel_now[1]) * cos(imu.yaw_angle_rad);
+  target.global_pos[0] += target.global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
+  target.global_pos[1] += target.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
 
   // ここから位置制御
   for (int i = 0; i < 2; i++) {
