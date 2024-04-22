@@ -58,6 +58,14 @@ extern float32_t motor_voltage[4];
 #define FLAG_ENABLE_LOCAL_VISION (0x08)
 #define FLAG_DRIBBLER_UP (0x10)
 
+enum {
+  BOARD_ID_POWER = 0,
+  BOARD_ID_MOTOR_RIGHT,
+  BOARD_ID_MOTOR_LEFT,
+  BOARD_ID_SUB,
+  BOARD_ID_MAX,
+};
+
 typedef struct
 {
   float yaw_angle, pre_yaw_angle;
@@ -73,6 +81,7 @@ typedef struct
   float temperature[7];
   float current[5];
   uint8_t ball_detection[4];
+  uint32_t board_rx_timeout[BOARD_ID_MAX];
 } can_raw_t;
 
 typedef struct

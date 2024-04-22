@@ -58,12 +58,9 @@
 /* USER CODE BEGIN PV */
 
 #define OMNI_OUTPUT_LIMIT (20)     //
-#define OMNI_OUTPUT_GAIN_KP (150)  // ~ m/s / m : -250 -> 4cm : 1m/s
-//#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
+#define OMNI_OUTPUT_GAIN_KP (100)  // ~ m/s / m : -250 -> 4cm : 1m/s
 #define OMNI_OUTPUT_GAIN_KD (2)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.0)
-//#define OMNI_OUTPUT_GAIN_KD (0)
-//#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (0)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0)
 #define FF_TARGET_FINAL_DIFF_LIMIT (1.0)
 
@@ -513,6 +510,17 @@ void resetLocalSpeedControl()
   }
 }
 
+bool canRxTimeoutDetection()
+{
+  for (int i = 0; i < BOARD_ID_MAX; i++) {
+    can_raw.board_rx_timeout[i]++;
+    if (can_raw.board_rx_timeout[i] > 100) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
@@ -523,6 +531,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   static uint8_t pre_sw_mode, sw_mode;
   pre_sw_mode = sw_mode;
   sw_mode = getModeSwitch();
+
 
   if (sys.error_flag) {
     // 一定回数はリセットを許容する
@@ -549,7 +558,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     sys.main_mode = sw_mode;
   }
 
-  if (sys.system_time_ms < sys.stop_flag_request_time) {
+  if (sys.system_time_ms < sys.stop_flag_request_time || canRxTimeoutDetection()) {
     resetLocalSpeedControl();
     sys.stop_flag = true;
   } else {
@@ -798,8 +807,9 @@ void accel_control()
     }
 
     // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
+    // 現在座標も速度制御されたタイヤで見ているので、あまりｱﾃにならない
     if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
-      output.accel[i] *= 2;
+      output.accel[i] *= 1.5;
     }
   }
 }

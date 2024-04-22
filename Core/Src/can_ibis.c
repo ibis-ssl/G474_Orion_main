@@ -118,6 +118,11 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
         motor.enc_angle[rx_can_id - 0x200] = uchar4_to_float(&RxData[4]);
         can_raw.motor_feedback[rx_can_id - 0x200] = uchar4_to_float(RxData);
         can_raw.motor_feedback_velocity[rx_can_id - 0x200] = uchar4_to_float(RxData) * OMNI_DIAMETER * M_PI;
+        if (rx_can_id == 0x200 || rx_can_id == 0x201) {
+          can_raw.board_rx_timeout[BOARD_ID_MOTOR_RIGHT] = 0;
+        } else if (rx_can_id == 0x202 || rx_can_id == 0x203) {
+          can_raw.board_rx_timeout[BOARD_ID_MOTOR_LEFT] = 0;
+        }
         break;
       case 0x204:
         can_raw.motor_feedback_velocity[4] = uchar4_to_float(RxData);
@@ -132,6 +137,11 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
       case 0x215:  // battery
       case 0x216:  // capacitor
         can_raw.power_voltage[rx_can_id - 0x210] = uchar4_to_float(RxData);
+        if (rx_can_id == 0x215) {
+          can_raw.board_rx_timeout[BOARD_ID_POWER] = 0;
+        } else if (rx_can_id == 0x214) {
+          can_raw.board_rx_timeout[BOARD_ID_SUB] = 0;
+        }
         break;
 
       // can_raw.temperature from BLDC
