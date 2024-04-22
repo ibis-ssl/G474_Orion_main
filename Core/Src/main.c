@@ -289,8 +289,9 @@ int main(void)
 
   actuator_power_ONOFF(1);
 
-  sys.system_time_ms = 0;
-  sys.stop_flag_request_time = 1000;  // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
+  sys.system_time_ms = 1000;                               //
+  sys.stop_flag_request_time = sys.system_time_ms + 1000;  // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
+  connection.already_connected_ai = false;
   HAL_Delay(100);
   HAL_TIM_Base_Start_IT(&htim7);
   // TIM interrupt is TIM7 only.
@@ -408,6 +409,7 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
+          p("sys%8d con%8d %d %d ", sys.system_time_ms, connection.latest_ai_cmd_update_time, connection.connected_ai, connection.already_connected_ai);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_pos[0] * 1000, target.global_pos[1] * 1000);
@@ -577,7 +579,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
     case MAIN_MODE_SPEED_CONTROL_ONLY:   // ローカル統合制御なし
-      if (connection.connected_ai == false || sys.stop_flag) {
+      if (/*connection.connected_ai == false || */ sys.stop_flag) {
         maintask_stop();
       } else {
         maintask_run();
@@ -649,7 +651,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_buzzer_off();
       }
     }
-  } else if (sys.stop_flag) {  // ストップ時
+  } else if (!connection.connected_ai && connection.already_connected_ai) {  // AI通信切断時
+    buzzer_cnt++;
+    if (buzzer_cnt > 100) {
+      buzzer_cnt = 0;
+      if (buzzer_state == false) {
+        buzzer_state = true;
+        actuator_buzzer_frq_on(500 + buzzer_frq_offset);
+        buzzer_frq_offset += 100;
+        if (buzzer_frq_offset > 300) {
+          buzzer_frq_offset = 0;
+        }
+      } else {
+        buzzer_state = false;
+        actuator_buzzer_off();
+      }
+    }
+  } else if (canRxTimeoutDetection()) {  // 内部通信切断時
     buzzer_cnt++;
     if (buzzer_cnt > 200) {
       buzzer_cnt = 0;
@@ -674,6 +692,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   if (sys.system_time_ms - connection.latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイムアウト
     connection.connected_ai = true;
+    connection.already_connected_ai = true;
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
 
