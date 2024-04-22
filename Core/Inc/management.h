@@ -58,6 +58,14 @@ extern float32_t motor_voltage[4];
 #define FLAG_ENABLE_LOCAL_VISION (0x08)
 #define FLAG_DRIBBLER_UP (0x10)
 
+enum {
+  BOARD_ID_POWER = 0,
+  BOARD_ID_MOTOR_RIGHT,
+  BOARD_ID_MOTOR_LEFT,
+  BOARD_ID_SUB,
+  BOARD_ID_MAX,
+};
+
 typedef struct
 {
   float yaw_angle, pre_yaw_angle;
@@ -73,6 +81,7 @@ typedef struct
   float temperature[7];
   float current[5];
   uint8_t ball_detection[4];
+  uint32_t board_rx_timeout[BOARD_ID_MAX];
 } can_raw_t;
 
 typedef struct
@@ -101,12 +110,19 @@ typedef struct
 
 typedef struct
 {
-  float global_pos[2];           // X,Y
   float velocity[2];             // m/s 速度指令値の入力
-  float local_vel[2];            // m/s
+  float local_vel[2];            // m/s 上記とほぼ同じ
   float local_vel_now[2];        // 台形制御指令値
   float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
+  float global_vel_now[2];       // ターゲットグローバル速度
+  float global_pos[2];           // 上記で移動するX,Y座標
 } target_t;
+
+typedef struct
+{
+  float vel_error_xy[2];
+  float vel_error_scalar, vel_error_rad;
+} accel_vector_t;
 
 typedef struct
 {
@@ -148,9 +164,8 @@ typedef struct
 typedef struct
 {
   volatile float velocity[2];
-  volatile float global_vel_now[2];
   volatile float omega;
-  volatile float accel_limit[2], accel[2];
+  volatile float accel[2];
   volatile float motor_voltage[4];
 } output_t;
 
