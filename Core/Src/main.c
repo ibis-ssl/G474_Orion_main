@@ -532,7 +532,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   pre_sw_mode = sw_mode;
   sw_mode = getModeSwitch();
 
-
   if (sys.error_flag) {
     // 一定回数はリセットを許容する
     if (sys.error_id < 4 && sys.error_info == BLDC_ERROR_OVER_CURRENT && sys.error_resume_cnt < 10) {
@@ -623,28 +622,44 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
   }
 
-  // 低電圧時ブザー
   static bool buzzer_state = false;
-  static uint32_t buzzer_cnt = 0;
-  if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT && can_raw.power_voltage[5] != 0.0) {
+  static uint32_t buzzer_cnt = 0, buzzer_frq_offset = 0;
+  // 電圧受信できてない時に低電圧エラー鳴るとウザいので消す
+  if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT && can_raw.power_voltage[5] != 0.0) {  // 低電圧時
     buzzer_cnt++;
     if (buzzer_cnt > 100) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
         buzzer_state = true;
-        actuator_buzzer_on();
+        actuator_buzzer_frq_on(2000);
       } else {
         buzzer_state = false;
         actuator_buzzer_off();
       }
     }
-  } else if (sys.error_flag) {
+  } else if (sys.error_flag) {  // エラー時
     buzzer_cnt++;
     if (buzzer_cnt > 20) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
         buzzer_state = true;
-        actuator_buzzer_on();
+        actuator_buzzer_frq_on(2200);
+      } else {
+        buzzer_state = false;
+        actuator_buzzer_off();
+      }
+    }
+  } else if (sys.stop_flag) {  // ストップ時
+    buzzer_cnt++;
+    if (buzzer_cnt > 200) {
+      buzzer_cnt = 0;
+      if (buzzer_state == false) {
+        buzzer_state = true;
+        actuator_buzzer_frq_on(500 + buzzer_frq_offset);
+        buzzer_frq_offset += 100;
+        if (buzzer_frq_offset > 300) {
+          buzzer_frq_offset = 0;
+        }
       } else {
         buzzer_state = false;
         actuator_buzzer_off();
