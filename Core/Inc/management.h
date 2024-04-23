@@ -115,7 +115,7 @@ typedef struct
   float local_vel_now[2];        // 台形制御指令値
   float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
   float global_vel_now[2];       // ターゲットグローバル速度
-  float global_pos[2];           // 上記で移動するX,Y座標
+  //float global_pos[2];           // 上記で移動するX,Y座標
 } target_t;
 
 typedef struct
@@ -140,7 +140,7 @@ typedef struct
 typedef struct
 {
   float travel_distance[2];
-  float global_odom_diff[2], robot_pos_diff[2];
+  //float global_odom_diff[2], robot_pos_diff[2];
   float odom[2], pre_odom[2], odom_raw[2];
   float odom_speed[2];
   float local_odom_speed[2];

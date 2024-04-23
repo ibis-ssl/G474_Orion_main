@@ -57,7 +57,7 @@
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (20)     //
+#define OMNI_OUTPUT_LIMIT (20)   //
 #define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
 #define OMNI_OUTPUT_GAIN_KD (2.0)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.0)
@@ -507,7 +507,7 @@ void SystemClock_Config(void)
 void resetLocalSpeedControl()
 {
   for (int i = 0; i < 2; i++) {
-    target.global_pos[i] = omni.odom[i];
+    //target.global_pos[i] = omni.odom[i];
     ai_cmd.local_target_speed[i] = 0;
   }
 }
@@ -842,9 +842,9 @@ void accel_control()
 
     // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
     // 現在座標も速度制御されたタイヤで見ているので、あまりｱﾃにならない
-    if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
+    /*if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
       //output.accel[i] *= 1.5;
-    }
+    }*/
   }
 }
 
@@ -859,13 +859,20 @@ void speed_control()
   }
 
   // ローカル→グローバル座標系
-  target.global_vel_now[0] = (target.local_vel_now[0]) * cos(imu.yaw_angle_rad) - (target.local_vel_now[1]) * sin(imu.yaw_angle_rad);
-  target.global_vel_now[1] = (target.local_vel_now[0]) * sin(imu.yaw_angle_rad) + (target.local_vel_now[1]) * cos(imu.yaw_angle_rad);
-  target.global_pos[0] += target.global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
-  target.global_pos[1] += target.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
+  // ロボットが回転しても、慣性はグローバル座標系に乗るので、加速度はグローバル座標系に変換してから加算
+  target.global_vel_now[0] += (output.accel[0]) * cos(imu.yaw_angle_rad) - (output.accel[1]) * sin(imu.yaw_angle_rad);
+  target.global_vel_now[1] += (output.accel[0]) * sin(imu.yaw_angle_rad) + (output.accel[1]) * cos(imu.yaw_angle_rad);
+
+  // 次回の計算のためにローカル座標系での速度も更新
+  target.local_vel_now[0] = target.global_vel_now[0] * cos(-imu.yaw_angle_rad) - target.global_vel_now[1] * sin(-imu.yaw_angle_rad);
+  target.local_vel_now[1] = target.global_vel_now[0] * sin(-imu.yaw_angle_rad) + target.global_vel_now[1] * cos(-imu.yaw_angle_rad);
+
+  // 速度次元での位置フィードバックは不要になったので、global_posまわりは使わない
+  //target.global_pos[0] += target.global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
+  //target.global_pos[1] += target.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
 
   // ここから位置制御
-  for (int i = 0; i < 2; i++) {
+  /*for (int i = 0; i < 2; i++) {
     // targetとodomの差分に上限をつける(吹っ飛び対策)
     // 出力が上限に張り付いたら、出力制限でそれ以上の加速度は出しようがないのでそれに合わせる
     float odom_diff_max = (float)OUTPUT_XY_LIMIT / OMNI_OUTPUT_GAIN_KP;
@@ -874,7 +881,9 @@ void speed_control()
     } else if (target.global_pos[i] - omni.odom[i] < -odom_diff_max) {
       target.global_pos[i] = omni.odom[i] - odom_diff_max;
     }
+  }*/
 
+  /*
     // odom基準の絶対座標系
     omni.global_odom_diff[i] = omni.odom[i] - target.global_pos[i];
 
@@ -890,13 +899,17 @@ void speed_control()
   // グローバル→ローカル座標系
   omni.robot_pos_diff[0] = omni.global_odom_diff[0] * cos(-imu.yaw_angle_rad) - omni.global_odom_diff[1] * sin(-imu.yaw_angle_rad);
   omni.robot_pos_diff[1] = omni.global_odom_diff[0] * sin(-imu.yaw_angle_rad) + omni.global_odom_diff[1] * cos(-imu.yaw_angle_rad);
-
+*/
   // local_vel_ff_factorに含まれるので要らなくなった
   /*- omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
   /*- omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD */
 
-  output.velocity[0] = -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP + target.local_vel_now[0] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
-  output.velocity[1] = -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP + target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
+  // 位置フィードバックは速度指令にいれるので、速度制御には関与させない
+  /* -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP +*/
+  /*-omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP +*/
+
+  output.velocity[0] = target.local_vel_now[0] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
+  output.velocity[1] = target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
 }
 
 void output_limit()
