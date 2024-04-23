@@ -58,8 +58,8 @@
 /* USER CODE BEGIN PV */
 
 #define OMNI_OUTPUT_LIMIT (20)     //
-#define OMNI_OUTPUT_GAIN_KP (100)  // ~ m/s / m : -250 -> 4cm : 1m/s
-#define OMNI_OUTPUT_GAIN_KD (2)
+#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
+#define OMNI_OUTPUT_GAIN_KD (2.0)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.0)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0)
 #define FF_TARGET_FINAL_DIFF_LIMIT (1.0)
@@ -70,8 +70,8 @@
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (5.0)       // m/ss
-#define ACCEL_LIMIT_BACK (3.0)  // m/ss
+#define ACCEL_LIMIT (4.0)       // m/ss
+#define ACCEL_LIMIT_BACK (2.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
 #define LOW_VOLTAGE_LIMIT (22.0)
@@ -409,17 +409,17 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
-          p("sys%8d con%8d %d %d ", sys.system_time_ms, connection.latest_ai_cmd_update_time, connection.connected_ai, connection.already_connected_ai);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_pos[0] * 1000, target.global_pos[1] * 1000);
-          p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
-          p("vel-now %+5.2f, %+5.2f, ", target.local_vel_now[0], target.local_vel_now[1]);
-          p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
+          p("cmd-vel %+5.2f, %+5.2f, ", target.velocity[0] * 1000, target.velocity[1] * 1000);
+          p("vel-now %+5.2f, %+5.2f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
+          //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
+          //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
           //p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
-          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000, output.accel[1] * 1000);
+          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000 * MAIN_LOOP_CYCLE, output.accel[1] * 1000 * MAIN_LOOP_CYCLE);
           //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
-          p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+          //p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
           /*p("POS %+5.1f FF-N %+5.1f FF-T %+5.1f", -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP, target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW,
             target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);*/
 
@@ -843,7 +843,7 @@ void accel_control()
     // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
     // 現在座標も速度制御されたタイヤで見ているので、あまりｱﾃにならない
     if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
-      output.accel[i] *= 1.5;
+      //output.accel[i] *= 1.5;
     }
   }
 }
