@@ -40,8 +40,6 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   if (con->check_ver != con->check_pre) {
     con->latest_ai_cmd_update_time = sys->system_time_ms;
 
-    con->pre_vision_update_cycle_cnt = con->vision_update_cycle_cnt;
-    con->vision_update_cycle_cnt = 0;
 
     con->check_pre = con->check_ver;
   }
@@ -101,7 +99,10 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   } else {
     ai_cmd->vision_lost_flag = true;
   }
-
+  if (!ai_cmd->vision_lost_flag) {
+    con->vision_update_cycle_cnt = 0;
+  }
+  
   if ((ai_cmd->allow_local_flags & FLAG_ENABLE_LOCAL_VISION) != 0) {
     ai_cmd->local_vision_en_flag = true;
   } else {
@@ -125,10 +126,6 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   } else {
     ai_cmd->dribbler_up_flag = false;
   }
-
-  // 目標座標の移動量と更新時間から推測される区間速度
-  integ->guess_target_speed[0] = (float)(ai_cmd->global_target_position[0] - integ->pre_global_target_position[0]) / con->pre_vision_update_cycle_cnt;
-  integ->guess_target_speed[1] = (float)(ai_cmd->global_target_position[1] - integ->pre_global_target_position[1]) / con->pre_vision_update_cycle_cnt;
 }
 
 void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, ai_cmd_t * ai_cmd, connection_t * con)

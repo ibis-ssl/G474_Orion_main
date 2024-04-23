@@ -46,7 +46,7 @@ extern float32_t motor_voltage[4];
 #define RX_BUF_SIZE_ETHER 64
 #define TX_BUF_SIZE_ETHER 128
 
-// logging time : 0.5s -> 2s
+// logging time : 0.5s -> 2s : without vision mode
 #define SPEED_LOG_BUF_SIZE (MAIN_LOOP_CYCLE * 2)
 #define SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE (10)
 
@@ -155,7 +155,6 @@ typedef struct
   float vision_based_position[2];    // Visionによって更新された自己位置
   float position_diff[2];            // ai_cmdとvision_based_positionの差分
   float pre_global_target_position[2];
-  float guess_target_speed[2];  // targetSpeed + 位置制御の場合、使わんかも
   float move_dist;              // Visionとtargetが更新されてからの移動量
   float targed_dist_diff;       // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
@@ -178,7 +177,6 @@ typedef struct
   uint8_t check_ver;
   float cmd_rx_frq;
   uint32_t vision_update_cycle_cnt;
-  uint32_t pre_vision_update_cycle_cnt;
   uint32_t latest_ai_cmd_update_time;
   uint32_t latest_cm4_cmd_update_time;
 } connection_t;

@@ -57,12 +57,12 @@
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (20)   //
-#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
-#define OMNI_OUTPUT_GAIN_KD (2.0)
-#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.0)
-#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0)
-#define FF_TARGET_FINAL_DIFF_LIMIT (1.0)
+#define OMNI_OUTPUT_LIMIT (20)  //
+//#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
+//#define OMNI_OUTPUT_GAIN_KD (2.0)
+#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.2)
+#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0)  //2.0
+#define FF_TARGET_FINAL_DIFF_LIMIT (0.5)
 
 #define OUTPUT_XY_LIMIT (10)  //
 
@@ -70,8 +70,8 @@
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (4.0)       // m/ss
-#define ACCEL_LIMIT_BACK (2.0)  // m/ss
+#define ACCEL_LIMIT (5.0)       // m/ss
+#define ACCEL_LIMIT_BACK (3.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
 #define LOW_VOLTAGE_LIMIT (22.0)
@@ -411,17 +411,21 @@ int main(void)
           p("ODOM ");
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-          //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_pos[0] * 1000, target.global_pos[1] * 1000);
-          p("cmd-vel %+5.2f, %+5.2f, ", target.velocity[0] * 1000, target.velocity[1] * 1000);
-          p("vel-now %+5.2f, %+5.2f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
+          p("cnt %4d ", connection.vision_update_cycle_cnt);
+          p("integ %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
+          p("integ %+5.2f %+5.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
+          p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
+          p("cmd-vel %+5.2f, %+5.2f, ", target.velocity[0], target.velocity[1]);
+          p("vel-now %+5.2f, %+5.2f, ", target.local_vel_now[0], target.local_vel_now[1]);
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
           //p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
-          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000 * MAIN_LOOP_CYCLE, output.accel[1] * 1000 * MAIN_LOOP_CYCLE);
+          //p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000 * MAIN_LOOP_CYCLE, output.accel[1] * 1000 * MAIN_LOOP_CYCLE);
+          p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
+
           //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
-          //p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
-          /*p("POS %+5.1f FF-N %+5.1f FF-T %+5.1f", -omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP, target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW,
-            target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);*/
+          p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+          //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF, target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);
 
           break;
         case 6:
@@ -696,7 +700,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
 
-    if (connection.vision_update_cycle_cnt < MAIN_LOOP_CYCLE * 2) {
+    if (connection.vision_update_cycle_cnt < MAIN_LOOP_CYCLE * 10) {
       connection.vision_update_cycle_cnt++;
     }
 
@@ -705,7 +709,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     connection.cmd_rx_frq = 0;
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
     resetAiCmdData(&ai_cmd);
-    connection.vision_update_cycle_cnt = 0;
 
     sys.stop_flag_request_time = sys.system_time_ms + MAIN_LOOP_CYCLE;  // 前回のタイムアウト時から1.0s間は動かさない
   }
@@ -872,20 +875,15 @@ void speed_control()
   //target.global_pos[1] += target.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
 
   // ここから位置制御
-  /*for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 2; i++) {
     // targetとodomの差分に上限をつける(吹っ飛び対策)
     // 出力が上限に張り付いたら、出力制限でそれ以上の加速度は出しようがないのでそれに合わせる
-    float odom_diff_max = (float)OUTPUT_XY_LIMIT / OMNI_OUTPUT_GAIN_KP;
+    /*float odom_diff_max = (float)OUTPUT_XY_LIMIT / OMNI_OUTPUT_GAIN_KP;
     if (target.global_pos[i] - omni.odom[i] > odom_diff_max) {
       target.global_pos[i] = omni.odom[i] + odom_diff_max;
     } else if (target.global_pos[i] - omni.odom[i] < -odom_diff_max) {
       target.global_pos[i] = omni.odom[i] - odom_diff_max;
-    }
-  }*/
-
-  /*
-    // odom基準の絶対座標系
-    omni.global_odom_diff[i] = omni.odom[i] - target.global_pos[i];
+    }*/
 
     // 速度に対する応答性を稼ぐ
     target.local_vel_ff_factor[i] = target.local_vel[i] - omni.local_odom_speed_mvf[i];
@@ -896,12 +894,15 @@ void speed_control()
     }
   }
 
+  // odom基準の絶対座標系
+  //omni.global_odom_diff[i] = omni.odom[i] - target.global_pos[i];
+
   // グローバル→ローカル座標系
-  omni.robot_pos_diff[0] = omni.global_odom_diff[0] * cos(-imu.yaw_angle_rad) - omni.global_odom_diff[1] * sin(-imu.yaw_angle_rad);
+  /*omni.robot_pos_diff[0] = omni.global_odom_diff[0] * cos(-imu.yaw_angle_rad) - omni.global_odom_diff[1] * sin(-imu.yaw_angle_rad);
   omni.robot_pos_diff[1] = omni.global_odom_diff[0] * sin(-imu.yaw_angle_rad) + omni.global_odom_diff[1] * cos(-imu.yaw_angle_rad);
-*/
-  // local_vel_ff_factorに含まれるので要らなくなった
-  /*- omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
+  * /
+    // local_vel_ff_factorに含まれるので要らなくなった
+    /*- omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
   /*- omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD */
 
   // 位置フィードバックは速度指令にいれるので、速度制御には関与させない
@@ -982,58 +983,51 @@ void maintask_run()
     }
   }
 
-  // 高速域でvisionがlostしたら、復帰のために速度制限したほうがいいかも
-
-  const float CMB_CTRL_FACTOR_LIMIT = (3.0);    // [m/s]
-  const float CMB_CTRL_DIFF_DEAD_ZONE = (0.3);  // [m]
+  const float CMB_CTRL_FACTOR_LIMIT = (3.0);     // [m/s]
+  const float CMB_CTRL_DIFF_DEAD_ZONE = (0.03);  // [m]
   const float CMB_CTRL_GAIN = (10.0);
   const float CMB_CTRL_DIFF_LIMIT = (CMB_CTRL_FACTOR_LIMIT / CMB_CTRL_GAIN);
 
-  if (ai_cmd.local_vision_en_flag == false /* && ai_cmd.stop_request_flag == false*/) {
-    // グローバル→ローカル座標系
-    integ.local_target_diff[0] = integ.position_diff[0] * cos(-imu.yaw_angle_rad) - integ.position_diff[1] * sin(-imu.yaw_angle_rad);
-    integ.local_target_diff[1] = integ.position_diff[0] * sin(-imu.yaw_angle_rad) + integ.position_diff[1] * cos(-imu.yaw_angle_rad);
+  // グローバル→ローカル座標系
+  integ.local_target_diff[0] = integ.position_diff[0] * cos(-imu.yaw_angle_rad) - integ.position_diff[1] * sin(-imu.yaw_angle_rad);
+  integ.local_target_diff[1] = integ.position_diff[0] * sin(-imu.yaw_angle_rad) + integ.position_diff[1] * cos(-imu.yaw_angle_rad);
 
-    for (int i = 0; i < 2; i++) {
-      // デバッグ用にomni.odomをそのままと、target_posにsepeed使う
-      // 速度制御はodomベースなのでちょっとおかしなことになる
-      //integ.local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
+  for (int i = 0; i < 2; i++) {
+    // デバッグ用にomni.odomをそのままと、target_posにsepeed使う
+    // 速度制御はodomベースなのでちょっとおかしなことになる
+    //integ.local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
 
-      // 精密性はそれほどいらないので、振動対策に不感帯入れる
-      if (integ.local_target_diff[i] < CMB_CTRL_DIFF_DEAD_ZONE && integ.local_target_diff[i] > -CMB_CTRL_DIFF_DEAD_ZONE) {
-        integ.local_target_diff[i] = 0;
-      }
+    // 精密性はそれほどいらないので、振動対策に不感帯入れる
+    if (integ.local_target_diff[i] < CMB_CTRL_DIFF_DEAD_ZONE && integ.local_target_diff[i] > -CMB_CTRL_DIFF_DEAD_ZONE) {
+      integ.local_target_diff[i] = 0;
+    }
 
-      // ゲインは x10
-      // 吹き飛び対策で+-3.0 m/sを上限にする
-      if (integ.local_target_diff[i] < -CMB_CTRL_DIFF_LIMIT) {
-        integ.local_target_diff[i] = -CMB_CTRL_DIFF_LIMIT;
-      } else if (integ.local_target_diff[i] > CMB_CTRL_DIFF_LIMIT) {
-        integ.local_target_diff[i] = CMB_CTRL_DIFF_LIMIT;
-      }
+    // ゲインは x10
+    // 吹き飛び対策で+-3.0 m/sを上限にする
+    if (integ.local_target_diff[i] < -CMB_CTRL_DIFF_LIMIT) {
+      integ.local_target_diff[i] = -CMB_CTRL_DIFF_LIMIT;
+    } else if (integ.local_target_diff[i] > CMB_CTRL_DIFF_LIMIT) {
+      integ.local_target_diff[i] = CMB_CTRL_DIFF_LIMIT;
+    }
 
-      if (sys.main_mode == MAIN_MODE_COMBINATION_CONTROL) {
-        // 位置フィードバック項目のx10はゲイン (ベタ打ち)
+    if (sys.main_mode == MAIN_MODE_COMBINATION_CONTROL) {
+      // 位置フィードバック項目のx10はゲイン (ベタ打ち)
 
-        //target.velocity[i] = +(integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり(位置フィードバックのみ)
-        //target.velocity[i] = ai_cmd.local_target_speed[i] * 0.5 + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
+      //target.velocity[i] = +(integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり(位置フィードバックのみ)
+      //target.velocity[i] = ai_cmd.local_target_speed[i] * 0.5 + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
 
-        if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0) {                                       // 位置フィードバック項が制動方向の場合
-          target.velocity[i] = ai_cmd.local_target_speed[i] + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
-        } else {
-          target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
-        }
-
+      if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0) {                                 // 位置フィードバック項が制動方向の場合
+        target.velocity[i] = ai_cmd.local_target_speed[i] + (integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
       } else {
         target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
       }
+      //target.velocity[i] = (integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
+
+    } else {
+      target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
     }
-  } else {
-    // ローカルカメラによる制御
-    resetLocalSpeedControl();
-    target.velocity[0] = 0;
-    target.velocity[1] = 0;
   }
+
   accel_control();
   speed_control();
   output_limit();
