@@ -61,7 +61,7 @@
 //#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
 //#define OMNI_OUTPUT_GAIN_KD (2.0)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.2)
-#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (2.0)  //2.0
+#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (3.0)  //2.0
 #define FF_TARGET_FINAL_DIFF_LIMIT (0.5)
 
 #define OUTPUT_XY_LIMIT (10)  //
@@ -411,10 +411,10 @@ int main(void)
           p("ODOM ");
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-          p("cnt %4d ", connection.vision_update_cycle_cnt);
-          p("integ %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          p("integ %+5.2f %+5.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
-          p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
+          //p("cnt %4d ", connection.vision_update_cycle_cnt);
+          //p("integ %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
+          //p("integ %+5.2f %+5.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
+          //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
           p("cmd-vel %+5.2f, %+5.2f, ", target.velocity[0], target.velocity[1]);
           p("vel-now %+5.2f, %+5.2f, ", target.local_vel_now[0], target.local_vel_now[1]);
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
@@ -424,7 +424,7 @@ int main(void)
           p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
 
           //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
-          p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed[0] * 1000, omni.local_odom_speed[1] * 1000);
+          p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF, target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);
 
           break;
@@ -838,9 +838,10 @@ void accel_control()
   }
 
   // 減速方向は制動力2倍
+  // 2倍は流石に無理があるので1.8
   for (int i = 0; i < 2; i++) {
     if (target.local_vel_now[i] * output.accel[i] < 0) {
-      output.accel[i] *= 2;
+      output.accel[i] *= 1.8;
     }
 
     // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
