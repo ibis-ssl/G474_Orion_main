@@ -987,10 +987,10 @@ void maintask_run()
   if (debug.latency_check_enabled == false) {
     if (decode_SW(sys.sw_data) & 0b00000001) {
       debug.latency_check_seq_cnt++;
-      if (debug.latency_check_seq_cnt > 1000) {
+      if (debug.latency_check_seq_cnt > MAIN_LOOP_CYCLE) {
         debug.latency_check_enabled = true;
         debug.latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
-        debug.rotation_target_theta = imu.yaw_angle;
+        debug.rotation_target_theta = ai_cmd.target_theta;
       }
     } else {
       debug.latency_check_seq_cnt = 0;
@@ -1049,7 +1049,10 @@ void maintask_run()
     if (debug.latency_check_seq_cnt > 0) {
       debug.latency_check_seq_cnt--;
     } else {
-      debug.latency_check_enabled = false;
+      // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
+      if (getAngleDiff(ai_cmd.target_theta, debug.rotation_target_theta) < 0.1) {
+        debug.latency_check_enabled = false;
+      }
       // complete!!
     }
     debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
