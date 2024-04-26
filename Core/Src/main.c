@@ -57,7 +57,7 @@
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (20)  //
+#define OMNI_OUTPUT_LIMIT (20)  //上げると過電流エラーになりがち
 //#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
 //#define OMNI_OUTPUT_GAIN_KD (2.0)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.2)
@@ -629,10 +629,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   }
 
   static bool buzzer_state = false;
-  static uint32_t buzzer_cnt = 0, buzzer_frq_offset = 0;
+  static uint32_t buzzer_cnt = 0;
+  static float buzzer_frq_offset__gain = 1.0;
   // 電圧受信できてない時に低電圧エラー鳴るとウザいので消す
+  buzzer_cnt++;
   if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT && can_raw.power_voltage[5] != 0.0) {  // 低電圧時
-    buzzer_cnt++;
     if (buzzer_cnt > 100) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
@@ -644,7 +645,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       }
     }
   } else if (sys.error_flag) {  // エラー時
-    buzzer_cnt++;
     if (buzzer_cnt > 20) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
@@ -656,15 +656,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       }
     }
   } else if (!connection.connected_ai && connection.already_connected_ai) {  // AI通信切断時
-    buzzer_cnt++;
     if (buzzer_cnt > 100) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
         buzzer_state = true;
-        actuator_buzzer_frq_on(500 + buzzer_frq_offset);
-        buzzer_frq_offset += 100;
-        if (buzzer_frq_offset > 300) {
-          buzzer_frq_offset = 0;
+        actuator_buzzer_frq_on(500 * buzzer_frq_offset__gain);
+        buzzer_frq_offset__gain *= 1.122462;
+        if (buzzer_frq_offset__gain > 1.5) {
+          buzzer_frq_offset__gain = 1.0;
         }
       } else {
         buzzer_state = false;
@@ -672,15 +671,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       }
     }
   } else if (canRxTimeoutDetection()) {  // 内部通信切断時
-    buzzer_cnt++;
     if (buzzer_cnt > 200) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
         buzzer_state = true;
-        actuator_buzzer_frq_on(500 + buzzer_frq_offset);
-        buzzer_frq_offset += 100;
-        if (buzzer_frq_offset > 300) {
-          buzzer_frq_offset = 0;
+        actuator_buzzer_frq_on(500 * buzzer_frq_offset__gain);
+        buzzer_frq_offset__gain *= 1.122462;
+        if (buzzer_frq_offset__gain > 1.5) {
+          buzzer_frq_offset__gain = 1.0;
+        }
+      } else {
+        buzzer_state = false;
+        actuator_buzzer_off();
+      }
+    }
+  } else if (connection.connected_ai && ai_cmd.vision_lost_flag) {
+    if (buzzer_cnt > 20) {
+      buzzer_cnt = 0;
+      if (buzzer_state == false) {
+        buzzer_state = true;
+        actuator_buzzer_frq_on(2000 * buzzer_frq_offset__gain);
+        buzzer_frq_offset__gain *= 1.122462;
+        if (buzzer_frq_offset__gain > 1.5) {
+          buzzer_frq_offset__gain = 1.0;
         }
       } else {
         buzzer_state = false;
@@ -1044,6 +1057,8 @@ void maintask_run()
   } else {
     theta_control(ai_cmd.target_theta);
   }
+
+  // デバッグモードではstopとvision_lostを無視する
   if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (ai_cmd.stop_request_flag || ai_cmd.vision_lost_flag)) {
     resetLocalSpeedControl();
     omni_move(0.0, 0.0, 0.0, 0.0);
