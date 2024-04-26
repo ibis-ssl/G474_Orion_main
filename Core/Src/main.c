@@ -685,7 +685,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_buzzer_off();
       }
     }
-  } else if (connection.connected_ai && ai_cmd.vision_lost_flag) {
+  } else if (connection.connected_ai && ai_cmd.vision_lost_flag && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
     if (buzzer_cnt > 20) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
