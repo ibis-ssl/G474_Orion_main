@@ -127,6 +127,7 @@ struct
   volatile bool latency_check_enabled;
   volatile int latency_check_seq_cnt;
   volatile float rotation_target_theta;
+  volatile uint32_t uart_rx_itr_cnt;
 } debug;
 
 struct
@@ -180,7 +181,7 @@ int main(void)
 
   /* USER CODE END Init */
 
-  /* Configure the sys clock */
+  /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
@@ -222,13 +223,14 @@ int main(void)
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
-  HAL_UART_Init(&hlpuart1);
+
   HAL_UART_Init(&huart2);
+  HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
+
+  HAL_UART_Init(&hlpuart1);
+  HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_it_buffer, 1);
 
   printf("orion main start %s %s\r\n", __DATE__, __TIME__);
-
-  HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
-  HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_it_buffer, 1);
 
   HAL_ADC_Start_DMA(&hadc5, &sys.sw_data, 1);
 
@@ -297,7 +299,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 5;
+  debug.print_idx = 6;
   //target.velocity[1] = 1.0;
   /* USER CODE END 2 */
 
@@ -430,6 +432,7 @@ int main(void)
           break;
         case 6:
           p("CMD-ALL ");
+          p("rx_cnt %5d main %8d CR 0x%8x", debug.uart_rx_itr_cnt, debug.main_loop_cnt / 10, huart2.Instance->CR1);
           p("AIcmd Vx %+4.1f Vy %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
           p("TPx %+4.1f TPy %+4.1f TW %+6.1f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1], ai_cmd.target_theta * 180 / M_PI);
           p("Vision Gbrl-robot X %+6.2f Y %+6.2f Theta %+6.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
@@ -459,13 +462,14 @@ int main(void)
       debug.true_cycle_cnt = 0;
       debug.true_fb_toral_spin = 0;
       debug.true_out_total_spi = 0;
+      debug.uart_rx_itr_cnt = 0;
     }
   }
   /* USER CODE END 3 */
 }
 
 /**
-  * @brief sys Clock Configuration
+  * @brief System Clock Configuration
   * @retval None
   */
 void SystemClock_Config(void)
@@ -655,21 +659,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_buzzer_off();
       }
     }
-  } else if (!connection.connected_ai && connection.already_connected_ai) {  // AI通信切断時
-    if (buzzer_cnt > 100) {
-      buzzer_cnt = 0;
-      if (buzzer_state == false) {
-        buzzer_state = true;
-        actuator_buzzer_frq_on(500 * buzzer_frq_offset__gain);
-        buzzer_frq_offset__gain *= 1.122462;
-        if (buzzer_frq_offset__gain > 1.5) {
-          buzzer_frq_offset__gain = 1.0;
-        }
-      } else {
-        buzzer_state = false;
-        actuator_buzzer_off();
-      }
-    }
   } else if (canRxTimeoutDetection()) {  // 内部通信切断時
     if (buzzer_cnt > 200) {
       buzzer_cnt = 0;
@@ -677,7 +666,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         buzzer_state = true;
         actuator_buzzer_frq_on(500 * buzzer_frq_offset__gain);
         buzzer_frq_offset__gain *= 1.122462;
-        if (buzzer_frq_offset__gain > 1.5) {
+        if (buzzer_frq_offset__gain > 1.2) {
           buzzer_frq_offset__gain = 1.0;
         }
       } else {
@@ -692,7 +681,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         buzzer_state = true;
         actuator_buzzer_frq_on(2000 * buzzer_frq_offset__gain);
         buzzer_frq_offset__gain *= 1.122462;
-        if (buzzer_frq_offset__gain > 1.5) {
+        if (buzzer_frq_offset__gain > 1.2) {
           buzzer_frq_offset__gain = 1.0;
         }
       } else {
@@ -854,7 +843,7 @@ void accel_control()
   // 2倍は流石に無理があるので1.8
   for (int i = 0; i < 2; i++) {
     if (target.local_vel_now[i] * output.accel[i] < 0) {
-      output.accel[i] *= 1.8;
+      output.accel[i] *= 2.0;
     }
 
     // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
@@ -1157,6 +1146,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   static int32_t uart_rx_cmd_idx = 0;
   uint8_t rx_data_tmp;
+  debug.uart_rx_itr_cnt++;
 
   if (huart->Instance == USART2) {
     rx_data_tmp = uart2_rx_it_buffer;
