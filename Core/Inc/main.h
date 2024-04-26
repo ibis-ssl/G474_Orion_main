@@ -105,10 +105,6 @@ void p(const char * format, ...);
 #define V_SENSE_GPIO_Port GPIOB
 #define C_SENSE_Pin GPIO_PIN_1
 #define C_SENSE_GPIO_Port GPIOB
-#define UART3_TX_SBC_Pin GPIO_PIN_10
-#define UART3_TX_SBC_GPIO_Port GPIOC
-#define UART3_RX_SBC_Pin GPIO_PIN_11
-#define UART3_RX_SBC_GPIO_Port GPIOC
 #define TIM5_CH2_Buzzer_Pin GPIO_PIN_12
 #define TIM5_CH2_Buzzer_GPIO_Port GPIOC
 #define UART2_TX_ETH_Pin GPIO_PIN_3
