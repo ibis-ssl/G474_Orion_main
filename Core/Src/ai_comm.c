@@ -40,7 +40,6 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   if (con->check_ver != con->check_pre) {
     con->latest_ai_cmd_update_time = sys->system_time_ms;
 
-
     con->check_pre = con->check_ver;
   }
 
@@ -102,7 +101,7 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   if (!ai_cmd->vision_lost_flag) {
     con->vision_update_cycle_cnt = 0;
   }
-  
+
   if ((ai_cmd->allow_local_flags & FLAG_ENABLE_LOCAL_VISION) != 0) {
     ai_cmd->local_vision_en_flag = true;
   } else {
@@ -137,6 +136,8 @@ void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * om
   if (ring_counter > 200) {
     ring_counter = 0;
   }
+
+  // AI側のcheckをそのまま返す
   ring_counter = con->check_ver;
   char * temp;
 

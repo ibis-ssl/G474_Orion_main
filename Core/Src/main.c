@@ -693,8 +693,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     actuator_buzzer_off();
   }
 
-  // AIとの通信状態チェック
+  // AI通信切断時、3sでリセット
+  static uint32_t self_timeout_reset_cnt = 0;
+  if (!connection.connected_ai && connection.already_connected_ai && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
+    self_timeout_reset_cnt++;
+    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
+      NVIC_SystemReset();
+    }
+  } else {
+    self_timeout_reset_cnt = 0;
+  }
 
+  // AIとの通信状態チェック
   if (sys.system_time_ms - connection.latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイムアウト
     connection.connected_ai = true;
     connection.already_connected_ai = true;
