@@ -210,7 +210,7 @@ int main(void)
 
   // 本来はリアルタイムに更新できた方が良いが、まだそのシステムがないので固定値
   ai_cmd.latency_time_ms = 30;
-  // 
+  //
 
   sys.kick_state = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
@@ -428,6 +428,7 @@ int main(void)
           //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
           p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF, target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);
+          p("cmd-sca %+5.2f tar-sca %+5.2f ", ai_cmd.local_speed_scalar, target.local_vel_now_scalar);
 
           break;
         case 6:
@@ -1029,7 +1030,12 @@ void maintask_run()
       //target.velocity[i] = +(integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり(位置フィードバックのみ)
       //target.velocity[i] = ai_cmd.local_target_speed[i] * 0.5 + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
 
-      if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0) {                                 // 位置フィードバック項が制動方向の場合
+      ai_cmd.local_speed_scalar = pow(pow(ai_cmd.local_target_speed[0], 2) + pow(ai_cmd.local_target_speed[1], 2), 0.5);
+      target.local_vel_now_scalar = pow(pow(target.local_vel_now[0], 2) + pow(target.local_vel_now[1], 2), 0.5);
+
+      // 位置フィードバック項が制動方向の場合
+      // もしくは低速時に有効
+      if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0 || (ai_cmd.local_speed_scalar < 0.15 && target.local_vel_now_scalar < 0.2)) {
         target.velocity[i] = ai_cmd.local_target_speed[i] + (integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
       } else {
         target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
