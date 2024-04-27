@@ -209,7 +209,8 @@ int main(void)
   omni.local_speed_log[1] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
 
   // 本来はリアルタイムに更新できた方が良いが、まだそのシステムがないので固定値
-  ai_cmd.latency_time_ms = 100;
+  ai_cmd.latency_time_ms = 30;
+  // 
 
   sys.kick_state = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
@@ -695,7 +696,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   // AI通信切断時、3sでリセット
   static uint32_t self_timeout_reset_cnt = 0;
-  if (!connection.connected_ai && connection.already_connected_ai && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
+  if (!connection.connected_cm4 && connection.already_connected_ai && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
     self_timeout_reset_cnt++;
     if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
       NVIC_SystemReset();
