@@ -2,6 +2,8 @@
 
 #include "util.h"
 
+#define MAX_AI_CMD_SPEED_SCALAR_LIMIT (6.0)
+
 void resetAiCmdData(ai_cmd_t * ai_cmd)
 {
   ai_cmd->local_target_speed[0] = 0;
@@ -61,6 +63,13 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
 
   ai_cmd->local_target_speed[0] = two_to_float(&data[2]) * AI_CMD_VEL_MAX_MPS;
   ai_cmd->local_target_speed[1] = two_to_float(&data[4]) * AI_CMD_VEL_MAX_MPS;
+
+  ai_cmd->local_target_speed_scalar = pow(pow(ai_cmd->local_target_speed[0], 2) + pow(ai_cmd->local_target_speed[1], 2), 0.5);
+  /*if (ai_cmd->local_target_speed_scalar > MAX_AI_CMD_SPEED_SCALAR_LIMIT) {
+    ai_cmd->local_target_speed[0] *= MAX_AI_CMD_SPEED_SCALAR_LIMIT / ai_cmd->local_target_speed_scalar;
+    ai_cmd->local_target_speed[1] *= MAX_AI_CMD_SPEED_SCALAR_LIMIT / ai_cmd->local_target_speed_scalar;
+  }*/
+
   ai_cmd->global_vision_theta = two_to_float(&data[6]) * M_PI;
   ai_cmd->target_theta = two_to_float(&data[8]) * M_PI;
   if (data[10] >= 101) {

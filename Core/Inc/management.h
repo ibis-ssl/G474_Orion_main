@@ -91,6 +91,7 @@ typedef struct
   float kick_power;
   bool chip_en;
   float local_target_speed[2];
+  float local_target_speed_scalar;
   float global_robot_position[2];
   float global_target_position[2];
   float global_ball_position[2];

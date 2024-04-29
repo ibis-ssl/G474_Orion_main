@@ -70,8 +70,12 @@
 #define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KD (4000.0)
 
-#define ACCEL_LIMIT (5.0)       // m/ss
-#define ACCEL_LIMIT_BACK (3.0)  // m/ss
+// MAX
+#define ACCEL_LIMIT (8.0)       // m/ss
+#define ACCEL_LIMIT_BACK (5.0)  // m/ss
+
+//#define ACCEL_LIMIT (5.0)       // m/ss
+//#define ACCEL_LIMIT_BACK (3.0)  // m/ss
 //const float OMNI_ROTATION_LENGTH = (0.07575);
 
 #define LOW_VOLTAGE_LIMIT (22.0)
@@ -434,9 +438,10 @@ int main(void)
           p("CMD ");
           p("ck%3d cnt %3d main %6d CR 0x%4x", connection.check_ver, debug.uart_rx_itr_cnt, debug.main_loop_cnt / 10, huart2.Instance->CR1);
           p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
+          p("scl %4.1f ",ai_cmd.local_target_speed_scalar);
           p("TPx %+4.1f TPy %+4.1f TW %+6.1f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1], ai_cmd.target_theta * 180 / M_PI);
           p("Vis Gbrl-rb X %+6.2f Y %+6.2f Theta %+6.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
-          p("Gbrl-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
+          //p("Gbrl-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
           p("lst %d stp %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power,
             ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
           break;
