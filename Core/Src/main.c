@@ -19,14 +19,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "gpio.h"
+#include "usart.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -205,6 +204,7 @@ int main(void)
   MX_ADC3_Init();
   MX_FDCAN2_Init();
   MX_ADC1_Init();
+  MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
 
   integ.odom_log[0] = initRingBuffer(SPEED_LOG_BUF_SIZE);
@@ -212,7 +212,7 @@ int main(void)
   omni.local_speed_log[0] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
   omni.local_speed_log[1] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
 
-  // 本来はリアルタイムに更新できた方が良いが、まだそのシステムがないので固定値
+  // 本来はリアルタイ�?に更新できた方が良�?が�?�ま�?そ�?�シス�?�?がな�?ので固定�?�
   ai_cmd.latency_time_ms = 30;
   // 
 
@@ -296,7 +296,7 @@ int main(void)
   actuator_power_ONOFF(1);
 
   sys.system_time_ms = 1000;                               //
-  sys.stop_flag_request_time = sys.system_time_ms + 1000;  // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
+  sys.stop_flag_request_time = sys.system_time_ms + 1000;  // !!注�?!! TIM7の割り込みが�?�じまってから1000ms間停止
   connection.already_connected_ai = false;
   HAL_Delay(100);
   HAL_TIM_Base_Start_IT(&htim7);
@@ -318,10 +318,10 @@ int main(void)
     if (debug.print_flag) {
       debug.print_flag = false;
 
-      // 文字列初期化
+      // �?字�?��?�期�?
       printf_buffer[0] = 0;
 
-      // 文字色メモ
+      // �?字色メモ
       // 30:black 31:red 32:green 33:yellow 34:blue 35:magenta 36:cyan 37:white(default)
       p("\e[0m");
       p("yaw=%+6.1f ", imu.yaw_angle);
@@ -388,7 +388,7 @@ int main(void)
           p("Temp m0=%3.0f m1=%3.0f m2=%3.0f m3=%3.0f ", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
 
           break;
-        case 2:  // Dribblerテスト
+        case 2:  // Dribbler�?ス�?
           p("DRIBBLER ");
           p("Batt(Sub) %3.1f / ", can_raw.power_voltage[4]);
           p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
@@ -498,19 +498,22 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
     Error_Handler();
   }
 }
@@ -542,13 +545,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   mouse.integral_loop_cnt++;
   // TIM interrupt is TIM7 only.
 
-  // sys.main_mode設定
+  // sys.main_mode設�?
   static uint8_t pre_sw_mode, sw_mode;
   pre_sw_mode = sw_mode;
   sw_mode = getModeSwitch();
 
   if (sys.error_flag) {
-    // 一定回数はリセットを許容する
+    // �?定回数はリセ�?トを許容する
     if (sys.error_id < 4 && sys.error_info == BLDC_ERROR_OVER_CURRENT && sys.error_resume_cnt < 10) {
       sys.error_flag = 0;
       sys.error_info = 0;
@@ -556,10 +559,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
       sys.error_resume_cnt++;
 
-      // しばらくstopに落とす
+      // し�?�らくstopに落と�?
       sys.stop_flag_request_time = sys.system_time_ms + 3000;
 
-      // OFFコマンドでリセット
+      // OFFコマンドでリセ�?�?
       actuator_power_ONOFF(0);
     } else {
       sys.main_mode = MAIN_MODE_ERROR;
@@ -579,7 +582,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     sys.stop_flag = false;
   }
 
-  // 以後sys.main_modeによる動作切り替え
+  // 以後sys.main_modeによる動作�??り替�?
 
   yawFilter();
   omniOdometory();
@@ -591,15 +594,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
-    case MAIN_MODE_SPEED_CONTROL_ONLY:   // ローカル統合制御なし
+    case MAIN_MODE_SPEED_CONTROL_ONLY:   // ローカル統合制御な�?
       if (/*connection.connected_ai == false || */ sys.stop_flag) {
         maintask_stop();
       } else {
         maintask_run();
       }
       break;
-    case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。
-                                    // 相補フィルタなし、
+    case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提�??
+                                    // 相補フィルタなし�??
       if (sys.stop_flag) {
         maintask_stop();
       } else {
@@ -640,9 +643,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
   static float buzzer_frq_offset__gain = 1.0;
-  // 電圧受信できてない時に低電圧エラー鳴るとウザいので消す
+  // 電圧受信できてな�?時に低電圧エラー鳴るとウザ�?ので消す
   buzzer_cnt++;
-  if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT && can_raw.power_voltage[5] != 0.0) {  // 低電圧時
+  if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT && can_raw.power_voltage[5] != 0.0) {  // 低電圧�?
     if (buzzer_cnt > 100) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
@@ -653,7 +656,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_buzzer_off();
       }
     }
-  } else if (sys.error_flag) {  // エラー時
+  } else if (sys.error_flag) {  // エラー�?
     if (buzzer_cnt > 20) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
@@ -664,7 +667,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
         actuator_buzzer_off();
       }
     }
-  } else if (canRxTimeoutDetection()) {  // 内部通信切断時
+  } else if (canRxTimeoutDetection()) {  // �?部通信�?断�?
     if (buzzer_cnt > 200) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
@@ -699,19 +702,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     actuator_buzzer_off();
   }
 
-  // AI通信切断時、3sでリセット
+  // AI通信�?断時�??3sでリセ�?�?
   static uint32_t self_timeout_reset_cnt = 0;
   if (!connection.connected_cm4 && connection.already_connected_ai && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
     self_timeout_reset_cnt++;
-    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
+    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセ�?ト時�?
       NVIC_SystemReset();
     }
   } else {
     self_timeout_reset_cnt = 0;
   }
 
-  // AIとの通信状態チェック
-  if (sys.system_time_ms - connection.latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイムアウト
+  // AIとの通信状態チェ�?ク
+  if (sys.system_time_ms - connection.latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイ�?アウ�?
     connection.connected_ai = true;
     connection.already_connected_ai = true;
 
@@ -727,11 +730,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
     resetAiCmdData(&ai_cmd);
 
-    sys.stop_flag_request_time = sys.system_time_ms + MAIN_LOOP_CYCLE;  // 前回のタイムアウト時から1.0s間は動かさない
+    sys.stop_flag_request_time = sys.system_time_ms + MAIN_LOOP_CYCLE;  // 前回のタイ�?アウト時から1.0s間�?�動かさな�?
   }
 
-  // CM4との通信状態チェック
-  if (sys.system_time_ms - connection.latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイムアウト
+  // CM4との通信状態チェ�?ク
+  if (sys.system_time_ms - connection.latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイ�?アウ�?
     connection.connected_cm4 = true;
   } else {
     connection.connected_cm4 = false;
@@ -760,14 +763,14 @@ uint8_t getModeSwitch()
 
 void yawFilter()
 {
-  // 静止中に一気にvision角度を合わせるやつ
+  // 静止中に�?気にvision角度を合わせるやつ
   static uint32_t yaw_angle_update_cnt = 0;
   imu.yaw_angle_diff_integral += fabs(imu.pre_yaw_angle - imu.yaw_angle);
   yaw_angle_update_cnt++;
   if (yaw_angle_update_cnt > MAIN_LOOP_CYCLE / 2) {  // 2Hz
     yaw_angle_update_cnt = 0;
     if (imu.yaw_angle_diff_integral < 1) {
-      // 機体が旋回していないとき
+      // 機体が旋回して�?な�?と�?
       debug.theta_override_flag = true;
 
       // visionとの角度差があるときにアプデ
@@ -783,7 +786,7 @@ void yawFilter()
   imu.pre_yaw_angle_rad = imu.yaw_angle_rad;
   imu.pre_yaw_angle = imu.yaw_angle;
 
-  // vision更新されたときに強制更新するやつ
+  // vision更新されたときに強制更新する�?つ
   if (ai_cmd.vision_lost_flag == false && ai_cmd.pre_vision_lost_flag == true) {
     imu.yaw_angle = ai_cmd.global_vision_theta * 180 / M_PI;
   }
@@ -792,12 +795,12 @@ void yawFilter()
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
 
   if (sys.main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
-    // デバッグ用、targetへ補正する
+    // �?バッグ用、targetへ補正する
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
 
   } else if (ai_cmd.vision_lost_flag || debug.latency_check_enabled) {
-    // VisionLost時は補正しない
-    // レイテンシチェック中(一定速度での旋回中)は相補フィルタ切る
+    // VisionLost時�?�補正しな�?
+    // レイ�?ンシチェ�?ク中(�?定�?�度での旋回中)は相補フィルタ�?�?
 
   } else {
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
@@ -835,8 +838,8 @@ void accel_control()
     acc_vel.vel_error_rad = atan2(acc_vel.vel_error_xy[1], acc_vel.vel_error_xy[0]);
   }
 
-  // 目標速度と差が小さい場合は目標速度をそのまま代入する
-  // 目標速度が連続的に変化する場合に適切でないかも
+  // 目標�?�度と差が小さ�?場合�?�目標�?�度をそのまま代入する
+  // 目標�?�度が�?�続的に変化する場合に適�?でな�?かも
   if (acc_vel.vel_error_scalar < ACCEL_LIMIT / MAIN_LOOP_CYCLE) {
     target.local_vel_now[0] = target.local_vel[0];
     target.local_vel_now[1] = target.local_vel[1];
@@ -845,24 +848,24 @@ void accel_control()
     return;
   }
 
-  // スカラは使わず、常に最大加速度
+  // スカラは使わず、常に�?大�?速度
   output.accel[0] = cos(acc_vel.vel_error_rad) * ACCEL_LIMIT / MAIN_LOOP_CYCLE;
   output.accel[1] = sin(acc_vel.vel_error_rad) * ACCEL_LIMIT / MAIN_LOOP_CYCLE;
 
-  // バック方向だけ加速度制限
+  // バック方向だけ加速度制�?
   if (output.accel[0] < -(ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE)) {
     output.accel[0] = -(ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE);
   }
 
-  // 減速方向は制動力2倍
-  // 2倍は流石に無理があるので1.8
+  // 減�?�方向�?�制動力2�?
+  // 2倍�?�流石に無�?がある�?�で1.8
   for (int i = 0; i < 2; i++) {
     if (target.local_vel_now[i] * output.accel[i] < 0) {
       output.accel[i] *= 2.0;
     }
 
-    // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
-    // 現在座標も速度制御されたタイヤで見ているので、あまりｱﾃにならない
+    // 目標座標を追�?越した�?�合�?�加速度�?2倍にして現実�?�位置に追�?
+    // 現在座標も速度制御されたタイヤで見て�?る�?�で、あまりｱ?�?にならな�?
     /*if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
       //output.accel[i] *= 1.5;
     }*/
@@ -880,22 +883,22 @@ void speed_control()
   }
 
   // ローカル→グローバル座標系
-  // ロボットが回転しても、慣性はグローバル座標系に乗るので、加速度はグローバル座標系に変換してから加算
+  // ロボットが回転しても�?��?�性はグローバル座標系に乗るので、加速度はグローバル座標系に変換してから�?�?
   target.global_vel_now[0] += (output.accel[0]) * cos(imu.yaw_angle_rad) - (output.accel[1]) * sin(imu.yaw_angle_rad);
   target.global_vel_now[1] += (output.accel[0]) * sin(imu.yaw_angle_rad) + (output.accel[1]) * cos(imu.yaw_angle_rad);
 
-  // 次回の計算のためにローカル座標系での速度も更新
+  // 次回�?�計算�?�ためにローカル座標系での速度も更新
   target.local_vel_now[0] = target.global_vel_now[0] * cos(-imu.yaw_angle_rad) - target.global_vel_now[1] * sin(-imu.yaw_angle_rad);
   target.local_vel_now[1] = target.global_vel_now[0] * sin(-imu.yaw_angle_rad) + target.global_vel_now[1] * cos(-imu.yaw_angle_rad);
 
-  // 速度次元での位置フィードバックは不要になったので、global_posまわりは使わない
+  // 速度次�?での位置フィードバ�?クは不要になった�?�で、global_posまわりは使わな�?
   //target.global_pos[0] += target.global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
   //target.global_pos[1] += target.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
 
   // ここから位置制御
   for (int i = 0; i < 2; i++) {
-    // targetとodomの差分に上限をつける(吹っ飛び対策)
-    // 出力が上限に張り付いたら、出力制限でそれ以上の加速度は出しようがないのでそれに合わせる
+    // targetとodomの差�?に上限をつける(吹っ飛�?�対�?)
+    // 出力が上限に張り付いたら、�?�力制限でそれ以上�?��?速度は出しよ�?がな�?のでそれに合わせる
     /*float odom_diff_max = (float)OUTPUT_XY_LIMIT / OMNI_OUTPUT_GAIN_KP;
     if (target.global_pos[i] - omni.odom[i] > odom_diff_max) {
       target.global_pos[i] = omni.odom[i] + odom_diff_max;
@@ -903,7 +906,7 @@ void speed_control()
       target.global_pos[i] = omni.odom[i] - odom_diff_max;
     }*/
 
-    // 速度に対する応答性を稼ぐ
+    // 速度に対する応答�?�を稼�?
     target.local_vel_ff_factor[i] = target.local_vel[i] - omni.local_odom_speed_mvf[i];
     if (target.local_vel_ff_factor[i] > FF_TARGET_FINAL_DIFF_LIMIT) {
       target.local_vel_ff_factor[i] = FF_TARGET_FINAL_DIFF_LIMIT;
@@ -912,18 +915,18 @@ void speed_control()
     }
   }
 
-  // odom基準の絶対座標系
+  // odom基準�?�絶対座標系
   //omni.global_odom_diff[i] = omni.odom[i] - target.global_pos[i];
 
   // グローバル→ローカル座標系
   /*omni.robot_pos_diff[0] = omni.global_odom_diff[0] * cos(-imu.yaw_angle_rad) - omni.global_odom_diff[1] * sin(-imu.yaw_angle_rad);
   omni.robot_pos_diff[1] = omni.global_odom_diff[0] * sin(-imu.yaw_angle_rad) + omni.global_odom_diff[1] * cos(-imu.yaw_angle_rad);
   * /
-    // local_vel_ff_factorに含まれるので要らなくなった
+    // local_vel_ff_factorに含まれるので要らなくなっ�?
     /*- omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
   /*- omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD */
 
-  // 位置フィードバックは速度指令にいれるので、速度制御には関与させない
+  // 位置フィードバ�?クは速度�?令に�?れるので�?速度制御には関与させな�?
   /* -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP +*/
   /*-omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP +*/
 
@@ -934,7 +937,7 @@ void speed_control()
 void output_limit()
 {
   if (debug.acc_step_down_flag) {
-    debug.limited_output = 0;  //スリップしてたら移動出力を0にする(仮)
+    debug.limited_output = 0;  //スリ�?プしてたら移動�?�力を0にする(仮)
   } else {
     debug.limited_output = OUTPUT_XY_LIMIT;
   }
@@ -961,7 +964,7 @@ void output_limit()
   }
 }
 
-// 後輪だけ位置制御に使っているせいでタイヤ回転数によるスリップ検出がだいぶ無理がある
+// 後輪�?け位置制御に使って�?るせ�?でタイヤ回転数によるスリ�?プ検�?�がだ�?ぶ無�?があ�?
 void slipDetection(void)
 {
   for (int calc_idx = 0; calc_idx < 4; calc_idx++) {
@@ -973,7 +976,7 @@ void slipDetection(void)
     }
   }
 
-  //対角
+  //対�?
   slip_detect.diff[0] = slip_detect.spin_total[0] - slip_detect.spin_total[2];
   slip_detect.diff[1] = slip_detect.spin_total[1] - slip_detect.spin_total[3];
 
@@ -1011,17 +1014,17 @@ void maintask_run()
   integ.local_target_diff[1] = integ.position_diff[0] * sin(-imu.yaw_angle_rad) + integ.position_diff[1] * cos(-imu.yaw_angle_rad);
 
   for (int i = 0; i < 2; i++) {
-    // デバッグ用にomni.odomをそのままと、target_posにsepeed使う
-    // 速度制御はodomベースなのでちょっとおかしなことになる
+    // �?バッグ用にomni.odomをそのままと、target_posにsepeed使�?
+    // 速度制御はodomベ�?�スなのでち�?っとおかしなことにな�?
     //integ.local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
 
-    // 精密性はそれほどいらないので、振動対策に不感帯入れる
+    // 精�?性はそれほど�?らな�?ので、振動対策に不感帯入れる
     if (integ.local_target_diff[i] < CMB_CTRL_DIFF_DEAD_ZONE && integ.local_target_diff[i] > -CMB_CTRL_DIFF_DEAD_ZONE) {
       integ.local_target_diff[i] = 0;
     }
 
     // ゲインは x10
-    // 吹き飛び対策で+-3.0 m/sを上限にする
+    // 吹き飛�?�対策で+-3.0 m/sを上限にする
     if (integ.local_target_diff[i] < -CMB_CTRL_DIFF_LIMIT) {
       integ.local_target_diff[i] = -CMB_CTRL_DIFF_LIMIT;
     } else if (integ.local_target_diff[i] > CMB_CTRL_DIFF_LIMIT) {
@@ -1029,20 +1032,20 @@ void maintask_run()
     }
 
     if (sys.main_mode == MAIN_MODE_COMBINATION_CONTROL) {
-      // 位置フィードバック項目のx10はゲイン (ベタ打ち)
+      // 位置フィードバ�?ク�?目のx10はゲイン (ベタ打ち)
 
-      //target.velocity[i] = +(integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり(位置フィードバックのみ)
+      //target.velocity[i] = +(integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり(位置フィードバ�?クのみ)
       //target.velocity[i] = ai_cmd.local_target_speed[i] * 0.5 + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
 
-      if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0) {                                 // 位置フィードバック項が制動方向の場合
+      if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0) {                                 // 位置フィードバ�?ク�?が制動方向�?�場�?
         target.velocity[i] = ai_cmd.local_target_speed[i] + (integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
       } else {
-        target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
+        target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御な�?
       }
       //target.velocity[i] = (integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
 
     } else {
-      target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
+      target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御な�?
     }
   }
 
@@ -1053,7 +1056,7 @@ void maintask_run()
     if (debug.latency_check_seq_cnt > 0) {
       debug.latency_check_seq_cnt--;
     } else {
-      // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
+      // 終わった瞬間吹っ飛�?�ので、指令値近くなったときに停止
       if (getAngleDiff(ai_cmd.target_theta, debug.rotation_target_theta) < 0.1) {
         debug.latency_check_enabled = false;
       }
@@ -1065,7 +1068,7 @@ void maintask_run()
     theta_control(ai_cmd.target_theta);
   }
 
-  // デバッグモードではstopとvision_lostを無視する
+  // �?バッグモードではstopとvision_lostを無視す�?
   if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (ai_cmd.stop_request_flag || ai_cmd.vision_lost_flag)) {
     resetLocalSpeedControl();
     omni_move(0.0, 0.0, 0.0, 0.0);
@@ -1214,7 +1217,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1222,7 +1225,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t * file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,

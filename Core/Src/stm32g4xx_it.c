@@ -66,6 +66,7 @@ extern DMA_HandleTypeDef hdma_lpuart1_tx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern UART_HandleTypeDef hlpuart1;
 extern UART_HandleTypeDef huart2;
+extern SPI_HandleTypeDef hspi3;
 extern TIM_HandleTypeDef htim7;
 /* USER CODE BEGIN EV */
 
@@ -317,6 +318,20 @@ void USART2_IRQHandler(void)
   /* USER CODE BEGIN USART2_IRQn 1 */
 
   /* USER CODE END USART2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles SPI3 global interrupt.
+  */
+void SPI3_IRQHandler(void)
+{
+  /* USER CODE BEGIN SPI3_IRQn 0 */
+
+  /* USER CODE END SPI3_IRQn 0 */
+  HAL_SPI_IRQHandler(&hspi3);
+  /* USER CODE BEGIN SPI3_IRQn 1 */
+
+  /* USER CODE END SPI3_IRQn 1 */
 }
 
 /**

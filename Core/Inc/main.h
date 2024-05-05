@@ -99,18 +99,20 @@ void p(const char * format, ...);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define TIM6_CH1_Buzzer_Pin GPIO_PIN_0
+#define TIM6_CH1_Buzzer_GPIO_Port GPIOA
 #define CS_Pin GPIO_PIN_4
 #define CS_GPIO_Port GPIOA
 #define V_SENSE_Pin GPIO_PIN_0
 #define V_SENSE_GPIO_Port GPIOB
 #define C_SENSE_Pin GPIO_PIN_1
 #define C_SENSE_GPIO_Port GPIOB
-#define TIM5_CH2_Buzzer_Pin GPIO_PIN_12
-#define TIM5_CH2_Buzzer_GPIO_Port GPIOC
 #define UART2_TX_ETH_Pin GPIO_PIN_3
 #define UART2_TX_ETH_GPIO_Port GPIOB
 #define UART2_RX_ETH_Pin GPIO_PIN_4
 #define UART2_RX_ETH_GPIO_Port GPIOB
+#define CS_CM4_Pin GPIO_PIN_9
+#define CS_CM4_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
