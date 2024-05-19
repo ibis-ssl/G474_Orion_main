@@ -10,13 +10,13 @@
 
 #include "management.h"
 
-
-
-void can1_init_ibis(FDCAN_HandleTypeDef* handler);
+void can1_init_ibis(FDCAN_HandleTypeDef * handler);
 void can1_send(int id, uint8_t senddata[]);
-void can2_init_ibis(FDCAN_HandleTypeDef* handler);
+void can2_init_ibis(FDCAN_HandleTypeDef * handler);
 void can2_send(int id, uint8_t senddata[]);
 
 uint32_t canTimeoutCnt();
+
+void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_raw, system_t * sys, motor_t * motor, mouse_t * mouse);
 
 #endif /* CAN_IBIS_H_ */

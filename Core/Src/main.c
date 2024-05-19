@@ -30,14 +30,22 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <math.h>
 #include <stdarg.h>
 
-#include "ai_comm.h"
 #include "management.h"
-#include "ring_buffer.h"
-#include "test_func.h"
 
 /* USER CODE END Includes */
+
+#include "actuator.h"
+#include "ai_comm.h"
+#include "can_ibis.h"
+#include "odom.h"
+#include "omni_wheel.h"
+#include "ring_buffer.h"
+#include "robot_control.h"
+#include "test_func.h"
+#include "util.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
@@ -57,28 +65,8 @@
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (20)  //上げると過電流エラーになりがち
-//#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
-//#define OMNI_OUTPUT_GAIN_KD (2.0)
-#define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.2)
-#define OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF (3.0)  //2.0
-#define FF_TARGET_FINAL_DIFF_LIMIT (0.5)
-
-#define OUTPUT_XY_LIMIT (10)  //
-
-#define OMEGA_LIMIT (20.0)  // ~ rad/s
-#define OMEGA_GAIN_KP (160.0)
-#define OMEGA_GAIN_KD (4000.0)
-
-// MAX
-#define ACCEL_LIMIT (8.0)       // m/ss
-#define ACCEL_LIMIT_BACK (5.0)  // m/ss
-
-//#define ACCEL_LIMIT (5.0)       // m/ss
-//#define ACCEL_LIMIT_BACK (3.0)  // m/ss
-//const float OMNI_ROTATION_LENGTH = (0.07575);
-
 #define LOW_VOLTAGE_LIMIT (22.0)
+#define OMNI_OUTPUT_LIMIT (20)  //上げると過電流エラーになりがち
 
 /* USER CODE END PV */
 
@@ -113,26 +101,14 @@ connection_t connection;
 system_t sys;
 integration_control_t integ;
 accel_vector_t acc_vel;
+debug_t debug;
 
 UART_HandleTypeDef * huart_xprintf;
 
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
 
-extern float32_t motor_voltage[4];  // for debug
-
-struct
-{
-  volatile uint32_t print_idx;
-  volatile uint32_t main_loop_cnt, true_cycle_cnt, motor_zero_cnt;
-  volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
-  volatile float true_out_total_spi, true_fb_toral_spin, true_yaw_speed, limited_output;
-  volatile bool print_flag, acc_step_down_flag, theta_override_flag;
-  volatile bool latency_check_enabled;
-  volatile int latency_check_seq_cnt;
-  volatile float rotation_target_theta;
-  volatile uint32_t uart_rx_itr_cnt;
-} debug;
+extern float motor_voltage[4];  // for debug
 
 struct
 {
@@ -214,7 +190,7 @@ int main(void)
 
   // 本来はリアルタイムに更新できた方が良いが、まだそのシステムがないので固定値
   ai_cmd.latency_time_ms = 30;
-  // 
+  //
 
   sys.kick_state = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
@@ -369,12 +345,12 @@ int main(void)
             }
             p("Vision X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, ai_cmd.global_vision_theta);
             p("AIcmd X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
-            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
+            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * M_PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
             p("\e[37m ");  // end color
             p("update %d ", debug.theta_override_flag);
           } else {
             p("omni X %+8.3f Y %+8.3f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
+            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * M_PI / 180.0, ai_cmd.global_vision_theta) * 180 / M_PI));
             p("Temp %3.0f %3.0f %3.0f %3.0f", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
           }
 
@@ -438,7 +414,7 @@ int main(void)
           p("CMD ");
           p("ck%3d cnt %3d main %6d CR 0x%4x", connection.check_ver, debug.uart_rx_itr_cnt, debug.main_loop_cnt / 10, huart2.Instance->CR1);
           p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
-          p("scl %4.1f ",ai_cmd.local_target_speed_scalar);
+          p("scl %4.1f ", ai_cmd.local_target_speed_scalar);
           p("TPx %+4.1f TPy %+4.1f TW %+6.1f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1], ai_cmd.target_theta * 180 / M_PI);
           p("Vis Gbrl-rb X %+6.2f Y %+6.2f Theta %+6.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
           //p("Gbrl-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
@@ -536,6 +512,24 @@ bool canRxTimeoutDetection()
   return false;
 }
 
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs)
+{
+  uint8_t RxData[CAN_RX_DATA_SIZE];
+  FDCAN_RxHeaderTypeDef RxHeader;
+  uint16_t rx_can_id;
+
+  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK) {
+      Error_Handler();
+      parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
+      // 関数のネストを浅くするためにparseCanCmd()の中から移動
+      if (RxHeader.Identifier == 0x241) {
+        mouseOdometory(&mouse, &imu);
+      }
+    }
+  }
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
@@ -582,12 +576,37 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 以後sys.main_modeによる動作切り替え
 
   yawFilter();
-  omniOdometory();
+  omniOdometory(&ai_cmd, &motor, &omni, &integ, &connection, &imu);
   //slipDetection();
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
   debug.true_fb_toral_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
   debug.true_cycle_cnt++;
+
+  if (debug.latency_check_enabled == false) {
+    if (decode_SW(sys.sw_data) & 0b00000001) {
+      debug.latency_check_seq_cnt++;
+      if (debug.latency_check_seq_cnt > MAIN_LOOP_CYCLE) {
+        debug.latency_check_enabled = true;
+        debug.latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
+        debug.rotation_target_theta = ai_cmd.target_theta;
+      }
+    } else {
+      debug.latency_check_seq_cnt = 0;
+    }
+
+  } else {  // レイテンシチェックモード中
+    if (debug.latency_check_seq_cnt > 0) {
+      debug.latency_check_seq_cnt--;
+    } else {
+      // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
+      if (getAngleDiff(ai_cmd.target_theta, debug.rotation_target_theta) < 0.1) {
+        debug.latency_check_enabled = false;
+      }
+      // complete!!
+    }
+    debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
+  }
 
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
@@ -608,19 +627,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case MAIN_MODE_MOTOR_TEST:  // motor test
-      motor_test(&sys);
+      motor_test(&sys, &output);
       break;
 
     case MAIN_MODE_DRIBBLER_TEST:  // drible test
-      dribbler_test(&sys);
+      dribbler_test(&sys, &output);
       break;
 
     case MAIN_MODE_KICKER_AUTO_TEST:  // kicker test (auto)
-      kicker_test(&sys, &can_raw, false);
+      kicker_test(&sys, &can_raw, false, &output);
       break;
 
     case MAIN_MODE_KICKER_MANUAL:  // kicker test (manual)
-      kicker_test(&sys, &can_raw, true);
+      kicker_test(&sys, &can_raw, true, &output);
       break;
 
     case MAIN_MODE_MOTOR_CALIBRATION:
@@ -793,172 +812,17 @@ void yawFilter()
 
   if (sys.main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
     // デバッグ用、targetへ補正する
-    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.target_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
+    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * M_PI / 180.0, ai_cmd.target_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
 
   } else if (ai_cmd.vision_lost_flag || debug.latency_check_enabled) {
     // VisionLost時は補正しない
     // レイテンシチェック中(一定速度での旋回中)は相補フィルタ切る
 
   } else {
-    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / PI) * 0.001;  // 0.001 : gain
+    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * M_PI / 180.0, ai_cmd.global_vision_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
   }
 
   imu.yaw_angle_rad = imu.yaw_angle * M_PI / 180;
-}
-
-void theta_control(float target_theta)
-{
-  // PID
-  output.omega = (getAngleDiff(target_theta, imu.yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu.yaw_angle_rad, imu.pre_yaw_angle_rad) * OMEGA_GAIN_KD);
-
-  if (output.omega > OMEGA_LIMIT) {
-    output.omega = OMEGA_LIMIT;
-  }
-  if (output.omega < -OMEGA_LIMIT) {
-    output.omega = -OMEGA_LIMIT;
-  }
-  //output.omega = 0;
-}
-
-void accel_control()
-{
-  target.local_vel[0] = target.velocity[0];
-  target.local_vel[1] = target.velocity[1];
-
-  // XY -> rad/scalarに変換
-
-  for (int i = 0; i < 2; i++) {
-    acc_vel.vel_error_xy[i] = target.local_vel[i] - target.local_vel_now[i];
-  }
-  acc_vel.vel_error_scalar = pow(pow(acc_vel.vel_error_xy[0], 2) + pow(acc_vel.vel_error_xy[1], 2), 0.5);
-  if (acc_vel.vel_error_xy[0] != 0 || acc_vel.vel_error_xy[1] != 0) {
-    acc_vel.vel_error_rad = atan2(acc_vel.vel_error_xy[1], acc_vel.vel_error_xy[0]);
-  }
-
-  // 目標速度と差が小さい場合は目標速度をそのまま代入する
-  // 目標速度が連続的に変化する場合に適切でないかも
-  if (acc_vel.vel_error_scalar < ACCEL_LIMIT / MAIN_LOOP_CYCLE) {
-    target.local_vel_now[0] = target.local_vel[0];
-    target.local_vel_now[1] = target.local_vel[1];
-    output.accel[0] = 0;
-    output.accel[1] = 0;
-    return;
-  }
-
-  // スカラは使わず、常に最大加速度
-  output.accel[0] = cos(acc_vel.vel_error_rad) * ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-  output.accel[1] = sin(acc_vel.vel_error_rad) * ACCEL_LIMIT / MAIN_LOOP_CYCLE;
-
-  // バック方向だけ加速度制限
-  if (output.accel[0] < -(ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE)) {
-    output.accel[0] = -(ACCEL_LIMIT_BACK / MAIN_LOOP_CYCLE);
-  }
-
-  // 減速方向は制動力2倍
-  // 2倍は流石に無理があるので1.8
-  for (int i = 0; i < 2; i++) {
-    if (target.local_vel_now[i] * output.accel[i] < 0) {
-      output.accel[i] *= 2.0;
-    }
-
-    // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
-    // 現在座標も速度制御されたタイヤで見ているので、あまりｱﾃにならない
-    /*if ((omni.robot_pos_diff[i] > 0 && output.accel[i] > 0) || (omni.robot_pos_diff[i] < 0 && output.accel[i] < 0)) {
-      //output.accel[i] *= 1.5;
-    }*/
-  }
-}
-
-void speed_control()
-{
-  //target.local_vel[0] = target.velocity[0];
-  //target.local_vel[1] = target.velocity[1];
-
-  // 500Hz, m/s -> m / cycle
-  for (int i = 0; i < 2; i++) {
-    target.local_vel_now[i] += output.accel[i];
-  }
-
-  // ローカル→グローバル座標系
-  // ロボットが回転しても、慣性はグローバル座標系に乗るので、加速度はグローバル座標系に変換してから加算
-  target.global_vel_now[0] += (output.accel[0]) * cos(imu.yaw_angle_rad) - (output.accel[1]) * sin(imu.yaw_angle_rad);
-  target.global_vel_now[1] += (output.accel[0]) * sin(imu.yaw_angle_rad) + (output.accel[1]) * cos(imu.yaw_angle_rad);
-
-  // 次回の計算のためにローカル座標系での速度も更新
-  target.local_vel_now[0] = target.global_vel_now[0] * cos(-imu.yaw_angle_rad) - target.global_vel_now[1] * sin(-imu.yaw_angle_rad);
-  target.local_vel_now[1] = target.global_vel_now[0] * sin(-imu.yaw_angle_rad) + target.global_vel_now[1] * cos(-imu.yaw_angle_rad);
-
-  // 速度次元での位置フィードバックは不要になったので、global_posまわりは使わない
-  //target.global_pos[0] += target.global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
-  //target.global_pos[1] += target.global_vel_now[1] / MAIN_LOOP_CYCLE;  // speed to position
-
-  // ここから位置制御
-  for (int i = 0; i < 2; i++) {
-    // targetとodomの差分に上限をつける(吹っ飛び対策)
-    // 出力が上限に張り付いたら、出力制限でそれ以上の加速度は出しようがないのでそれに合わせる
-    /*float odom_diff_max = (float)OUTPUT_XY_LIMIT / OMNI_OUTPUT_GAIN_KP;
-    if (target.global_pos[i] - omni.odom[i] > odom_diff_max) {
-      target.global_pos[i] = omni.odom[i] + odom_diff_max;
-    } else if (target.global_pos[i] - omni.odom[i] < -odom_diff_max) {
-      target.global_pos[i] = omni.odom[i] - odom_diff_max;
-    }*/
-
-    // 速度に対する応答性を稼ぐ
-    target.local_vel_ff_factor[i] = target.local_vel[i] - omni.local_odom_speed_mvf[i];
-    if (target.local_vel_ff_factor[i] > FF_TARGET_FINAL_DIFF_LIMIT) {
-      target.local_vel_ff_factor[i] = FF_TARGET_FINAL_DIFF_LIMIT;
-    } else if (target.local_vel_ff_factor[i] < -FF_TARGET_FINAL_DIFF_LIMIT) {
-      target.local_vel_ff_factor[i] = -FF_TARGET_FINAL_DIFF_LIMIT;
-    }
-  }
-
-  // odom基準の絶対座標系
-  //omni.global_odom_diff[i] = omni.odom[i] - target.global_pos[i];
-
-  // グローバル→ローカル座標系
-  /*omni.robot_pos_diff[0] = omni.global_odom_diff[0] * cos(-imu.yaw_angle_rad) - omni.global_odom_diff[1] * sin(-imu.yaw_angle_rad);
-  omni.robot_pos_diff[1] = omni.global_odom_diff[0] * sin(-imu.yaw_angle_rad) + omni.global_odom_diff[1] * cos(-imu.yaw_angle_rad);
-  * /
-    // local_vel_ff_factorに含まれるので要らなくなった
-    /*- omni.local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
-  /*- omni.local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD */
-
-  // 位置フィードバックは速度指令にいれるので、速度制御には関与させない
-  /* -omni.robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP +*/
-  /*-omni.robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP +*/
-
-  output.velocity[0] = target.local_vel_now[0] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
-  output.velocity[1] = target.local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
-}
-
-void output_limit()
-{
-  if (debug.acc_step_down_flag) {
-    debug.limited_output = 0;  //スリップしてたら移動出力を0にする(仮)
-  } else {
-    debug.limited_output = OUTPUT_XY_LIMIT;
-  }
-
-  float limit_gain = 0;
-  if (output.velocity[0] > debug.limited_output) {
-    limit_gain = output.velocity[0] / debug.limited_output;
-    output.velocity[0] = debug.limited_output;
-    output.velocity[1] /= limit_gain;
-  } else if (output.velocity[0] < -debug.limited_output) {
-    limit_gain = -output.velocity[0] / debug.limited_output;
-    output.velocity[0] = -debug.limited_output;
-    output.velocity[1] /= limit_gain;
-  }
-
-  if (output.velocity[1] > debug.limited_output) {
-    limit_gain = output.velocity[1] / debug.limited_output;
-    output.velocity[1] = debug.limited_output;
-    output.velocity[0] /= limit_gain;
-  } else if (output.velocity[1] < -debug.limited_output) {
-    limit_gain = -output.velocity[1] / debug.limited_output;
-    output.velocity[1] = -debug.limited_output;
-    output.velocity[0] /= limit_gain;
-  }
 }
 
 // 後輪だけ位置制御に使っているせいでタイヤ回転数によるスリップ検出がだいぶ無理がある
@@ -988,89 +852,23 @@ void slipDetection(void)
 
 void maintask_run()
 {
-  if (debug.latency_check_enabled == false) {
-    if (decode_SW(sys.sw_data) & 0b00000001) {
-      debug.latency_check_seq_cnt++;
-      if (debug.latency_check_seq_cnt > MAIN_LOOP_CYCLE) {
-        debug.latency_check_enabled = true;
-        debug.latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
-        debug.rotation_target_theta = ai_cmd.target_theta;
-      }
-    } else {
-      debug.latency_check_seq_cnt = 0;
-    }
-  }
+  local_feedback(&integ, &imu, &sys, &target, &ai_cmd);
+  accel_control(&acc_vel, &output, &target);
+  speed_control(&acc_vel, &output, &target, &imu, &omni);
+  output_limit(&output, &debug);
 
-  const float CMB_CTRL_FACTOR_LIMIT = (3.0);     // [m/s]
-  const float CMB_CTRL_DIFF_DEAD_ZONE = (0.03);  // [m]
-  const float CMB_CTRL_GAIN = (10.0);
-  const float CMB_CTRL_DIFF_LIMIT = (CMB_CTRL_FACTOR_LIMIT / CMB_CTRL_GAIN);
-
-  // グローバル→ローカル座標系
-  integ.local_target_diff[0] = integ.position_diff[0] * cos(-imu.yaw_angle_rad) - integ.position_diff[1] * sin(-imu.yaw_angle_rad);
-  integ.local_target_diff[1] = integ.position_diff[0] * sin(-imu.yaw_angle_rad) + integ.position_diff[1] * cos(-imu.yaw_angle_rad);
-
-  for (int i = 0; i < 2; i++) {
-    // デバッグ用にomni.odomをそのままと、target_posにsepeed使う
-    // 速度制御はodomベースなのでちょっとおかしなことになる
-    //integ.local_target_diff[i] = omni.odom[i] - ai_cmd.local_target_speed[i];
-
-    // 精密性はそれほどいらないので、振動対策に不感帯入れる
-    if (integ.local_target_diff[i] < CMB_CTRL_DIFF_DEAD_ZONE && integ.local_target_diff[i] > -CMB_CTRL_DIFF_DEAD_ZONE) {
-      integ.local_target_diff[i] = 0;
-    }
-
-    // ゲインは x10
-    // 吹き飛び対策で+-3.0 m/sを上限にする
-    if (integ.local_target_diff[i] < -CMB_CTRL_DIFF_LIMIT) {
-      integ.local_target_diff[i] = -CMB_CTRL_DIFF_LIMIT;
-    } else if (integ.local_target_diff[i] > CMB_CTRL_DIFF_LIMIT) {
-      integ.local_target_diff[i] = CMB_CTRL_DIFF_LIMIT;
-    }
-
-    if (sys.main_mode == MAIN_MODE_COMBINATION_CONTROL) {
-      // 位置フィードバック項目のx10はゲイン (ベタ打ち)
-
-      //target.velocity[i] = +(integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり(位置フィードバックのみ)
-      //target.velocity[i] = ai_cmd.local_target_speed[i] * 0.5 + (integ.local_target_diff[i] * CMB_CTRL_GAIN) * 0.5;  //ローカル統合制御あり
-
-      if (ai_cmd.local_target_speed[i] * integ.local_target_diff[i] < 0) {                                 // 位置フィードバック項が制動方向の場合
-        target.velocity[i] = ai_cmd.local_target_speed[i] + (integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
-      } else {
-        target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
-      }
-      //target.velocity[i] = (integ.local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
-
-    } else {
-      target.velocity[i] = ai_cmd.local_target_speed[i];  // ローカル統合制御なし
-    }
-  }
-
-  accel_control();
-  speed_control();
-  output_limit();
   if (debug.latency_check_enabled) {
-    if (debug.latency_check_seq_cnt > 0) {
-      debug.latency_check_seq_cnt--;
-    } else {
-      // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
-      if (getAngleDiff(ai_cmd.target_theta, debug.rotation_target_theta) < 0.1) {
-        debug.latency_check_enabled = false;
-      }
-      // complete!!
-    }
-    debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
-    theta_control(debug.rotation_target_theta);
+    theta_control(debug.rotation_target_theta, &acc_vel, &output, &imu);
   } else {
-    theta_control(ai_cmd.target_theta);
+    theta_control(ai_cmd.target_theta, &acc_vel, &output, &imu);
   }
 
   // デバッグモードではstopとvision_lostを無視する
   if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (ai_cmd.stop_request_flag || ai_cmd.vision_lost_flag)) {
     resetLocalSpeedControl();
-    omni_move(0.0, 0.0, 0.0, 0.0);
+    omni_move(0.0, 0.0, 0.0, 0.0, &output);
   } else {
-    omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT);
+    omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT, &output);
   }
 
   send_accutuator_cmd_run();
@@ -1141,7 +939,7 @@ void send_accutuator_cmd_run()
 
 void maintask_stop()
 {
-  omni_move(0.0, 0.0, 0.0, 0.0);
+  omni_move(0.0, 0.0, 0.0, 0.0, &output);
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);

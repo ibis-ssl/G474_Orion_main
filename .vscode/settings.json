@@ -5,6 +5,9 @@
     "files.associations": {
         "cmath": "c",
         "omni_wheel.h": "c",
-        "management.h": "c"
+        "management.h": "c",
+        "ring_buffer.h": "c",
+        "arm_math.h": "c",
+        "stm32g4xx_hal_gpio.h": "c"
     }
 }

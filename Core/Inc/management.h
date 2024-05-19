@@ -8,6 +8,7 @@
 #ifndef MANAGEMENT_H_
 #define MANAGEMENT_H_
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -23,19 +24,11 @@
 #include "stm32g4xx_hal.h"
 #include "tim.h"
 #include "usart.h"
-#define ARM_MATH_CM4
-#include "actuator.h"
-#include "arm_math.h"
-#include "can_ibis.h"
-#include "icm20602_spi.h"
-#include "microsectimer.h"
-#include "myatan2.h"
-#include "odom.h"
-#include "omni_wheel.h"
-#include "ring_buffer.h"
-#include "util.h"
 
-extern float32_t motor_voltage[4];
+//#define ARM_MATH_CM4
+//#include "arm_math.h"
+
+extern float motor_voltage[4];
 
 #define MAIN_LOOP_CYCLE (500)
 
@@ -65,6 +58,15 @@ enum {
   BOARD_ID_SUB,
   BOARD_ID_MAX,
 };
+
+typedef struct
+{
+  float * buffer;  // float型のデータを格納する配列
+  int size;        // バッファのサイズ
+  int front;       // データの先頭位置
+  int rear;        // データの末尾位置
+  int count;       // データの数
+} RingBuffer;
 
 typedef struct
 {
@@ -156,8 +158,8 @@ typedef struct
   float vision_based_position[2];    // Visionによって更新された自己位置
   float position_diff[2];            // ai_cmdとvision_based_positionの差分
   float pre_global_target_position[2];
-  float move_dist;              // Visionとtargetが更新されてからの移動量
-  float targed_dist_diff;       // Visionが更新された時点での現在地とtargetの距離
+  float move_dist;         // Visionとtargetが更新されてからの移動量
+  float targed_dist_diff;  // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
 } integration_control_t;
 
@@ -194,6 +196,18 @@ typedef struct
   uint16_t kick_state;
   uint32_t sw_data;
 } system_t;
+typedef struct
+{
+  volatile uint32_t print_idx;
+  volatile uint32_t main_loop_cnt, true_cycle_cnt, motor_zero_cnt;
+  volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
+  volatile float true_out_total_spi, true_fb_toral_spin, true_yaw_speed, limited_output;
+  volatile bool print_flag, acc_step_down_flag, theta_override_flag;
+  volatile bool latency_check_enabled;
+  volatile int latency_check_seq_cnt;
+  volatile float rotation_target_theta;
+  volatile uint32_t uart_rx_itr_cnt;
+} debug_t;
 
 typedef union {
   uint8_t buf[TX_BUF_SIZE_ETHER];
@@ -216,18 +230,6 @@ typedef union {
   } data;
 } tx_msg_t;
 
-extern imu_t imu;
-extern can_raw_t can_raw;
-extern ai_cmd_t ai_cmd;
-extern target_t target;
-extern mouse_t mouse;
-extern omni_t omni;
-extern output_t output;
-extern motor_t motor;
-extern connection_t connection;
-extern system_t sys;
-extern integration_control_t integ;
-
-//extern float32_t voltage[6];
+//extern float voltage[6];
 
 #endif /* MANAGEMENT_H_ */

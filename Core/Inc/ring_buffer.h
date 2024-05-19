@@ -4,15 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// リングバッファの構造体
-typedef struct
-{
-  float * buffer;  // float型のデータを格納する配列
-  int size;        // バッファのサイズ
-  int front;       // データの先頭位置
-  int rear;        // データの末尾位置
-  int count;       // データの数
-} RingBuffer;
+#include "management.h"
 
 RingBuffer * initRingBuffer(int size);
 void enqueue(RingBuffer * rb, float data);

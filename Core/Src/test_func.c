@@ -1,30 +1,34 @@
 #include "test_func.h"
 
-void motor_test(system_t * sys)
+#include "util.h"
+#include "omni_wheel.h"
+#include "actuator.h"
+
+void motor_test(system_t * sys, output_t * output)
 {
   if (decode_SW(sys->sw_data) & 0b00000001) {
-    omni_move(4.0, 0.0, 0.0, 4.0);  // fwd
+    omni_move(4.0, 0.0, 0.0, 4.0, output);  // fwd
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(sys->sw_data) & 0b00000010) {
-    omni_move(-4.0, 0.0, 0.0, 4.0);  // back
+    omni_move(-4.0, 0.0, 0.0, 4.0, output);  // back
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(sys->sw_data) & 0b00000100) {
-    omni_move(0.0, -4.0, 0.0, 4.0);  // left
+    omni_move(0.0, -4.0, 0.0, 4.0, output);  // left
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(sys->sw_data) & 0b00001000) {
-    omni_move(0.0, 4.0, 0.0, 4.0);  // right
+    omni_move(0.0, 4.0, 0.0, 4.0, output);  // right
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (decode_SW(sys->sw_data) & 0b00010000) {
-    omni_move(0.0, 0.0, 20.0, 4.0);  // spin
+    omni_move(0.0, 0.0, 20.0, 4.0, output);  // spin
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else {
-    omni_move(0.0, 0.0, 0.0, 0.0);
+    omni_move(0.0, 0.0, 0.0, 0.0, output);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
   }
   actuator_motor5(0.0, 0.0);
 }
 
-void dribbler_test(system_t * sys)
+void dribbler_test(system_t * sys, output_t * output)
 {
   if (decode_SW(sys->sw_data) & 0b00010000) {
     actuator_motor5(0.5, 1.0);
@@ -33,10 +37,10 @@ void dribbler_test(system_t * sys)
     actuator_motor5(0.0, 0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
   }
-  omni_move(0.0, 0.0, 0.0, 0.0);
+  omni_move(0.0, 0.0, 0.0, 0.0, output);
 }
 
-void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode)
+void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t * output)
 {
   static bool dribbler_up = false;
 
@@ -90,7 +94,7 @@ void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode)
     actuator_kicker(1, 1);  // charge enable
     actuator_kicker_voltage(300.0);
   }
-  omni_move(0.0, 0.0, 0.0, 0.0);
+  omni_move(0.0, 0.0, 0.0, 0.0, output);
 }
 
 void motor_calibration(system_t * sys)
