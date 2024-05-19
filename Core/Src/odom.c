@@ -6,6 +6,7 @@
  */
 
 #include "management.h"
+#include "util.h"
 #include "ring_buffer.h"
 
 void mouseOdometory(mouse_t * mouse, imu_t * imu)

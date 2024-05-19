@@ -7,6 +7,7 @@
 
 #include "robot_control.h"
 
+#include "util.h"
 //#define OMNI_OUTPUT_GAIN_KP (0)  // ~ m/s / m : -250 -> 4cm : 1m/s
 //#define OMNI_OUTPUT_GAIN_KD (2.0)
 #define OMNI_OUTPUT_GAIN_FF_TARGET_NOW (1.2)
@@ -135,19 +136,19 @@ void speed_control(accel_vector_t * acc_vel, output_t * output, target_t * targe
   }
 
   // odom基準の絶対座標系
-  //omni->global_odom_diff[i] = omni->odom[i] - target->global_pos[i];
+  // omni->global_odom_diff[i] = omni->odom[i] - target->global_pos[i];
 
   // グローバル→ローカル座標系
-  /*omni->robot_pos_diff[0] = omni->global_odom_diff[0] * cos(-imu->yaw_angle_rad) - omni->global_odom_diff[1] * sin(-imu->yaw_angle_rad);
+  /* omni->robot_pos_diff[0] = omni->global_odom_diff[0] * cos(-imu->yaw_angle_rad) - omni->global_odom_diff[1] * sin(-imu->yaw_angle_rad);
   omni->robot_pos_diff[1] = omni->global_odom_diff[0] * sin(-imu->yaw_angle_rad) + omni->global_odom_diff[1] * cos(-imu->yaw_angle_rad);
-  * /
-    // local_vel_ff_factorに含まれるので要らなくなった
-    /*- omni->local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
-  /*- omni->local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD */
+  */
+  // local_vel_ff_factorに含まれるので要らなくなった
+  /* - omni->local_odom_speed[0] * OMNI_OUTPUT_GAIN_KD */
+  /* - omni->local_odom_speed[1] * OMNI_OUTPUT_GAIN_KD */
 
   // 位置フィードバックは速度指令にいれるので、速度制御には関与させない
-  /* -omni->robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP +*/
-  /*-omni->robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP +*/
+  /* -omni->robot_pos_diff[0] * OMNI_OUTPUT_GAIN_KP + */
+  /* omni->robot_pos_diff[1] * OMNI_OUTPUT_GAIN_KP + */
 
   output->velocity[0] = target->local_vel_now[0] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target->local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;
   output->velocity[1] = target->local_vel_now[1] * OMNI_OUTPUT_GAIN_FF_TARGET_NOW + target->local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF;

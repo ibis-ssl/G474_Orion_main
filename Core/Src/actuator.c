@@ -6,6 +6,9 @@
  */
 #include "actuator.h"
 
+#include "util.h"
+#include "can_ibis.h"
+
 static void motor_cmd_can1(uint16_t motor_id, float duty, float limit)
 {
   uint8_t senddata_motor[8];

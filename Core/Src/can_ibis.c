@@ -7,6 +7,8 @@
 
 #include "can_ibis.h"
 
+#include "util.h"
+
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
 

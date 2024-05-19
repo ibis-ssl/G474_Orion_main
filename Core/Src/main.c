@@ -46,6 +46,7 @@
 #include "robot_control.h"
 #include "test_func.h"
 #include "util.h"
+#include "icm20602_spi.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
@@ -516,16 +517,16 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 {
   uint8_t RxData[CAN_RX_DATA_SIZE];
   FDCAN_RxHeaderTypeDef RxHeader;
-  uint16_t rx_can_id;
 
   if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK) {
       Error_Handler();
-      parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
-      // 関数のネストを浅くするためにparseCanCmd()の中から移動
-      if (RxHeader.Identifier == 0x241) {
-        mouseOdometory(&mouse, &imu);
-      }
+    }
+
+    parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
+    // 関数のネストを浅くするためにparseCanCmd()の中から移動
+    if (RxHeader.Identifier == 0x241) {
+      mouseOdometory(&mouse, &imu);
     }
   }
 }

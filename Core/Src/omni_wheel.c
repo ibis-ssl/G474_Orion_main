@@ -6,7 +6,7 @@
  */
 #include "omni_wheel.h"
 
-
+#include "actuator.h"
 #include "management.h"
 
 /*motor place
