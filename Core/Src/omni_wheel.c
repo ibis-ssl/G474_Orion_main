@@ -8,6 +8,7 @@
 
 #include "actuator.h"
 #include "management.h"
+#include "math.h"
 
 /*motor place
  *

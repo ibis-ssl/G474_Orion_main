@@ -40,13 +40,13 @@
 #include "actuator.h"
 #include "ai_comm.h"
 #include "can_ibis.h"
+#include "icm20602_spi.h"
 #include "odom.h"
 #include "omni_wheel.h"
 #include "ring_buffer.h"
 #include "robot_control.h"
 #include "test_func.h"
 #include "util.h"
-#include "icm20602_spi.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
@@ -280,7 +280,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 6;
+  debug.print_idx = 5;
   //target.velocity[1] = 1.0;
   /* USER CODE END 2 */
 
@@ -301,7 +301,7 @@ int main(void)
       // 文字色メモ
       // 30:black 31:red 32:green 33:yellow 34:blue 35:magenta 36:cyan 37:white(default)
       p("\e[0m");
-      p("yaw=%+6.1f ", imu.yaw_angle);
+      //p("yaw=%+6.1f ", imu.yaw_angle);
       if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT) {
         p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[5]);
       } else {
@@ -403,12 +403,12 @@ int main(void)
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
           //p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
-          //p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000 * MAIN_LOOP_CYCLE, output.accel[1] * 1000 * MAIN_LOOP_CYCLE);
-          p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
+          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000 * MAIN_LOOP_CYCLE, output.accel[1] * 1000 * MAIN_LOOP_CYCLE);
+          //p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
 
           //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
           p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
-          //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF, target.local_vel_ff_factor[1] * OMNI_OUTPUT_GAIN_FF_TARGET_FINAL_DIFF);
+          p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
 
           break;
         case 6:
