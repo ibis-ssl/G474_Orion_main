@@ -48,7 +48,7 @@ void actuator_kicker_voltage(float voltage)
   float_to_uchar4(&senddata_kick[4], voltage);
 
   senddata_kick[0] = 0;
-  can1_send(0x110, senddata_kick);
+  can2_send(0x110, senddata_kick);
 }
 
 void actuator_kicker(uint8_t id, uint8_t param)

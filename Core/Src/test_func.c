@@ -92,7 +92,7 @@ void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t
     actuator_motor5(0.0, 0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
     actuator_kicker(1, 1);  // charge enable
-    actuator_kicker_voltage(300.0);
+    actuator_kicker_voltage(450.0);
   }
   omni_move(0.0, 0.0, 0.0, 0.0, output);
 }
