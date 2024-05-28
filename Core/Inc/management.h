@@ -89,7 +89,7 @@ typedef struct
 typedef struct
 {
   float target_theta, global_vision_theta;
-  float drible_power;
+  float dribble_power;
   float kick_power;
   bool chip_en;
   float local_target_speed[2];

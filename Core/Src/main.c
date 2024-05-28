@@ -419,7 +419,7 @@ int main(void)
           p("TPx %+4.1f TPy %+4.1f TW %+6.1f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1], ai_cmd.target_theta * 180 / M_PI);
           p("Vis Gbrl-rb X %+6.2f Y %+6.2f Theta %+6.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
           //p("Gbrl-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-          p("lst %d stp %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power,
+          p("lst %d stp %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.dribble_power,
             ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
           break;
         case 7:
@@ -631,7 +631,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       motor_test(&sys, &output);
       break;
 
-    case MAIN_MODE_DRIBBLER_TEST:  // drible test
+    case MAIN_MODE_DRIBBLER_TEST:  // dribble test
       dribbler_test(&sys, &output);
       break;
 
@@ -929,7 +929,7 @@ void send_accutuator_cmd_run()
       break;
 
     case 5:
-      actuator_motor5(ai_cmd.drible_power, 1.0);
+      actuator_motor5(ai_cmd.dribble_power, 1.0);
       break;
 
     default:
