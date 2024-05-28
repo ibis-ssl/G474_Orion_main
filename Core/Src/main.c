@@ -526,7 +526,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
     parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
     // 関数のネストを浅くするためにparseCanCmd()の中から移動
     if (RxHeader.Identifier == 0x241) {
-      mouseOdometory(&mouse, &imu);
+      mouseOdometry(&mouse, &imu);
     }
   }
 }
@@ -577,7 +577,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 以後sys.main_modeによる動作切り替え
 
   yawFilter();
-  omniOdometory(&ai_cmd, &motor, &omni, &integ, &connection, &imu);
+  omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);
   //slipDetection();
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];

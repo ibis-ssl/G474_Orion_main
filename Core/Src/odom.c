@@ -9,7 +9,7 @@
 #include "util.h"
 #include "ring_buffer.h"
 
-void mouseOdometory(mouse_t * mouse, imu_t * imu)
+void mouseOdometry(mouse_t * mouse, imu_t * imu)
 {
   mouse->raw_diff[0] = (float)mouse->raw[0] / 500;
   mouse->raw_diff[1] = (float)mouse->raw[1] / 500;
@@ -29,7 +29,7 @@ void mouseOdometory(mouse_t * mouse, imu_t * imu)
   mouse->pre_yaw_angle_rad = imu->yaw_angle_rad;
 }
 
-void omniOdometory(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
+void omniOdometry(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
 {
   // motor->enc_angle,/imu->yaw_angle_rad
 
