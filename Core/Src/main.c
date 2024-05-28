@@ -399,13 +399,13 @@ int main(void)
           //p("integ %+5.2f %+5.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
           p("cmd-vel %+5.2f, %+5.2f, ", target.velocity[0], target.velocity[1]);
-          p("vel-now %+5.2f, %+5.2f, ", target.local_vel_now[0], target.local_vel_now[1]);
+          //p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
-          //p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
+          //p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 150, omni.robot_pos_diff[1] * 150);  // x150は出力ゲイン
           //p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * MAIN_LOOP_CYCLE, output.accel[1] * MAIN_LOOP_CYCLE);
-          p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
-
+          //p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
+          //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
           p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
           p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
