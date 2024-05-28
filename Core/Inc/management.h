@@ -159,7 +159,7 @@ typedef struct
   float position_diff[2];            // ai_cmdとvision_based_positionの差分
   float pre_global_target_position[2];
   float move_dist;         // Visionとtargetが更新されてからの移動量
-  float targed_dist_diff;  // Visionが更新された時点での現在地とtargetの距離
+  float target_dist_diff;  // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
 } integration_control_t;
 

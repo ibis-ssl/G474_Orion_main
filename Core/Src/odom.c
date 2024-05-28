@@ -90,6 +90,6 @@ void omniOdometry(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration
     move_diff[i] = ai_cmd->global_robot_position[i] - integ->vision_based_position[i];      // Visionとtargetが更新されてからの移動量
   }
 
-  integ->targed_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
+  integ->target_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
   integ->move_dist = sqrt(pow(integ->position_diff[0], 2) + pow(integ->position_diff[1], 2));
 }
