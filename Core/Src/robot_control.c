@@ -22,7 +22,7 @@
 #define OMEGA_LIMIT (20.0)  // ~ rad/s
 
 // MAX
-#define ACCEL_LIMIT (8.0)       // m/ss
+#define ACCEL_LIMIT (5.0)       // m/ss
 #define ACCEL_LIMIT_BACK (3.0)  // m/ss
 
 //#define ACCEL_LIMIT (5.0)       // m/ss
@@ -176,7 +176,7 @@ void speed_control(accel_vector_t * acc_vel, output_t * output, target_t * targe
 
     // 速度に対する応答性を稼ぐ
     //if (target->local_vel_ff_factor[i] * output->accel[i] < 0) target->local_vel_ff_factor[i] = 0;
-    target->local_vel_ff_factor[i] = output->accel[i] * MAIN_LOOP_CYCLE * 0.3;
+    target->local_vel_ff_factor[i] = output->accel[i] * MAIN_LOOP_CYCLE * 0.2;  // 0.3はややデカすぎ、0.2は割といい感じ
     /*float tmp = fabs(output->accel[i] * MAIN_LOOP_CYCLE / ACCEL_LIMIT) * FF_TARGET_FINAL_DIFF_LIMIT;
     //float tmp = FF_TARGET_FINAL_DIFF_LIMIT;
     if (target->local_vel_ff_factor[i] > tmp) {
