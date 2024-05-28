@@ -1,5 +1,5 @@
 /*
- * managiment.h
+ * management.h
  *
  *  Created on: Sep 1, 2019
  *      Author: okada_tech
