@@ -81,7 +81,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 uint8_t getModeSwitch();
 void maintask_run();
 void maintask_stop();
-void send_accutuator_cmd_run();
+void send_actuator_cmd_run();
 void send_can_error();
 void yawFilter();
 void resetLocalSpeedControl();
@@ -872,10 +872,10 @@ void maintask_run()
     omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT, &output);
   }
 
-  send_accutuator_cmd_run();
+  send_actuator_cmd_run();
 }
 
-void send_accutuator_cmd_run()
+void send_actuator_cmd_run()
 {
   if (ai_cmd.kick_power > 0) {
     if (sys.kick_state == 0) {
