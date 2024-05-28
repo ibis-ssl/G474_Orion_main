@@ -128,7 +128,7 @@ void accel_control(accel_vector_t * acc_vel, output_t * output, target_t * targe
   // 減速方向は制動力2倍
   // 2倍は流石に無理があるので1.8
   for (int i = 0; i < 2; i++) {
-    if (target->local_vel_now[i] * output->accel[i] < 0) {
+    if (target->local_vel_now[i] * output->accel[i] <= 0) {
       output->accel[i] *= 2.0;
     }
 
