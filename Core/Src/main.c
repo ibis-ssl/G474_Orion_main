@@ -311,7 +311,7 @@ int main(void)
       debug.fb_total_spin = (can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]) / 1.5;
       debug.true_yaw_speed = imu.yaw_angle - debug.pre_yaw_angle;
 
-      if (fabs(debug.true_yaw_speed - debug.true_fb_toral_spin) > 100 && fabs(ai_cmd.target_theta - imu.yaw_angle) > 5) {
+      if (fabs(debug.true_yaw_speed - debug.true_fb_total_spin) > 100 && fabs(ai_cmd.target_theta - imu.yaw_angle) > 5) {
         //actuator_buzzer_frq_on(1046);
         //debug.acc_step_down_flag = true;
 
@@ -442,7 +442,7 @@ int main(void)
       debug.pre_yaw_angle = imu.yaw_angle;
 
       debug.true_cycle_cnt = 0;
-      debug.true_fb_toral_spin = 0;
+      debug.true_fb_total_spin = 0;
       debug.true_out_total_spi = 0;
       debug.uart_rx_itr_cnt = 0;
     }
@@ -581,7 +581,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   //slipDetection();
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
-  debug.true_fb_toral_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
+  debug.true_fb_total_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
   debug.true_cycle_cnt++;
 
   if (debug.latency_check_enabled == false) {
