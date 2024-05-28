@@ -81,7 +81,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 uint8_t getModeSwitch();
 void maintask_run();
 void maintask_stop();
-void send_accutuator_cmd_run();
+void send_actuator_cmd_run();
 void send_can_error();
 void yawFilter();
 void resetLocalSpeedControl();
@@ -311,7 +311,7 @@ int main(void)
       debug.fb_total_spin = (can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]) / 1.5;
       debug.true_yaw_speed = imu.yaw_angle - debug.pre_yaw_angle;
 
-      if (fabs(debug.true_yaw_speed - debug.true_fb_toral_spin) > 100 && fabs(ai_cmd.target_theta - imu.yaw_angle) > 5) {
+      if (fabs(debug.true_yaw_speed - debug.true_fb_total_spin) > 100 && fabs(ai_cmd.target_theta - imu.yaw_angle) > 5) {
         //actuator_buzzer_frq_on(1046);
         //debug.acc_step_down_flag = true;
 
@@ -419,7 +419,7 @@ int main(void)
           p("TPx %+4.1f TPy %+4.1f TW %+6.1f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1], ai_cmd.target_theta * 180 / M_PI);
           p("Vis Gbrl-rb X %+6.2f Y %+6.2f Theta %+6.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], ai_cmd.global_vision_theta);
           //p("Gbrl-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-          p("lst %d stp %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.drible_power,
+          p("lst %d stp %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", ai_cmd.vision_lost_flag, ai_cmd.stop_request_flag, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.dribble_power,
             ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);
           break;
         case 7:
@@ -442,7 +442,7 @@ int main(void)
       debug.pre_yaw_angle = imu.yaw_angle;
 
       debug.true_cycle_cnt = 0;
-      debug.true_fb_toral_spin = 0;
+      debug.true_fb_total_spin = 0;
       debug.true_out_total_spi = 0;
       debug.uart_rx_itr_cnt = 0;
     }
@@ -526,7 +526,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
     parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
     // 関数のネストを浅くするためにparseCanCmd()の中から移動
     if (RxHeader.Identifier == 0x241) {
-      mouseOdometory(&mouse, &imu);
+      mouseOdometry(&mouse, &imu);
     }
   }
 }
@@ -577,11 +577,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 以後sys.main_modeによる動作切り替え
 
   yawFilter();
-  omniOdometory(&ai_cmd, &motor, &omni, &integ, &connection, &imu);
+  omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);
   //slipDetection();
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
-  debug.true_fb_toral_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
+  debug.true_fb_total_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
   debug.true_cycle_cnt++;
 
   if (debug.latency_check_enabled == false) {
@@ -631,7 +631,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       motor_test(&sys, &output);
       break;
 
-    case MAIN_MODE_DRIBBLER_TEST:  // drible test
+    case MAIN_MODE_DRIBBLER_TEST:  // dribble test
       dribbler_test(&sys, &output);
       break;
 
@@ -872,10 +872,10 @@ void maintask_run()
     omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT, &output);
   }
 
-  send_accutuator_cmd_run();
+  send_actuator_cmd_run();
 }
 
-void send_accutuator_cmd_run()
+void send_actuator_cmd_run()
 {
   if (ai_cmd.kick_power > 0) {
     if (sys.kick_state == 0) {
@@ -929,7 +929,7 @@ void send_accutuator_cmd_run()
       break;
 
     case 5:
-      actuator_motor5(ai_cmd.drible_power, 1.0);
+      actuator_motor5(ai_cmd.dribble_power, 1.0);
       break;
 
     default:

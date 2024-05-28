@@ -55,7 +55,7 @@ void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, 
   integ->local_target_diff[1] = integ->position_diff[0] * sin(-imu->yaw_angle_rad) + integ->position_diff[1] * cos(-imu->yaw_angle_rad);
 
   for (int i = 0; i < 2; i++) {
-    // デバッグ用にomni->odomをそのままと、target_posにsepeed使う
+    // デバッグ用にomni->odomをそのままと、target_posにspeed使う
     // 速度制御はodomベースなのでちょっとおかしなことになる
     //integ->local_target_diff[i] = omni->odom[i] - ai_cmd->local_target_speed[i];
 

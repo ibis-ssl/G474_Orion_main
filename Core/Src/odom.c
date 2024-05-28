@@ -9,7 +9,7 @@
 #include "util.h"
 #include "ring_buffer.h"
 
-void mouseOdometory(mouse_t * mouse, imu_t * imu)
+void mouseOdometry(mouse_t * mouse, imu_t * imu)
 {
   mouse->raw_diff[0] = (float)mouse->raw[0] / 500;
   mouse->raw_diff[1] = (float)mouse->raw[1] / 500;
@@ -29,7 +29,7 @@ void mouseOdometory(mouse_t * mouse, imu_t * imu)
   mouse->pre_yaw_angle_rad = imu->yaw_angle_rad;
 }
 
-void omniOdometory(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
+void omniOdometry(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
 {
   // motor->enc_angle,/imu->yaw_angle_rad
 
@@ -90,6 +90,6 @@ void omniOdometory(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integratio
     move_diff[i] = ai_cmd->global_robot_position[i] - integ->vision_based_position[i];      // Visionとtargetが更新されてからの移動量
   }
 
-  integ->targed_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
+  integ->target_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
   integ->move_dist = sqrt(pow(integ->position_diff[0], 2) + pow(integ->position_diff[1], 2));
 }

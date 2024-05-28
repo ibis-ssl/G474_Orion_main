@@ -12,7 +12,7 @@
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
 
-// power,FC,mose
+// power,FC,mouse
 void can1_init_ibis(FDCAN_HandleTypeDef * handler)
 {
   FDCAN_FilterTypeDef sFilterConfig;

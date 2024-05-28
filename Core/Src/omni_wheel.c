@@ -33,11 +33,11 @@ const float cosM3 = cos(225 * M_PI / 180);
 const float sinM4 = sin(150 * M_PI / 180);
 const float cosM4 = cos(150 * M_PI / 180);
 
-void omni_move(float vel_y_robot, float vel_x_robot, float omega_roboot, float duty_limit, output_t * output)
+void omni_move(float vel_y_robot, float vel_x_robot, float omega_robot, float duty_limit, output_t * output)
 {
   float rotation_omega_motor;
 
-  rotation_omega_motor = ROBOT_RADIUS * omega_roboot;
+  rotation_omega_motor = ROBOT_RADIUS * omega_robot;
 
   output->motor_voltage[0] = ((vel_x_robot * sinM1) + (vel_y_robot * cosM1) + rotation_omega_motor) / rotation_length_omni;
   output->motor_voltage[1] = ((vel_x_robot * sinM2) + (vel_y_robot * cosM2) + rotation_omega_motor) / rotation_length_omni;

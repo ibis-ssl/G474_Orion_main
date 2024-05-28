@@ -1,5 +1,5 @@
 /*
- * managiment.h
+ * management.h
  *
  *  Created on: Sep 1, 2019
  *      Author: okada_tech
@@ -89,7 +89,7 @@ typedef struct
 typedef struct
 {
   float target_theta, global_vision_theta;
-  float drible_power;
+  float dribble_power;
   float kick_power;
   bool chip_en;
   float local_target_speed[2];
@@ -160,7 +160,7 @@ typedef struct
   float position_diff[2];            // ai_cmdとvision_based_positionの差分
   float pre_global_target_position[2];
   float move_dist;         // Visionとtargetが更新されてからの移動量
-  float targed_dist_diff;  // Visionが更新された時点での現在地とtargetの距離
+  float target_dist_diff;  // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
 } integration_control_t;
 
@@ -202,7 +202,7 @@ typedef struct
   volatile uint32_t print_idx;
   volatile uint32_t main_loop_cnt, true_cycle_cnt, motor_zero_cnt;
   volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
-  volatile float true_out_total_spi, true_fb_toral_spin, true_yaw_speed, limited_output;
+  volatile float true_out_total_spi, true_fb_total_spin, true_yaw_speed, limited_output;
   volatile bool print_flag, acc_step_down_flag, theta_override_flag;
   volatile bool latency_check_enabled;
   volatile int latency_check_seq_cnt;

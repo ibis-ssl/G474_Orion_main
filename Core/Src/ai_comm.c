@@ -12,7 +12,7 @@ void resetAiCmdData(ai_cmd_t * ai_cmd)
   ai_cmd->target_theta = 0;
   ai_cmd->chip_en = false;
   ai_cmd->kick_power = 0;
-  ai_cmd->drible_power = 0;
+  ai_cmd->dribble_power = 0;
   ai_cmd->allow_local_flags = 0;
 
   ai_cmd->global_ball_position[0] = 0;
@@ -79,7 +79,7 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
     ai_cmd->kick_power = (float)data[10] / 20;
     ai_cmd->chip_en = false;
   }
-  ai_cmd->drible_power = (float)data[11] / 20;
+  ai_cmd->dribble_power = (float)data[11] / 20;
 
   ai_cmd->allow_local_flags = data[12];
 
