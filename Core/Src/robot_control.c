@@ -106,15 +106,6 @@ void accel_control(accel_vector_t * acc_vel, output_t * output, target_t * targe
     acc_vel->vel_error_rad = atan2(acc_vel->vel_error_xy[1], acc_vel->vel_error_xy[0]);
   }
 
-  // 目標速度と差が小さい場合は目標速度をそのまま代入する
-  // 目標速度が連続的に変化する場合に適切でないかも
-  if (acc_vel->vel_error_scalar < ACCEL_LIMIT / MAIN_LOOP_CYCLE) {
-    target->local_vel_now[0] = target->local_vel[0];
-    target->local_vel_now[1] = target->local_vel[1];
-    output->accel[0] = 0;
-    output->accel[1] = 0;
-    return;
-  }
 
   // スカラは使わず、常に最大加速度
   output->accel[0] = cos(acc_vel->vel_error_rad) * ACCEL_LIMIT / MAIN_LOOP_CYCLE;
@@ -145,9 +136,15 @@ void speed_control(accel_vector_t * acc_vel, output_t * output, target_t * targe
   //target->local_vel[0] = target->velocity[0];
   //target->local_vel[1] = target->velocity[1];
 
-  // 500Hz, m/s -> m / cycle
-  for (int i = 0; i < 2; i++) {
-    target->local_vel_now[i] += output->accel[i];
+  // 目標速度と差が小さい場合は目標速度をそのまま代入する
+  // 目標速度が連続的に変化する場合に適切でないかも
+  if (acc_vel->vel_error_scalar <= (ACCEL_LIMIT / MAIN_LOOP_CYCLE) * 1.0) {
+    // 
+    target->global_vel_now[0] = (target->local_vel[0]) * cos(imu->yaw_angle_rad) - (target->local_vel[1]) * sin(imu->yaw_angle_rad);
+    target->global_vel_now[1] = (target->local_vel[0]) * sin(imu->yaw_angle_rad) + (target->local_vel[1]) * cos(imu->yaw_angle_rad);
+
+    output->accel[0] = 0;
+    output->accel[1] = 0;
   }
 
   // ローカル→グローバル座標系
