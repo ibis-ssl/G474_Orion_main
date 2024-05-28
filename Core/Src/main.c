@@ -403,8 +403,8 @@ int main(void)
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
           //p("pos-diff X %+5.1f, Y %+5.1f, ", omni.robot_pos_diff[0] * 1000, omni.robot_pos_diff[1] * 1000);
-          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * 1000 * MAIN_LOOP_CYCLE, output.accel[1] * 1000 * MAIN_LOOP_CYCLE);
-          //p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
+          //p("acc X %+8.2f, Y %+8.2f, ", output.accel[0] * MAIN_LOOP_CYCLE, output.accel[1] * MAIN_LOOP_CYCLE);
+          p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
 
           //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
           p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
@@ -854,7 +854,7 @@ void slipDetection(void)
 void maintask_run()
 {
   local_feedback(&integ, &imu, &sys, &target, &ai_cmd);
-  accel_control(&acc_vel, &output, &target);
+  accel_control(&acc_vel, &output, &target, &omni);
   speed_control(&acc_vel, &output, &target, &imu, &omni);
   output_limit(&output, &debug);
 
@@ -925,7 +925,7 @@ void send_accutuator_cmd_run()
       break;
 
     case 4:
-      actuator_kicker_voltage(300.0);
+      actuator_kicker_voltage(450.0);
       break;
 
     case 5:
