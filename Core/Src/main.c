@@ -396,7 +396,9 @@ int main(void)
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
           //p("cnt %4d ", connection.vision_update_cycle_cnt);
           //p("integ %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          //p("integ %+5.2f %+5.2f ", integ.local_target_diff[0], integ.local_target_diff[1]);
+          //p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
+          p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
+          p("integ-diffL %+6.3f %+6.3f ", integ.local_target_diff[0], integ.local_target_diff[1]);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
           p("cmd-vel %+5.2f, %+5.2f, ", target.velocity[0], target.velocity[1]);
           //p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
@@ -406,9 +408,10 @@ int main(void)
           //p("acc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           //p("out-vel %+5.2f, %+5.2f, ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
-          //p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
-          p("real-vel X %+8.1f, Y %+8.1f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
+          p("tar-vel X %+8.1f, Y %+8.1f, ", target.local_vel_now[0] * 1000, target.local_vel_now[1] * 1000);
+          p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
           p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
+          //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
 
           break;
         case 6:
@@ -853,7 +856,7 @@ void slipDetection(void)
 
 void maintask_run()
 {
-  local_feedback(&integ, &imu, &sys, &target, &ai_cmd);
+  local_feedback(&integ, &imu, &sys, &target, &ai_cmd, &omni);
   accel_control(&acc_vel, &output, &target, &omni);
   speed_control(&acc_vel, &output, &target, &imu, &omni);
   output_limit(&output, &debug);

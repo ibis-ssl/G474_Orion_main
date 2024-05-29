@@ -47,12 +47,20 @@ void theta_control(float target_theta, accel_vector_t * acc_vel, output_t * outp
   //output->omega = 0;
 }
 
-void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, target_t * target, ai_cmd_t * ai_cmd)
+void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, target_t * target, ai_cmd_t * ai_cmd, omni_t * omni)
 {
-  const float CMB_CTRL_FACTOR_LIMIT = (3.0);     // [m/s]
-  const float CMB_CTRL_DIFF_DEAD_ZONE = (0.03);  // [m]
+  const float CMB_CTRL_FACTOR_LIMIT = (3.0);  // [m/s]
+  //const float CMB_CTRL_DIFF_DEAD_ZONE = (0.03);  // [m]
   const float CMB_CTRL_GAIN = (10.0);
   const float CMB_CTRL_DIFF_LIMIT = (CMB_CTRL_FACTOR_LIMIT / CMB_CTRL_GAIN);
+
+  if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {
+  } else {
+    for (int i = 0; i < 2; i++) {
+      integ->vision_based_position[i] = omni->odom[i];
+      integ->position_diff[i] = ai_cmd->local_target_speed[i] / 10 - integ->vision_based_position[i];
+    }
+  }
 
   // グローバル→ローカル座標系
   integ->local_target_diff[0] = integ->position_diff[0] * cos(-imu->yaw_angle_rad) - integ->position_diff[1] * sin(-imu->yaw_angle_rad);
@@ -64,9 +72,10 @@ void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, 
     //integ->local_target_diff[i] = omni->odom[i] - ai_cmd->local_target_speed[i];
 
     // 精密性はそれほどいらないので、振動対策に不感帯入れる
-    if (integ->local_target_diff[i] < CMB_CTRL_DIFF_DEAD_ZONE && integ->local_target_diff[i] > -CMB_CTRL_DIFF_DEAD_ZONE) {
+    // ただの不感帯よりも、スレッショルドとか入れたほうが良いかも
+    /*if (integ->local_target_diff[i] < CMB_CTRL_DIFF_DEAD_ZONE && integ->local_target_diff[i] > -CMB_CTRL_DIFF_DEAD_ZONE) {
       integ->local_target_diff[i] = 0;
-    }
+    }*/
 
     // ゲインは x10
     // 吹き飛び対策で+-3.0 m/sを上限にする
@@ -86,7 +95,23 @@ void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, 
       //target->velocity[i] = (integ->local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
 
     } else {
-      target->velocity[i] = ai_cmd->local_target_speed[i];  // ローカル統合制御なし
+      // 2 x acc x X = V^2
+      // acc : ACCEL_LIMIT_BACK * 2
+      // ピッタリだとたまにオーバーシュートしてしまうので0.8かける
+      // 動いてるけど不感帯と相性悪いっぽい。スレッショルドかなにか必要かも
+      if (fabs(2 * ACCEL_LIMIT_BACK * 2 * 1.0 * integ->local_target_diff[i]) < target->local_vel_now[i] * target->local_vel_now[i] || integ->local_target_diff[i] == 0) {
+        target->velocity[i] = 0;
+        //
+      } else {
+        target->velocity[i] = integ->local_target_diff[i] * CMB_CTRL_GAIN;
+
+        // 指令値を速度制限として適用
+        if (target->velocity[i] > fabs(ai_cmd->local_target_speed[i])) {
+          target->velocity[i] = fabs(ai_cmd->local_target_speed[i]);
+        } else if (target->velocity[i] < -fabs(ai_cmd->local_target_speed[i])) {
+          target->velocity[i] = -fabs(ai_cmd->local_target_speed[i]);
+        }
+      }
     }
   }
 }

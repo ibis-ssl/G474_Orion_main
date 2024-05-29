@@ -145,9 +145,9 @@ typedef struct
 {
   float travel_distance[2];
   float global_odom_diff[2], robot_pos_diff[2];
-  float odom[2], pre_odom[2], odom_raw[2];
-  float odom_speed[2];
-  float local_odom_speed[2];
+  float odom[2], pre_odom[2], odom_raw[2];  // フィールド
+  float odom_speed[2];                      // フィールド
+  float local_odom_speed[2];                // ローカル
   RingBuffer * local_speed_log[2];
   float local_odom_speed_mvf[2];
 } omni_t;
