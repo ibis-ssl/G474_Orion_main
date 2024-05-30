@@ -87,18 +87,12 @@ void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, 
 
     if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {
       // 位置フィードバック項目のx10はゲイン (ベタ打ち)
-      if (ai_cmd->local_target_speed[i] * integ->local_target_diff[i] < 0) {                                  // 位置フィードバック項が制動方向の場合
+      /*if (ai_cmd->local_target_speed[i] * integ->local_target_diff[i] < 0) {                                  // 位置フィードバック項が制動方向の場合
         target->velocity[i] = ai_cmd->local_target_speed[i] + (integ->local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
       } else {
         target->velocity[i] = ai_cmd->local_target_speed[i];  // ローカル統合制御なし
-      }
+      }*/
       //target->velocity[i] = (integ->local_target_diff[i] * CMB_CTRL_GAIN);  //ローカル統合制御あり
-
-    } else {
-      // 2 x acc x X = V^2
-      // acc : ACCEL_LIMIT_BACK * 2
-      // ピッタリだとたまにオーバーシュートしてしまうので0.8かける
-      // 動いてるけど不感帯と相性悪いっぽい。スレッショルドかなにか必要かも
       if (fabs(2 * ACCEL_LIMIT_BACK * 2 * 1.0 * integ->local_target_diff[i]) < target->local_vel_now[i] * target->local_vel_now[i] || integ->local_target_diff[i] == 0) {
         target->velocity[i] = 0;
         //
@@ -112,6 +106,25 @@ void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, 
           target->velocity[i] = -fabs(ai_cmd->local_target_speed[i]);
         }
       }
+    } else {
+      // 2 x acc x X = V^2
+      // acc : ACCEL_LIMIT_BACK * 2
+      // ピッタリだとたまにオーバーシュートしてしまうので0.8かける
+      // 動いてるけど不感帯と相性悪いっぽい。スレッショルドかなにか必要かも
+      /*if (fabs(2 * ACCEL_LIMIT_BACK * 2 * 1.0 * integ->local_target_diff[i]) < target->local_vel_now[i] * target->local_vel_now[i] || integ->local_target_diff[i] == 0) {
+        target->velocity[i] = 0;
+        //
+      } else {
+        target->velocity[i] = integ->local_target_diff[i] * CMB_CTRL_GAIN;
+
+        // 指令値を速度制限として適用
+        if (target->velocity[i] > fabs(ai_cmd->local_target_speed[i])) {
+          target->velocity[i] = fabs(ai_cmd->local_target_speed[i]);
+        } else if (target->velocity[i] < -fabs(ai_cmd->local_target_speed[i])) {
+          target->velocity[i] = -fabs(ai_cmd->local_target_speed[i]);
+        }
+      }*/
+      target->velocity[i] = ai_cmd->local_target_speed[i];
     }
   }
 }
