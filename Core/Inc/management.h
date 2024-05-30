@@ -28,7 +28,47 @@
 //#define ARM_MATH_CM4
 //#include "arm_math.h"
 
-extern float motor_voltage[4];
+enum {
+  MAIN_MODE_COMBINATION_CONTROL = 0,
+  MAIN_MODE_SPEED_CONTROL_ONLY,
+  MAIN_MODE_CMD_DEBUG_MODE,
+  MAIN_MODE_MOTOR_TEST,
+  MAIN_MODE_DRIBBLER_TEST,
+  MAIN_MODE_KICKER_AUTO_TEST,
+  MAIN_MODE_KICKER_MANUAL,
+  MAIN_MODE_NONE,
+  MAIN_MODE_MOTOR_CALIBRATION,
+  MAIN_MODE_ERROR,
+};
+
+enum {
+  BLDC_ERROR_NONE = 0,
+  BLDC_ERROR_UNDER_VOLTAGE = 0x0001,
+  BLDC_ERROR_OVER_CURRENT = 0x0002,
+  BLDC_ERROR_MOTOR_OVER_HEAT = 0x0004,
+  BLDC_ERROR_OVER_LOAD = 0x0008,
+  BLDC_ERROR_ENC_ERROR = 0x0010,
+  BLDC_ERROR_OVER_VOLTAGE = 0x0020,
+};
+
+enum {
+  BOOST_ERROR_NONE = 0,
+  BOOST_ERROR_UNDER_VOLTAGE = 0x0001,
+  BOOST_ERROR_OVER_VOLTAGE = 0x0002,
+  BOOST_ERROR_OVER_CURRENT = 0x0004,
+  BOOST_ERROR_SHORT_CURCUIT = 0x0008,
+  BOOST_ERROR_CHARGE_TIME = 0x0010,
+  BOOST_ERROR_CHARGE_POWER = 0x0020,
+  BOOST_ERROR_DISCHARGE = 0x0040,
+  BOOST_ERROR_PARAMETER = 0x0080,
+  BOOST_ERROR_COMMAND = 0x0100,
+  BOOST_ERROR_NO_CAP = 0x0200,
+  BOOST_ERROR_DISCHARGE_FAIL = 0x0400,
+  BOOST_ERROR_GD_POWER_FAIL = 0x0800,
+  BOOST_ERROR_COIL_OVER_HEAT = 0x1000,
+  BOOST_ERROR_FET_OVER_HEAT = 0x2000,
+};
+
 
 #define MAIN_LOOP_CYCLE (500)
 
@@ -145,9 +185,9 @@ typedef struct
 {
   float travel_distance[2];
   float global_odom_diff[2], robot_pos_diff[2];
-  float odom[2], pre_odom[2], odom_raw[2];
-  float odom_speed[2];
-  float local_odom_speed[2];
+  float odom[2], pre_odom[2], odom_raw[2];  // フィールド
+  float odom_speed[2];                      // フィールド
+  float local_odom_speed[2];                // ローカル
   RingBuffer * local_speed_log[2];
   float local_odom_speed_mvf[2];
 } omni_t;
