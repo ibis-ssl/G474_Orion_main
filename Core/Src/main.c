@@ -109,8 +109,6 @@ UART_HandleTypeDef * huart_xprintf;
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
 
-extern float motor_voltage[4];  // for debug
-
 struct
 {
   float spin_total[4];
