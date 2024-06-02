@@ -69,7 +69,6 @@ enum {
   BOOST_ERROR_FET_OVER_HEAT = 0x2000,
 };
 
-
 #define MAIN_LOOP_CYCLE (500)
 
 #define CAN_RX_DATA_SIZE 8
@@ -195,12 +194,12 @@ typedef struct
 typedef struct
 {
   RingBuffer * odom_log[2];
-  float global_odom_vision_diff[2];  // vision座標を基準にした移動距離(global系)
-  float vision_based_position[2];    // Visionによって更新された自己位置
-  float position_diff[2];            // ai_cmdとvision_based_positionの差分
-  float pre_global_target_position[2];
-  float move_dist;         // Visionとtargetが更新されてからの移動量
-  float target_dist_diff;  // Visionが更新された時点での現在地とtargetの距離
+  float global_odom_vision_diff[2];     // vision座標を基準にした移動距離(global系)
+  float vision_based_position[2];       // Visionによって更新された自己位置(global系)
+  float position_diff[2];               // ai_cmdとvision_based_positionの差分(global系)
+  float pre_global_target_position[2];  // ai_cmdとvision_based_positionの差分(global系)
+  float move_dist;                      // Visionとtargetが更新されてからの移動量
+  float target_dist_diff;               // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
 } integration_control_t;
 
