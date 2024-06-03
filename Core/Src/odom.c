@@ -6,13 +6,13 @@
  */
 
 #include "management.h"
-#include "util.h"
 #include "ring_buffer.h"
+#include "util.h"
 
 void mouseOdometry(mouse_t * mouse, imu_t * imu)
 {
-  mouse->raw_diff[0] = (float)mouse->raw[0] / 500;
-  mouse->raw_diff[1] = (float)mouse->raw[1] / 500;
+  mouse->raw_diff[0] = (float)mouse->raw[0] / MAIN_LOOP_CYCLE;
+  mouse->raw_diff[1] = (float)mouse->raw[1] / MAIN_LOOP_CYCLE;
 
   mouse->raw_odom[0] += mouse->raw_diff[0];
   mouse->raw_odom[1] += mouse->raw_diff[1];
@@ -21,9 +21,10 @@ void mouseOdometry(mouse_t * mouse, imu_t * imu)
   mouse->floor_odom[1] += ((float)mouse->raw_diff[0] * sin(imu->yaw_angle_rad) + (float)mouse->raw_diff[1] * cos(imu->yaw_angle_rad)) / 2;
 
   // 旋回ぶん補正 X方向は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
-  mouse->odom[0] = mouse->floor_odom[0] - (0.066 * cos(imu->yaw_angle_rad) - 0.066);
+  const float DIST_CORRECITON_RATE = 0.066;
+  mouse->odom[0] = mouse->floor_odom[0] - (DIST_CORRECITON_RATE * cos(imu->yaw_angle_rad) - DIST_CORRECITON_RATE);
   //  +(0.009 * sin(imu->yaw_angle_rad));
-  mouse->odom[1] = mouse->floor_odom[1] - (0.066 * sin(imu->yaw_angle_rad));
+  mouse->odom[1] = mouse->floor_odom[1] - (DIST_CORRECITON_RATE * sin(imu->yaw_angle_rad));
   //  +(0.009 * cos(imu->yaw_angle_rad) - 0.009);
 
   mouse->pre_yaw_angle_rad = imu->yaw_angle_rad;
