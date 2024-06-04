@@ -67,7 +67,7 @@
 /* USER CODE BEGIN PV */
 
 #define LOW_VOLTAGE_LIMIT (22.0)
-#define OMNI_OUTPUT_LIMIT (20)  //上げると過電流エラーになりがち
+#define OMNI_OUTPUT_LIMIT (40)  //上げると過電流エラーになりがち
 
 /* USER CODE END PV */
 
@@ -390,6 +390,7 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
+          p("omg %+3.0f ", output.omega);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
           //p("cnt %4d ", connection.vision_update_cycle_cnt);
