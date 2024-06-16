@@ -12,9 +12,57 @@
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
 
+/******************* can送信バッファ ***************** */
+
+typedef struct
+{
+  uint32_t id;
+  uint8_t data[8];
+} buffer_data_t;
+
+typedef struct
+{
+  buffer_data_t * buffer;
+  int size;   // バッファのサイズ
+  int count;  // データの数
+} stack_buffer_t;
+
+#define CAN_BUF_SIZE (20)
+buffer_data_t can1_buf_data[CAN_BUF_SIZE], can2_buf_data[CAN_BUF_SIZE];
+stack_buffer_t can_buf[2];
+
+uint32_t can_resend_cnt = 0;
+
+inline bool canBufferStackable(stack_buffer_t * buf) { return buf->count + 1 <= buf->size; }
+inline void canBufferStack(stack_buffer_t * buf, buffer_data_t * data)
+{
+  if (!canBufferStackable(buf)) return;  //
+
+  buf->buffer[buf->count].id = data->id;
+  memcpy(buf->buffer[buf->count].data, data->data, 8);
+  buf->count++;
+}
+
+inline bool canBufferAvailable(stack_buffer_t * buf) { return buf->count != 0; }
+
+inline void canBufferDeque(stack_buffer_t * buf, buffer_data_t * ret)
+{
+  ret->id = buf->buffer[buf->count - 1].id;
+  memcpy(ret->data, buf->buffer[buf->count - 1].data, 8);
+  if (buf->count >= 1) {
+    buf->count--;
+  }
+}
+
+
+/******************* can送信バッファ ***************** */
+
 // power,FC,mouse
 void can1_init_ibis(FDCAN_HandleTypeDef * handler)
 {
+  can_buf[0].buffer = can1_buf_data;
+  can_buf[0].size = CAN_BUF_SIZE;
+
   FDCAN_FilterTypeDef sFilterConfig;
   sFilterConfig.IdType = FDCAN_STANDARD_ID;
   sFilterConfig.FilterIndex = 0;
@@ -28,29 +76,25 @@ void can1_init_ibis(FDCAN_HandleTypeDef * handler)
   if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
     Error_Handler();
   }
-}
-
-void can1_send(int id, uint8_t senddata[])
-{
-  TxHeader.Identifier = id;
-  TxHeader.IdType = FDCAN_STANDARD_ID;
-  TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-  TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-  TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-  TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-  TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-  TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-  TxHeader.MessageMarker = 0;
-
-  /* Request transmission */
-  //if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 3) return;
-  while (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) != 3) {
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
+    Error_Handler();
   }
-  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, senddata);
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_TX_FIFO_EMPTY, FDCAN_TX_BUFFER0) != HAL_OK) {
+    Error_Handler();
+  }
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_TX_FIFO_EMPTY, FDCAN_TX_BUFFER1) != HAL_OK) {
+    Error_Handler();
+  }
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_TX_FIFO_EMPTY, FDCAN_TX_BUFFER2) != HAL_OK) {
+    Error_Handler();
+  }
 }
 
 void can2_init_ibis(FDCAN_HandleTypeDef * handler)
 {
+  can_buf[1].buffer = can2_buf_data;
+  can_buf[1].size = CAN_BUF_SIZE;
+
   FDCAN_FilterTypeDef sFilterConfig;
   sFilterConfig.IdType = FDCAN_STANDARD_ID;
   sFilterConfig.FilterIndex = 0;
@@ -64,9 +108,21 @@ void can2_init_ibis(FDCAN_HandleTypeDef * handler)
   if (HAL_FDCAN_Start(&hfdcan2) != HAL_OK) {
     Error_Handler();
   }
+  if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
+    Error_Handler();
+  }
+  if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_TX_FIFO_EMPTY, FDCAN_TX_BUFFER0) != HAL_OK) {
+    Error_Handler();
+  }
+  if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_TX_FIFO_EMPTY, FDCAN_TX_BUFFER1) != HAL_OK) {
+    Error_Handler();
+  }
+  if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_TX_FIFO_EMPTY, FDCAN_TX_BUFFER2) != HAL_OK) {
+    Error_Handler();
+  }
 }
 
-void can2_send(int id, uint8_t senddata[])
+inline void can1_send(int id, uint8_t senddata[])
 {
   TxHeader.Identifier = id;
   TxHeader.IdType = FDCAN_STANDARD_ID;
@@ -78,14 +134,63 @@ void can2_send(int id, uint8_t senddata[])
   TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
   TxHeader.MessageMarker = 0;
 
+  buffer_data_t data;
   /* Request transmission */
-  //if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 3) return;
-  while (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) != 3) {
+  //if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 3) return;
+  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 0) {
+    if (canBufferStackable(&(can_buf[0]))) {
+      data.id = id;
+      memcpy(data.data, senddata, 8);
+      canBufferStack(&(can_buf[0]), &data);
+    }
+  } else {
+    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, senddata);
   }
-  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &TxHeader, senddata);
 }
 
-void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_raw, system_t * sys, motor_t * motor, mouse_t * mouse)
+inline void can2_send(int id, uint8_t senddata[])
+{
+  TxHeader.Identifier = id;
+  TxHeader.IdType = FDCAN_STANDARD_ID;
+  TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+  TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+  TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+  TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+  TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+  TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+  TxHeader.MessageMarker = 0;
+
+  buffer_data_t data;
+  /* Request transmission */
+  //if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 3) return;
+  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 0) {
+    if (canBufferStackable(&(can_buf[0]))) {
+      data.id = id;
+      memcpy(data.data, senddata, 8);
+      canBufferStack(&(can_buf[1]), &data);
+    }
+  } else {
+    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &TxHeader, senddata);
+  }
+}
+
+inline void canTxEmptyInterrupt(FDCAN_HandleTypeDef * hfdcan)
+{
+  buffer_data_t data;
+  if (hfdcan->Instance == FDCAN1) {
+    if (canBufferAvailable(&(can_buf[0]))) {
+      canBufferDeque(&(can_buf[0]), &data);
+      can1_send(data.id, data.data);
+    }
+  } else if (hfdcan->Instance == FDCAN2) {
+    if (canBufferAvailable(&(can_buf[1]))) {
+      canBufferDeque(&(can_buf[1]), &data);
+      can2_send(data.id, data.data);
+    }
+  }
+}
+
+inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_raw, system_t * sys, motor_t * motor, mouse_t * mouse)
 {
   switch (rx_can_id) {
     // error

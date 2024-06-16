@@ -239,14 +239,15 @@ typedef struct
 typedef struct
 {
   volatile uint32_t print_idx;
-  volatile uint32_t main_loop_cnt, true_cycle_cnt, motor_zero_cnt;
-  volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
+  volatile uint32_t main_loop_cnt, true_cycle_cnt;
+  volatile float out_total_spin,fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_total_spin, true_yaw_speed, limited_output;
   volatile bool print_flag, acc_step_down_flag, theta_override_flag;
   volatile bool latency_check_enabled;
   volatile int latency_check_seq_cnt;
   volatile float rotation_target_theta;
   volatile uint32_t uart_rx_itr_cnt;
+  volatile uint32_t start_time[20], end_time[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
 } debug_t;
 
 typedef union {

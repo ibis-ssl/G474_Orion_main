@@ -19,13 +19,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "usart.h"
+#include "gpio.h"
 #include "spi.h"
 #include "tim.h"
-#include "gpio.h"
+#include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -76,6 +77,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart);
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
+void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
 uint8_t getModeSwitch();
 void maintask_run();
 void maintask_stop();
@@ -221,22 +223,11 @@ int main(void)
   printf("\n\rcomplete imu init\r\n");
   // CANより先にIMUのキャリブレーションする
 
-  can1_init_ibis(&hfdcan1);
-  can2_init_ibis(&hfdcan2);
-
   printf("\n\rstart can1\r\n");
-
-  HAL_FDCAN_Start(&hfdcan1);
-  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
-    Error_Handler();
-  }
+  can1_init_ibis(&hfdcan1);
 
   printf("\n\rstart can2\r\n");
-
-  HAL_FDCAN_Start(&hfdcan2);
-  if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
-    Error_Handler();
-  }
+  can2_init_ibis(&hfdcan2);
 
   actuator_power_ONOFF(0);
   HAL_Delay(20);
@@ -277,7 +268,7 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = 5;
-  //target.velocity[1] = 1.0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -430,6 +421,12 @@ int main(void)
           p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(sys.sw_data), debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
+        case 8:
+          p("SYSTEM TIME ");
+          for (int i = 0; i < 7; i++) {
+            p("%4d ", debug.start_time[i]);
+          }
+          break;
         default:
           debug.print_idx = 0;
           break;
@@ -437,6 +434,9 @@ int main(void)
 
       if (debug.main_loop_cnt < 100000) {
         p("loop %6d", debug.main_loop_cnt / 10);
+      }
+      if (debug.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
+        p("cnt %4d", debug.timer_itr_exit_cnt);
       }
       p("\n\r");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
@@ -478,22 +478,19 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -537,11 +534,15 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
   }
 }
 
+void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan) { canTxEmptyInterrupt(hfdcan); }
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
   mouse.integral_loop_cnt++;
   // TIM interrupt is TIM7 only.
+
+  debug.start_time[0] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // sys.main_mode設定
   static uint8_t pre_sw_mode, sw_mode;
@@ -582,9 +583,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   // 以後sys.main_modeによる動作切り替え
 
+  debug.start_time[1] = htim7.Instance->CNT;  // パフォーマンス計測用
+
   yawFilter();
-  omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);
+  omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);  // 250us
+
   //slipDetection();
+  debug.start_time[2] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
   debug.true_fb_total_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
@@ -614,6 +619,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
     debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
   }
+  debug.start_time[3] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
@@ -662,6 +668,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       maintask_stop();
       break;
   }
+  debug.start_time[4] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
@@ -725,6 +732,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     actuator_buzzer_off();
   }
 
+  debug.start_time[5] = htim7.Instance->CNT;  // パフォーマンス計測用
+
   // AI通信切断時、3sでリセット
   static uint32_t self_timeout_reset_cnt = 0;
   if (!connection.connected_cm4 && connection.already_connected_ai && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
@@ -777,6 +786,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
   }
+  debug.start_time[6] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.timer_itr_exit_cnt = htim7.Instance->CNT;
 }
 
 uint8_t getModeSwitch()
@@ -859,6 +870,7 @@ void slipDetection(void)
 
 void maintask_run()
 {
+  // 全部で250us
   local_feedback(&integ, &imu, &sys, &target, &ai_cmd, &omni, &mouse);
   accel_control(&acc_vel, &output, &target, &imu, &omni);
   speed_control(&acc_vel, &output, &target, &imu, &omni);
@@ -931,7 +943,7 @@ void send_actuator_cmd_run()
       break;
 
     case 4:
-      actuator_kicker_voltage(450.0);
+      actuator_kicker_voltage(400.0);
       break;
 
     case 5:
@@ -1019,7 +1031,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1027,7 +1039,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t * file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
