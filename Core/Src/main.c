@@ -279,7 +279,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     debug.main_loop_cnt++;
-    if (debug.print_flag /*&& fabs(omni.local_odom_speed_mvf[0]) > 0.01*/) {
+    if (debug.print_flag && fabs(omni.local_odom_speed_mvf[0]) > 0.01) {
       debug.print_flag = false;
 
       // 文字列初期化
@@ -421,6 +421,12 @@ int main(void)
           p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(sys.sw_data), debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
+        case 8:
+          p("SYSTEM TIME ");
+          for (int i = 0; i < 7; i++) {
+            p("%4d ", debug.start_time[i]);
+          }
+          break;
         default:
           debug.print_idx = 0;
           break;
@@ -428,6 +434,9 @@ int main(void)
 
       if (debug.main_loop_cnt < 100000) {
         p("loop %6d", debug.main_loop_cnt / 10);
+      }
+      if (debug.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
+        p("cnt %4d", debug.timer_itr_exit_cnt);
       }
       p("\n\r");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
@@ -525,16 +534,15 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
   }
 }
 
-void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan)
-{
-  canTxEmptyInterrupt(hfdcan);
-}
+void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan) { canTxEmptyInterrupt(hfdcan); }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
   mouse.integral_loop_cnt++;
   // TIM interrupt is TIM7 only.
+
+  debug.start_time[0] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // sys.main_mode設定
   static uint8_t pre_sw_mode, sw_mode;
@@ -575,9 +583,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   // 以後sys.main_modeによる動作切り替え
 
+  debug.start_time[1] = htim7.Instance->CNT;  // パフォーマンス計測用
+
   yawFilter();
-  omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);
+  omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);  // 250us
+
   //slipDetection();
+  debug.start_time[2] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
   debug.true_fb_total_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
@@ -607,6 +619,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
     debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
   }
+  debug.start_time[3] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
@@ -655,6 +668,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       maintask_stop();
       break;
   }
+  debug.start_time[4] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   static bool buzzer_state = false;
   static uint32_t buzzer_cnt = 0;
@@ -718,6 +732,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     actuator_buzzer_off();
   }
 
+  debug.start_time[5] = htim7.Instance->CNT;  // パフォーマンス計測用
+
   // AI通信切断時、3sでリセット
   static uint32_t self_timeout_reset_cnt = 0;
   if (!connection.connected_cm4 && connection.already_connected_ai && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
@@ -770,6 +786,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
   }
+  debug.start_time[6] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.timer_itr_exit_cnt = htim7.Instance->CNT;
 }
 
 uint8_t getModeSwitch()
@@ -852,6 +870,7 @@ void slipDetection(void)
 
 void maintask_run()
 {
+  // 全部で250us
   local_feedback(&integ, &imu, &sys, &target, &ai_cmd, &omni, &mouse);
   accel_control(&acc_vel, &output, &target, &imu, &omni);
   speed_control(&acc_vel, &output, &target, &imu, &omni);
@@ -924,7 +943,7 @@ void send_actuator_cmd_run()
       break;
 
     case 4:
-      actuator_kicker_voltage(450.0);
+      actuator_kicker_voltage(400.0);
       break;
 
     case 5:
