@@ -54,7 +54,6 @@ inline void canBufferDeque(stack_buffer_t * buf, buffer_data_t * ret)
   }
 }
 
-
 /******************* can送信バッファ ***************** */
 
 // power,FC,mouse
@@ -211,14 +210,16 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x201:
     case 0x202:
     case 0x203:
-      motor->enc_angle[rx_can_id - 0x200] = uchar4_to_float(&rx_data[4]);
-      can_raw->motor_feedback[rx_can_id - 0x200] = uchar4_to_float(rx_data);
-      can_raw->motor_feedback_velocity[rx_can_id - 0x200] = uchar4_to_float(rx_data) * OMNI_DIAMETER * M_PI;
+      uint32_t enc_id = rx_can_id - 0x200;
+      motor->enc_angle[enc_id] = uchar4_to_float(&rx_data[4]);
+      can_raw->motor_feedback[enc_id] = uchar4_to_float(rx_data);
+      can_raw->motor_feedback_velocity[enc_id] = uchar4_to_float(rx_data) * OMNI_DIAMETER * M_PI;
       if (rx_can_id == 0x200 || rx_can_id == 0x201) {
-        can_raw->board_rx_timeout[BOARD_ID_MOTOR_RIGHT] = 0;
+        can_raw->board_rx_timeout_cnt[BOARD_ID_MOTOR_RIGHT] = 0;
       } else if (rx_can_id == 0x202 || rx_can_id == 0x203) {
-        can_raw->board_rx_timeout[BOARD_ID_MOTOR_LEFT] = 0;
+        can_raw->board_rx_timeout_cnt[BOARD_ID_MOTOR_LEFT] = 0;
       }
+      can_raw->enc_rx_flag[enc_id] = true;
       break;
     case 0x204:
       can_raw->motor_feedback_velocity[4] = uchar4_to_float(rx_data);
@@ -234,9 +235,9 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x216:  // capacitor
       can_raw->power_voltage[rx_can_id - 0x210] = uchar4_to_float(rx_data);
       if (rx_can_id == 0x215) {
-        can_raw->board_rx_timeout[BOARD_ID_POWER] = 0;
+        can_raw->board_rx_timeout_cnt[BOARD_ID_POWER] = 0;
       } else if (rx_can_id == 0x214) {
-        can_raw->board_rx_timeout[BOARD_ID_SUB] = 0;
+        can_raw->board_rx_timeout_cnt[BOARD_ID_SUB] = 0;
       }
       break;
 
@@ -278,6 +279,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       mouse->quality = (uint16_t)((rx_data[5] << 8) | rx_data[4]);
       mouse->loop_cnt_debug = mouse->integral_loop_cnt;
       mouse->integral_loop_cnt = 0;
+      can_raw->mouse_rx_flag = true;
 
       // 持ち上げ･コート外検知
       /*if (mouse->quality < 30 && sys->system_time_ms > 1000) {

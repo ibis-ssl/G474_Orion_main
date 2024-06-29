@@ -122,7 +122,8 @@ typedef struct
   float temperature[7];
   float current[5];
   uint8_t ball_detection[4];
-  uint32_t board_rx_timeout[BOARD_ID_MAX];
+  uint32_t board_rx_timeout_cnt[4];
+  bool enc_rx_flag[4], mouse_rx_flag;
 } can_raw_t;
 
 typedef struct
@@ -240,7 +241,7 @@ typedef struct
 {
   volatile uint32_t print_idx;
   volatile uint32_t main_loop_cnt, true_cycle_cnt;
-  volatile float out_total_spin,fb_total_spin, pre_yaw_angle;
+  volatile float out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_total_spin, true_yaw_speed, limited_output;
   volatile bool print_flag, acc_step_down_flag, theta_override_flag;
   volatile bool latency_check_enabled;

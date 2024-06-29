@@ -63,7 +63,7 @@ void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, 
   if (sys->main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
     // デバッグモードでは、ターゲット速度を勝手に変更する
     for (int i = 0; i < 2; i++) {
-      integ->vision_based_position[i] = -mouse->odom[i];
+      integ->vision_based_position[i] = mouse->odom[i];
       integ->position_diff[i] = ai_cmd->local_target_speed[i] / 10 - integ->vision_based_position[i];
     }
   }

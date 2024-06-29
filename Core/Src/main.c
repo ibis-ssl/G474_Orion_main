@@ -85,6 +85,7 @@ void send_actuator_cmd_run();
 void send_can_error();
 void yawFilter();
 void resetLocalSpeedControl();
+bool allEncInitialized();
 //void resetAiCmdData();
 uint32_t HAL_GetTick(void) { return uwTick; }
 uint8_t decode_SW(uint16_t sw_raw_data);
@@ -267,7 +268,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 5;
+  debug.print_idx = 4;
 
   /* USER CODE END 2 */
 
@@ -279,7 +280,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     debug.main_loop_cnt++;
-    if (debug.print_flag && fabs(omni.local_odom_speed_mvf[0]) > 0.01) {
+    if (debug.print_flag /* && fabs(omni.local_odom_speed_mvf[0]) > 0.01*/) {
       debug.print_flag = false;
 
       // 文字列初期化
@@ -368,12 +369,14 @@ int main(void)
           break;
         case 4:  // Mouse odom
           p("MOUSE ");
-          p("raw_odom X %+8.3f Y %+8.3f ", -mouse.raw_odom[0] * 1000, -mouse.raw_odom[1] * 1000);
-          p("mouse floor X %+8.3f Y %+8.3f ", -mouse.floor_odom[0] * 1000, -mouse.floor_odom[1] * 1000);
-          p("mouse X %+8.2f Y %+8.2f ", -mouse.odom[0] * 1000, -mouse.odom[1] * 1000);
-          p("Error X %+8.2f Y %+8.2f ", (omni.odom[0] + mouse.odom[0]) * 1000, (omni.odom[1] + mouse.odom[1]) * 1000);
+          p("%d / %d %d %d %d", allEncInitialized(), can_raw.enc_rx_flag[0], can_raw.enc_rx_flag[1], can_raw.enc_rx_flag[2], can_raw.enc_rx_flag[3]);
+          //p("raw_odom X %+8.3f Y %+8.3f ", mouse.raw_odom[0] * 1000, mouse.raw_odom[1] * 1000);
+          //p("mouse floor X %+8.3f Y %+8.3f ", mouse.floor_odom[0] * 1000, mouse.floor_odom[1] * 1000);
+          p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+          p("mouse X %+8.2f Y %+8.2f ", mouse.odom[0] * 1000, mouse.odom[1] * 1000);
+          p("Error X %+8.2f Y %+8.2f ", (mouse.odom[0] - omni.odom[0]) * 1000, (mouse.odom[1] - omni.odom[1]) * 1000);
           p("diff X %+8.2f Y %+8.2f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
-          p("mouseRaw X %+8.1f Y %+8.1f ", mouse.raw[0], mouse.raw[1]);
+          //p("mouseRaw X %+8.1f Y %+8.1f ", mouse.raw[0], mouse.raw[1]);
           p("raw X %+4d Y %+4d Q %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
 
           break;
@@ -394,7 +397,7 @@ int main(void)
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
           p("vcp-d X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
-          p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
+          //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
@@ -425,6 +428,10 @@ int main(void)
           p("SYSTEM TIME ");
           for (int i = 0; i < 7; i++) {
             p("%4d ", debug.start_time[i]);
+          }
+          p(" can enc rx : ");
+          for (int i = 0; i < BOARD_ID_MAX; i++) {
+            p("%6d ", can_raw.board_rx_timeout_cnt[i]);
           }
           break;
         default:
@@ -505,11 +512,39 @@ void resetLocalSpeedControl()
   }
 }
 
+void canRxTimeoutCntCycle(void)
+{
+  for (int i = 0; i < BOARD_ID_MAX; i++) {
+    can_raw.board_rx_timeout_cnt[i]++;
+  }
+}
+
+// エンコーダ&オムニ角度取得済みかどうか
+bool allEncInitialized() { return can_raw.mouse_rx_flag & can_raw.enc_rx_flag[0] & can_raw.enc_rx_flag[1] & can_raw.enc_rx_flag[2] & can_raw.enc_rx_flag[3]; }
+
+// 必要なデータが揃ったらodom系をゼロで初期化
+void resetOdomAtEncInitialized()
+{
+  static bool initialized_flag = false;
+
+  if (initialized_flag == false && allEncInitialized()) {
+    for (int i = 0; i < 2; i++) {
+      omni.odom[i] = 0;
+      omni.pre_odom[i] = 0;
+      mouse.floor_odom[i] = 0;
+      omni.odom_raw[i] = 0;
+    }
+    for (int i = 0; i < 4; i++) {
+      motor.pre_enc_angle[i] = motor.enc_angle[i];
+    }
+    initialized_flag = true;
+  }
+}
+
 bool canRxTimeoutDetection()
 {
   for (int i = 0; i < BOARD_ID_MAX; i++) {
-    can_raw.board_rx_timeout[i]++;
-    if (can_raw.board_rx_timeout[i] > 100) {
+    if (can_raw.board_rx_timeout_cnt[i] > 100) {
       return true;
     }
   }
@@ -549,6 +584,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   pre_sw_mode = sw_mode;
   sw_mode = getModeSwitch();
 
+  canRxTimeoutCntCycle();
+
   if (sys.error_flag) {
     // 一定回数はリセットを許容する
     if (sys.error_id < 4 && sys.error_info == BLDC_ERROR_OVER_CURRENT && sys.error_resume_cnt < 10) {
@@ -574,7 +611,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     sys.main_mode = sw_mode;
   }
 
-  if (sys.system_time_ms < sys.stop_flag_request_time || canRxTimeoutDetection()) {
+  if (sys.system_time_ms < sys.stop_flag_request_time || canRxTimeoutDetection() || !allEncInitialized()) {
     resetLocalSpeedControl();
     sys.stop_flag = true;
   } else {
@@ -587,6 +624,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   yawFilter();
   omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);  // 250us
+  resetOdomAtEncInitialized();
 
   //slipDetection();
   debug.start_time[2] = htim7.Instance->CNT;  // パフォーマンス計測用
