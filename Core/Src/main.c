@@ -93,15 +93,15 @@ uint8_t decode_SW(uint16_t sw_raw_data);
 // shared with other files
 imu_t imu;
 can_raw_t can_raw;
-ai_cmd_t ai_cmd;
+ai_cmd_t ai_cmd, ai_cmd_buf;
 target_t target;
 mouse_t mouse;
 omni_t omni;
 output_t output;
 motor_t motor;
-connection_t connection;
+connection_t connection, connection_buf;
 system_t sys;
-integration_control_t integ;
+integration_control_t integ, integ_buf;
 accel_vector_t acc_vel;
 debug_t debug;
 
@@ -584,6 +584,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   pre_sw_mode = sw_mode;
   sw_mode = getModeSwitch();
 
+  if (connection_buf.updated_flag) {
+    connection_buf.updated_flag = false;
+    memcpy(&ai_cmd, &ai_cmd_buf, sizeof(ai_cmd));
+    memcpy(&connection, &connection_buf, sizeof(connection));
+    memcpy(&integ, &integ_buf, sizeof(integ));
+  }
+
   canRxTimeoutCntCycle();
 
   if (sys.error_flag) {
@@ -1039,8 +1046,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_ETHER) {
       uart_rx_cmd_idx = -1;
-      parseRxCmd(&connection, &sys, &ai_cmd, &integ, data_from_cm4);
-      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd, &connection);
+      parseRxCmd(&connection_buf, &sys, &ai_cmd_buf, &integ_buf, data_from_cm4);
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd_buf, &connection_buf);
     }
   }
 

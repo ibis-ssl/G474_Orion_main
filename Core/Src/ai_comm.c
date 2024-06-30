@@ -55,9 +55,11 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   ai_cmd->ball_local_radius = data[RX_BUF_SIZE_ETHER - 3] << 8 | data[RX_BUF_SIZE_ETHER - 2];
   ai_cmd->ball_local_FPS = data[RX_BUF_SIZE_ETHER - 1];
 
-  // time out
-  if (con->connected_ai == 0) {
+  // timer割り込み側でtimeout検知
+  // バッファクリア→timer割り込み側でクリアする
+  if (con->connected_ai == false) {
     resetAiCmdData(ai_cmd);
+    con->updated_flag = true;
     return;
   }
 
@@ -134,6 +136,8 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   } else {
     ai_cmd->dribbler_up_flag = false;
   }
+
+  con->updated_flag = true;
 }
 
 void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, ai_cmd_t * ai_cmd, connection_t * con)
