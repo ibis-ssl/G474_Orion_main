@@ -144,6 +144,36 @@ typedef struct
   uint32_t latency_time_ms;
 } ai_cmd_t;
 
+typedef union {
+  uint8_t cmd_buf[64];
+  //
+  struct
+  {
+    int16_t tar_pos[2];
+    int16_t speed_limit[2];
+    // 16 x4 = 64bit
+
+    int16_t tar_theta;
+    int16_t omega_limit;
+    int16_t dribble_power;
+    int16_t kick_power;
+    // 16 x4 = 64bit
+
+    int16_t vision_robot_pos[2];
+    int16_t vision_ball_pos[2];
+    // 16 x4 = 64bit
+
+    float mode_args[8];  // 自由蘭
+    // 32 x8 = 64 x4
+
+    uint16_t latency_time_ms;
+    int16_t vision_robot_theta;
+    uint8_t flags;
+    uint8_t control_mode;  // 制御モード
+    // 16 x2 + 8 x2 < 64bit
+  } cmd;
+} ai_cmd_v2_t;
+
 typedef struct
 {
   float enc_angle[5];
