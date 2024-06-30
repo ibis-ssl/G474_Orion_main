@@ -23,7 +23,7 @@ void mouseOdometry(mouse_t * mouse, imu_t * imu)
   mouse->floor_odom[1] -= ((float)mouse->raw_diff[0] * sin(imu->yaw_angle_rad) + (float)mouse->raw_diff[1] * cos(imu->yaw_angle_rad)) / 2;
 
   // 旋回ぶん補正
-  const float DIST_CORRECITON_RATE = 0.066 / 3;
+  const float DIST_CORRECITON_RATE = 0.066 / 3 * 1.56;
   mouse->odom[0] = DIST_CORRECITON_RATE * mouse->floor_odom[0] - (DIST_CORRECITON_RATE * cos(imu->yaw_angle_rad) - DIST_CORRECITON_RATE);
   // X位置補正は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
   //  +(0.009 * sin(imu->yaw_angle_rad));

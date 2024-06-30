@@ -112,7 +112,7 @@ void local_feedback(integration_control_t * integ, imu_t * imu, system_t * sys, 
         target->velocity[i] = -CMB_CTRL_FACTOR_LIMIT;
       }
     }
-    //target->velocity[i] = ai_cmd->local_target_speed[i];
+    target->velocity[i] = ai_cmd->local_target_speed[i];
     /*if (in_dead_zone_flag) {
       target->velocity[i] = 0;
     } else {
