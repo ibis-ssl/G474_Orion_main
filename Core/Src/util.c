@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 float dtor(float x)
 {
   return (2 * M_PI * x / 360);  //x/360*2*PI
@@ -196,25 +195,11 @@ float getAngleDiff(float angle_rad1, float angle_rad2)
   }
 }
 
-uint8_t decode_SW(uint16_t sw_raw_data)
-{
-  int data;
-  sw_raw_data = sw_raw_data & 0xFFFF;
-  if (sw_raw_data < 100) {
-    data = 0b00010000;  // C
-  } else if (sw_raw_data < 500 && sw_raw_data > 100) {
-    data = 0b00000010;  // B
-  } else if (sw_raw_data < 2000 && sw_raw_data > 500) {
-    data = 0b00000100;  // R
-  } else if (sw_raw_data < 3000 && sw_raw_data > 2000) {
-    data = 0b00000001;  // F
-  } else if (sw_raw_data < 4000 && sw_raw_data > 3000) {
-    data = 0b00001000;  // L
-  } else {
-    data = 0b00000000;
-  }
-  return data;
-}
+bool swCentorPushed(uint16_t sw_raw_data) { return sw_raw_data <= 100; }
+bool swRightPushed(uint16_t sw_raw_data) { return sw_raw_data <= 500 && sw_raw_data > 100; }
+bool swLeftPushed(uint16_t sw_raw_data) { return sw_raw_data <= 2000 && sw_raw_data > 500; }
+bool swForwardPushed(uint16_t sw_raw_data) { return sw_raw_data <= 3000 && sw_raw_data > 2000; }
+bool swBackPushed(uint16_t sw_raw_data) { return sw_raw_data <= 4000 && sw_raw_data > 3000; }
 
 float two_to_float(uint8_t data[2]) { return (float)((data[0] << 8 | data[1]) - 32767.0) / 32767.0; }
 float two_to_int(uint8_t data[2]) { return ((data[0] << 8 | data[1]) - 32767.0); }

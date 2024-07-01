@@ -35,7 +35,7 @@ void resetAiCmdData(ai_cmd_t * ai_cmd)
   ai_cmd->stop_request_flag = false;  //
 }
 
-void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integration_control_t * integ, uint8_t data[])
+void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, uint8_t data[])
 {
   con->check_ver = data[1];
 
@@ -55,9 +55,11 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   ai_cmd->ball_local_radius = data[RX_BUF_SIZE_ETHER - 3] << 8 | data[RX_BUF_SIZE_ETHER - 2];
   ai_cmd->ball_local_FPS = data[RX_BUF_SIZE_ETHER - 1];
 
-  // time out
-  if (con->connected_ai == 0) {
+  // timer割り込み側でtimeout検知
+  // バッファに前回の値が残っているのでクリアする
+  if (con->connected_ai == false) {
     resetAiCmdData(ai_cmd);
+    con->updated_flag = true;
     return;
   }
 
@@ -82,10 +84,6 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   ai_cmd->dribble_power = (float)data[11] / 20;
 
   ai_cmd->allow_local_flags = data[12];
-
-  // integとai_cmdで分けてるだけで同じ情報の now と pre
-  integ->pre_global_target_position[0] = ai_cmd->global_target_position[0];
-  integ->pre_global_target_position[1] = ai_cmd->global_target_position[1];
 
   // <int>[mm] -> <float>[m]
   ai_cmd->global_ball_position[0] = (float)two_to_int(&data[13]) / 1000;
@@ -134,6 +132,8 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, integrati
   } else {
     ai_cmd->dribbler_up_flag = false;
   }
+
+  con->updated_flag = true;
 }
 
 void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, ai_cmd_t * ai_cmd, connection_t * con)
@@ -235,4 +235,55 @@ void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * om
   senddata[63] = 0;
 
   HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
+}
+
+void communicationStateCheck(connection_t * connection, system_t * sys, ai_cmd_t * ai_cmd)
+{
+  // AI通信切断時、3sでリセット
+  static uint32_t self_timeout_reset_cnt = 0;
+  if (!connection->connected_cm4 && connection->already_connected_ai && sys->main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
+    self_timeout_reset_cnt++;
+    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
+      NVIC_SystemReset();
+    }
+  } else {
+    self_timeout_reset_cnt = 0;
+  }
+
+  // AIとの通信状態チェック
+  if (sys->system_time_ms - connection->latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイムアウト
+    connection->connected_ai = true;
+    connection->already_connected_ai = true;
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+
+    if (connection->vision_update_cycle_cnt < MAIN_LOOP_CYCLE * 10) {
+      connection->vision_update_cycle_cnt++;
+    }
+
+  } else {
+    connection->connected_ai = false;
+    connection->cmd_rx_frq = 0;
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+    resetAiCmdData(ai_cmd);
+
+    sys->stop_flag_request_time = sys->system_time_ms + MAIN_LOOP_CYCLE;  // 前回のタイムアウト時から1.0s間は動かさない
+  }
+
+  // CM4との通信状態チェック
+  if (sys->system_time_ms - connection->latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイムアウト
+    connection->connected_cm4 = true;
+  } else {
+    connection->connected_cm4 = false;
+    connection->connected_ai = false;
+    resetAiCmdData(ai_cmd);
+  }
+}
+
+void resetLocalSpeedControl(ai_cmd_t * ai_cmd)
+{
+  for (int i = 0; i < 2; i++) {
+    //target.global_pos[i] = omni.odom[i];
+    ai_cmd->local_target_speed[i] = 0;
+  }
 }

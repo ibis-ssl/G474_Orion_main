@@ -21,10 +21,12 @@ void convertLocalToGlobal(float local[], float global[], float yaw_rad)
   global[1] = local[0] * sin(yaw_rad) + local[1] * cos(yaw_rad);
 }
 
+// 20ms cycle
 void mouseOdometry(mouse_t * mouse, imu_t * imu)
 {
-  mouse->raw_diff[0] = (float)mouse->raw[0] / 500;
-  mouse->raw_diff[1] = (float)mouse->raw[1] / 500;
+  const int MOUSE_ODOM_CYCLE = 20;
+  mouse->raw_diff[0] = (float)mouse->raw[0] / MOUSE_ODOM_CYCLE;
+  mouse->raw_diff[1] = (float)mouse->raw[1] / MOUSE_ODOM_CYCLE;
 
   mouse->raw_odom[0] += mouse->raw_diff[0];
   mouse->raw_odom[1] += mouse->raw_diff[1];
@@ -34,10 +36,12 @@ void mouseOdometry(mouse_t * mouse, imu_t * imu)
   mouse->floor_odom[0] += floor_odom_diff[0];
   mouse->floor_odom[1] += floor_odom_diff[1];
 
-  // 旋回ぶん補正 X方向は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
-  mouse->odom[0] = mouse->floor_odom[0] - (0.066 * cos(imu->yaw_angle_rad) - 0.066);
+  // 旋回ぶん補正
+  const float DIST_CORRECITON_RATE = 0.066 / 3 * 1.56;
+  mouse->odom[0] = DIST_CORRECITON_RATE * mouse->floor_odom[0] - (DIST_CORRECITON_RATE * cos(imu->yaw_angle_rad) - DIST_CORRECITON_RATE);
+  // X位置補正は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
   //  +(0.009 * sin(imu->yaw_angle_rad));
-  mouse->odom[1] = mouse->floor_odom[1] - (0.066 * sin(imu->yaw_angle_rad));
+  mouse->odom[1] = DIST_CORRECITON_RATE * mouse->floor_odom[1] - (DIST_CORRECITON_RATE * sin(imu->yaw_angle_rad));
   //  +(0.009 * cos(imu->yaw_angle_rad) - 0.009);
 
   mouse->pre_yaw_angle_rad = imu->yaw_angle_rad;

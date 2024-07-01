@@ -1,6 +1,7 @@
 "./Core/Src/actuator.o"
 "./Core/Src/adc.o"
 "./Core/Src/ai_comm.o"
+"./Core/Src/buzzer_control.o"
 "./Core/Src/can_ibis.o"
 "./Core/Src/dma.o"
 "./Core/Src/fdcan.o"

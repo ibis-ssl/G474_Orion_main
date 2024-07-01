@@ -69,6 +69,7 @@ enum {
   BOOST_ERROR_FET_OVER_HEAT = 0x2000,
 };
 
+#define LOW_VOLTAGE_LIMIT (22.0)
 
 #define MAIN_LOOP_CYCLE (500)
 
@@ -123,7 +124,8 @@ typedef struct
   float temperature[7];
   float current[5];
   uint8_t ball_detection[4];
-  uint32_t board_rx_timeout[BOARD_ID_MAX];
+  uint32_t board_rx_timeout_cnt[4];
+  bool enc_rx_flag[4], mouse_rx_flag;
 } can_raw_t;
 
 typedef struct
@@ -195,12 +197,12 @@ typedef struct
 typedef struct
 {
   RingBuffer * odom_log[2];
-  float global_odom_vision_diff[2];  // vision座標を基準にした移動距離(global系)
-  float vision_based_position[2];    // Visionによって更新された自己位置
-  float position_diff[2];            // ai_cmdとvision_based_positionの差分
-  float pre_global_target_position[2];
-  float move_dist;         // Visionとtargetが更新されてからの移動量
-  float target_dist_diff;  // Visionが更新された時点での現在地とtargetの距離
+  float global_odom_vision_diff[2];     // vision座標を基準にした移動距離(global系)
+  float vision_based_position[2];       // Visionによって更新された自己位置(global系)
+  float position_diff[2];               // ai_cmdとvision_based_positionの差分(global系)
+  float pre_global_target_position[2];  // ai_cmdとvision_based_positionの差分(global系)
+  float move_dist;                      // Visionとtargetが更新されてからの移動量
+  float target_dist_diff;               // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
 } integration_control_t;
 
@@ -217,6 +219,7 @@ typedef struct
   bool connected_ai;
   bool connected_cm4;
   bool already_connected_ai;
+  bool updated_flag;
   uint8_t check_pre;
   uint8_t check_ver;
   float cmd_rx_frq;
@@ -240,14 +243,15 @@ typedef struct
 typedef struct
 {
   volatile uint32_t print_idx;
-  volatile uint32_t main_loop_cnt, true_cycle_cnt, motor_zero_cnt;
-  volatile float vel_radian, out_total_spin, fb_total_spin, pre_yaw_angle;
+  volatile uint32_t main_loop_cnt, true_cycle_cnt;
+  volatile float out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_total_spin, true_yaw_speed, limited_output;
   volatile bool print_flag, acc_step_down_flag, theta_override_flag;
   volatile bool latency_check_enabled;
   volatile int latency_check_seq_cnt;
   volatile float rotation_target_theta;
   volatile uint32_t uart_rx_itr_cnt;
+  volatile uint32_t start_time[20], end_time[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
 } debug_t;
 
 typedef union {

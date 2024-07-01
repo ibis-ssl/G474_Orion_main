@@ -48,6 +48,7 @@ void actuator_kicker_voltage(float voltage)
   float_to_uchar4(&senddata_kick[4], voltage);
 
   senddata_kick[0] = 0;
+  can1_send(0x110, senddata_kick);
   can2_send(0x110, senddata_kick);
 }
 
@@ -91,6 +92,7 @@ void actuator_power_param(uint8_t id, float param)
   float_to_uchar4(&senddata_power_param[1], param);
 
   can1_send(0x010, senddata_power_param);
+  can2_send(0x010, senddata_power_param);
 }
 
 void actuator_motor_param(uint8_t param1, float m1p, uint8_t param2, float m2p, uint8_t param3, float m3p, uint8_t param4, float m4p, uint8_t param5, float m5p)

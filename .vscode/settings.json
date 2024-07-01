@@ -8,6 +8,9 @@
         "management.h": "c",
         "ring_buffer.h": "c",
         "arm_math.h": "c",
-        "stm32g4xx_hal_gpio.h": "c"
+        "stm32g4xx_hal_gpio.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }
