@@ -1,24 +1,62 @@
 #include "test_func.h"
 
-#include "util.h"
-#include "omni_wheel.h"
 #include "actuator.h"
+#include "omni_wheel.h"
+#include "util.h"
+
+bool isLatencyCheckModeEnabled(system_t * sys, debug_t * debug, ai_cmd_t * ai_cmd)
+{
+  if (debug->latency_check_enabled) {
+    return true;
+  }
+
+  if (!swCentorPushed(sys->sw_data)) {
+    debug->latency_check_seq_cnt = 0;
+    return false;
+  }
+
+  debug->latency_check_seq_cnt++;
+  if (debug->latency_check_seq_cnt > MAIN_LOOP_CYCLE) {
+    debug->latency_check_enabled = true;
+    debug->latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
+    debug->rotation_target_theta = ai_cmd->target_theta;
+  }
+  return debug->latency_check_enabled;
+}
+
+float getTargetThetaInLatencyCheckMode(debug_t * debug, ai_cmd_t * ai_cmd)
+{
+  if (!debug->latency_check_enabled) {
+    return ai_cmd->target_theta;  // そもそも呼ばれないようにするべきだが、安全なのはこれ
+  }
+
+  if (debug->latency_check_seq_cnt > 0) {
+    debug->latency_check_seq_cnt--;
+  } else {
+    // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
+    if (getAngleDiff(ai_cmd->target_theta, debug->rotation_target_theta) < 0.1) {
+      debug->latency_check_enabled = false;
+    }
+    // complete!!
+  }
+  return debug->rotation_target_theta + (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
+}
 
 void motor_test(system_t * sys, output_t * output)
 {
-  if (decode_SW(sys->sw_data) & 0b00000001) {
+  if (swForwardPushed(sys->sw_data)) {
     omni_move(4.0, 0.0, 0.0, 4.0, output);  // fwd
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(sys->sw_data) & 0b00000010) {
+  } else if (swBackPushed(sys->sw_data)) {
     omni_move(-4.0, 0.0, 0.0, 4.0, output);  // back
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(sys->sw_data) & 0b00000100) {
+  } else if (swLeftPushed(sys->sw_data)) {
     omni_move(0.0, -4.0, 0.0, 4.0, output);  // left
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(sys->sw_data) & 0b00001000) {
+  } else if (swRightPushed(sys->sw_data)) {
     omni_move(0.0, 4.0, 0.0, 4.0, output);  // right
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (decode_SW(sys->sw_data) & 0b00010000) {
+  } else if (swCentorPushed(sys->sw_data)) {
     omni_move(0.0, 0.0, 20.0, 4.0, output);  // spin
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else {
@@ -30,7 +68,7 @@ void motor_test(system_t * sys, output_t * output)
 
 void dribbler_test(system_t * sys, output_t * output)
 {
-  if (decode_SW(sys->sw_data) & 0b00010000) {
+  if (swCentorPushed(sys->sw_data)) {
     actuator_motor5(0.5, 1.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else {
@@ -54,15 +92,15 @@ void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t
     }
   }
 
-  if (dribbler_up == false && decode_SW(sys->sw_data) & 0b00000100) {
+  if (dribbler_up == false && swRightPushed(sys->sw_data)) {
     dribbler_up = true;
     actuator_dribbler_down();
-  } else if (dribbler_up == true && decode_SW(sys->sw_data) & 0b00001000) {
+  } else if (dribbler_up == true && swLeftPushed(sys->sw_data)) {
     dribbler_up = false;
     actuator_dribbler_up();
   }
 
-  if (decode_SW(sys->sw_data) & 0b00010000) {
+  if (swCentorPushed(sys->sw_data)) {
     if (!manual_mode) {
       actuator_motor5(0.5, 1.0);
     }
@@ -75,7 +113,7 @@ void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t
         sys->kick_state = 1;
       }
     }
-  } else if (decode_SW(sys->sw_data) & 0b00000010) {
+  } else if (swBackPushed(sys->sw_data)) {
     if (!manual_mode) {
       actuator_motor5(0.5, 1.0);
     }
@@ -100,12 +138,12 @@ void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t
 void motor_calibration(system_t * sys)
 {
   static uint32_t calib_start_cnt = 0;
-  if (decode_SW(sys->sw_data) & 0b00000100) {
+  if (swRightPushed(sys->sw_data)) {
     calib_start_cnt++;
     if (calib_start_cnt > 1000) {
       actuator_motor_calib(0);
     }
-  } else if (decode_SW(sys->sw_data) & 0b00001000) {
+  } else if (swLeftPushed(sys->sw_data)) {
     calib_start_cnt++;
     if (calib_start_cnt > 1000) {
       actuator_motor_calib(1);

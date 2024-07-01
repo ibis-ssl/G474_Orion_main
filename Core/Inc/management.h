@@ -217,6 +217,7 @@ typedef struct
   bool connected_ai;
   bool connected_cm4;
   bool already_connected_ai;
+  bool updated_flag;
   uint8_t check_pre;
   uint8_t check_ver;
   float cmd_rx_frq;

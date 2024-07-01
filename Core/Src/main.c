@@ -88,7 +88,6 @@ void resetLocalSpeedControl();
 bool allEncInitialized();
 //void resetAiCmdData();
 uint32_t HAL_GetTick(void) { return uwTick; }
-uint8_t decode_SW(uint16_t sw_raw_data);
 
 // shared with other files
 imu_t imu;
@@ -346,7 +345,6 @@ int main(void)
           break;
         case 1:  //Motor
           p("MOTOR ");
-          p("SW %2d ", decode_SW(sys.sw_data));
           p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
           p("Pw v0=%5.1f v1=%5.1f v2=%5.1f v3=%5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
           p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
@@ -421,7 +419,7 @@ int main(void)
           break;
         case 7:
           p("LATENCY ");
-          p("SW0x%4x EN%d cnt %4d target %+5.2f diff %+5.2f", decode_SW(sys.sw_data), debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
+          p("EN%d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
         case 8:
@@ -640,30 +638,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   debug.true_fb_total_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
   debug.true_cycle_cnt++;
 
-  if (debug.latency_check_enabled == false) {
-    if (decode_SW(sys.sw_data) & 0b00000001) {
-      debug.latency_check_seq_cnt++;
-      if (debug.latency_check_seq_cnt > MAIN_LOOP_CYCLE) {
-        debug.latency_check_enabled = true;
-        debug.latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
-        debug.rotation_target_theta = ai_cmd.target_theta;
-      }
-    } else {
-      debug.latency_check_seq_cnt = 0;
-    }
-
-  } else {  // レイテンシチェックモード中
-    if (debug.latency_check_seq_cnt > 0) {
-      debug.latency_check_seq_cnt--;
-    } else {
-      // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
-      if (getAngleDiff(ai_cmd.target_theta, debug.rotation_target_theta) < 0.1) {
-        debug.latency_check_enabled = false;
-      }
-      // complete!!
-    }
-    debug.rotation_target_theta += (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
-  }
   debug.start_time[3] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   switch (sys.main_mode) {
@@ -921,7 +895,8 @@ void maintask_run()
   speed_control(&acc_vel, &output, &target, &imu, &omni);
   output_limit(&output, &debug);
 
-  if (debug.latency_check_enabled) {
+  if (isLatencyCheckModeEnabled(&sys, &debug, &ai_cmd)) {
+    debug.rotation_target_theta = getTargetThetaInLatencyCheckMode(&debug, &ai_cmd);
     theta_control(debug.rotation_target_theta, &acc_vel, &output, &imu);
   } else {
     theta_control(ai_cmd.target_theta, &acc_vel, &output, &imu);
