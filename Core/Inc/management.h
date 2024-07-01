@@ -69,6 +69,8 @@ enum {
   BOOST_ERROR_FET_OVER_HEAT = 0x2000,
 };
 
+#define LOW_VOLTAGE_LIMIT (22.0)
+
 #define MAIN_LOOP_CYCLE (500)
 
 #define CAN_RX_DATA_SIZE 8

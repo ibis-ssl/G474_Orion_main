@@ -35,6 +35,7 @@
 
 #include "actuator.h"
 #include "ai_comm.h"
+#include "buzzer_control.h"
 #include "can_ibis.h"
 #include "icm20602_spi.h"
 #include "management.h"
@@ -65,7 +66,6 @@
 
 /* USER CODE BEGIN PV */
 
-#define LOW_VOLTAGE_LIMIT (22.0)
 #define OMNI_OUTPUT_LIMIT (40)  //上げると過電流エラーになりがち
 
 /* USER CODE END PV */
@@ -526,16 +526,6 @@ void resetOdomAtEncInitialized()
   }
 }
 
-bool canRxTimeoutDetection()
-{
-  for (int i = 0; i < BOARD_ID_MAX; i++) {
-    if (can_raw.board_rx_timeout_cnt[i] > 100) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs)
 {
   uint8_t RxData[CAN_RX_DATA_SIZE];
@@ -603,7 +593,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     sys.main_mode = sw_mode;
   }
 
-  if (sys.system_time_ms < sys.stop_flag_request_time || canRxTimeoutDetection() || !allEncInitialized()) {
+  if (sys.system_time_ms < sys.stop_flag_request_time || canRxTimeoutDetection(&can_raw) || !allEncInitialized()) {
     resetLocalSpeedControl(&ai_cmd);
     sys.stop_flag = true;
   } else {
@@ -674,72 +664,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       maintask_stop(&output);
       break;
   }
-  debug.start_time[4] = htim7.Instance->CNT;  // パフォーマンス計測用
 
-  static bool buzzer_state = false;
-  static uint32_t buzzer_cnt = 0;
-  static float buzzer_frq_offset__gain = 1.0;
-  // 電圧受信できてない時に低電圧エラー鳴るとウザいので消す
-  buzzer_cnt++;
-  if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT && can_raw.power_voltage[5] != 0.0) {  // 低電圧時
-    if (buzzer_cnt > 100) {
-      buzzer_cnt = 0;
-      if (buzzer_state == false) {
-        buzzer_state = true;
-        actuator_buzzer_frq_on(2000);
-      } else {
-        buzzer_state = false;
-        actuator_buzzer_off();
-      }
-    }
-  } else if (sys.error_flag) {  // エラー時
-    if (buzzer_cnt > 20) {
-      buzzer_cnt = 0;
-      if (buzzer_state == false) {
-        buzzer_state = true;
-        actuator_buzzer_frq_on(2200);
-      } else {
-        buzzer_state = false;
-        actuator_buzzer_off();
-      }
-    }
-  } else if (canRxTimeoutDetection()) {  // 内部通信切断時
-    if (buzzer_cnt > 200) {
-      buzzer_cnt = 0;
-      if (buzzer_state == false) {
-        buzzer_state = true;
-        actuator_buzzer_frq_on(500 * buzzer_frq_offset__gain);
-        buzzer_frq_offset__gain *= 1.122462;
-        if (buzzer_frq_offset__gain > 1.2) {
-          buzzer_frq_offset__gain = 1.0;
-        }
-      } else {
-        buzzer_state = false;
-        actuator_buzzer_off();
-      }
-    }
-  } else if (connection.connected_ai && ai_cmd.vision_lost_flag && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
-    if (buzzer_cnt > 20) {
-      buzzer_cnt = 0;
-      if (buzzer_state == false) {
-        buzzer_state = true;
-        actuator_buzzer_frq_on(2000 * buzzer_frq_offset__gain);
-        buzzer_frq_offset__gain *= 1.122462;
-        if (buzzer_frq_offset__gain > 1.2) {
-          buzzer_frq_offset__gain = 1.0;
-        }
-      } else {
-        buzzer_state = false;
-        actuator_buzzer_off();
-      }
-    }
-  } else if (buzzer_state) {
-    buzzer_state = false;
-    actuator_buzzer_off();
-  }
+  debug.start_time[4] = htim7.Instance->CNT;  // パフォーマンス計測用
+  buzzerControl(&can_raw, &sys, &connection, &ai_cmd);
 
   debug.start_time[5] = htim7.Instance->CNT;  // パフォーマンス計測用
-
   communicationStateCheck(&connection, &sys, &ai_cmd);
 
   // interrupt : 500Hz

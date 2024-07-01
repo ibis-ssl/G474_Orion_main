@@ -376,3 +376,13 @@ void send_can_error()
 
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
 }
+
+bool canRxTimeoutDetection(can_raw_t * can_raw)
+{
+  for (int i = 0; i < BOARD_ID_MAX; i++) {
+    if (can_raw->board_rx_timeout_cnt[i] > 100) {
+      return true;
+    }
+  }
+  return false;
+}
