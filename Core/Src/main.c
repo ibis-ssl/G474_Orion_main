@@ -80,13 +80,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
 uint8_t getModeSwitch();
 void maintask_run();
-void maintask_stop();
-void send_actuator_cmd_run();
-void send_can_error();
 void yawFilter();
-void resetLocalSpeedControl();
 bool allEncInitialized();
-//void resetAiCmdData();
 uint32_t HAL_GetTick(void) { return uwTick; }
 
 // shared with other files
@@ -98,9 +93,9 @@ mouse_t mouse;
 omni_t omni;
 output_t output;
 motor_t motor;
-connection_t connection, connection_buf;
+connection_t connection;
 system_t sys;
-integration_control_t integ, integ_buf;
+integration_control_t integ;
 accel_vector_t acc_vel;
 debug_t debug;
 
@@ -502,14 +497,6 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void resetLocalSpeedControl()
-{
-  for (int i = 0; i < 2; i++) {
-    //target.global_pos[i] = omni.odom[i];
-    ai_cmd.local_target_speed[i] = 0;
-  }
-}
-
 void canRxTimeoutCntCycle(void)
 {
   for (int i = 0; i < BOARD_ID_MAX; i++) {
@@ -582,11 +569,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   pre_sw_mode = sw_mode;
   sw_mode = getModeSwitch();
 
-  if (connection_buf.updated_flag) {
-    connection_buf.updated_flag = false;
+  if (connection.updated_flag) {
+    connection.updated_flag = false;
     memcpy(&ai_cmd, &ai_cmd_buf, sizeof(ai_cmd));
-    memcpy(&connection, &connection_buf, sizeof(connection));
-    memcpy(&integ, &integ_buf, sizeof(integ));
+    integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
+    integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
   }
 
   canRxTimeoutCntCycle();
@@ -607,17 +594,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuator_power_ONOFF(0);
     } else {
       sys.main_mode = MAIN_MODE_ERROR;
-      resetLocalSpeedControl();
+      resetLocalSpeedControl(&ai_cmd);
     }
   } else if (sw_mode != pre_sw_mode) {  // reset
     sys.main_mode = MAIN_MODE_NONE;
-    resetLocalSpeedControl();
+    resetLocalSpeedControl(&ai_cmd);
   } else {
     sys.main_mode = sw_mode;
   }
 
   if (sys.system_time_ms < sys.stop_flag_request_time || canRxTimeoutDetection() || !allEncInitialized()) {
-    resetLocalSpeedControl();
+    resetLocalSpeedControl(&ai_cmd);
     sys.stop_flag = true;
   } else {
     sys.stop_flag = false;
@@ -644,7 +631,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
     case MAIN_MODE_SPEED_CONTROL_ONLY:   // ローカル統合制御なし
       if (/*connection.connected_ai == false || */ sys.stop_flag) {
-        maintask_stop();
+        maintask_stop(&output);
       } else {
         maintask_run();
       }
@@ -652,7 +639,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。
                                     // 相補フィルタなし、
       if (sys.stop_flag) {
-        maintask_stop();
+        maintask_stop(&output);
       } else {
         maintask_run();
       }
@@ -679,12 +666,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case MAIN_MODE_ERROR:  // error
-      maintask_stop();
+      maintask_stop(&output);
       send_can_error();
       break;
 
     default:
-      maintask_stop();
+      maintask_stop(&output);
       break;
   }
   debug.start_time[4] = htim7.Instance->CNT;  // パフォーマンス計測用
@@ -753,45 +740,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   debug.start_time[5] = htim7.Instance->CNT;  // パフォーマンス計測用
 
-  // AI通信切断時、3sでリセット
-  static uint32_t self_timeout_reset_cnt = 0;
-  if (!connection.connected_cm4 && connection.already_connected_ai && sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
-    self_timeout_reset_cnt++;
-    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
-      NVIC_SystemReset();
-    }
-  } else {
-    self_timeout_reset_cnt = 0;
-  }
-
-  // AIとの通信状態チェック
-  if (sys.system_time_ms - connection.latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイムアウト
-    connection.connected_ai = true;
-    connection.already_connected_ai = true;
-
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
-
-    if (connection.vision_update_cycle_cnt < MAIN_LOOP_CYCLE * 10) {
-      connection.vision_update_cycle_cnt++;
-    }
-
-  } else {
-    connection.connected_ai = false;
-    connection.cmd_rx_frq = 0;
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-    resetAiCmdData(&ai_cmd);
-
-    sys.stop_flag_request_time = sys.system_time_ms + MAIN_LOOP_CYCLE;  // 前回のタイムアウト時から1.0s間は動かさない
-  }
-
-  // CM4との通信状態チェック
-  if (sys.system_time_ms - connection.latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイムアウト
-    connection.connected_cm4 = true;
-  } else {
-    connection.connected_cm4 = false;
-    connection.connected_ai = false;
-    resetAiCmdData(&ai_cmd);
-  }
+  communicationStateCheck(&connection, &sys, &ai_cmd);
 
   // interrupt : 500Hz
   static uint16_t cnt_time_50Hz;
@@ -904,94 +853,13 @@ void maintask_run()
 
   // デバッグモードではstopとvision_lostを無視する
   if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (ai_cmd.stop_request_flag || ai_cmd.vision_lost_flag)) {
-    resetLocalSpeedControl();
+    resetLocalSpeedControl(&ai_cmd);
     omni_move(0.0, 0.0, 0.0, 0.0, &output);
   } else {
     omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT, &output);
   }
 
-  send_actuator_cmd_run();
-}
-
-void send_actuator_cmd_run()
-{
-  if (ai_cmd.kick_power > 0) {
-    if (sys.kick_state == 0) {
-      if (can_raw.ball_detection[0] == 1) {
-        uint8_t kick_power_param = (float)ai_cmd.kick_power * 255.0;
-        printf(" kick=%d\r\n", kick_power_param);
-
-        if (ai_cmd.chip_en == true) {
-          actuator_kicker(2, 1);
-        } else {
-          actuator_kicker(2, 0);
-        }
-
-        actuator_kicker(3, (uint8_t)kick_power_param);
-        resetLocalSpeedControl();
-        sys.kick_state = 1;
-      }
-    } else {
-      if (sys.kick_state > MAIN_LOOP_CYCLE / 2) {
-        if (can_raw.ball_detection[0] == 0) {
-          sys.kick_state = 0;
-        }
-      } else {
-        sys.kick_state++;
-      }
-    }
-  }
-
-  static uint8_t can_sending_index = 0;
-
-  can_sending_index++;
-  switch (can_sending_index) {
-    case 1:
-
-      break;
-
-    case 2:
-      if (ai_cmd.chip_en == true || ai_cmd.dribbler_up_flag) {
-        actuator_dribbler_up();
-      } else {
-        actuator_dribbler_down();
-      }
-      break;
-
-    case 3:
-      actuator_kicker(1, 1);
-      break;
-
-    case 4:
-      actuator_kicker_voltage(400.0);
-      break;
-
-    case 5:
-      actuator_motor5(ai_cmd.dribble_power, 1.0);
-      break;
-
-    default:
-      can_sending_index = 0;
-      break;
-  }
-}
-
-void maintask_stop()
-{
-  omni_move(0.0, 0.0, 0.0, 0.0, &output);
-  actuator_motor5(0.0, 0.0);
-  actuator_kicker(1, 0);
-  actuator_kicker_voltage(0.0);
-  actuator_dribbler_down();
-}
-
-void send_can_error()
-{
-  uint8_t senddata_error[8];
-  can1_send(0x000, senddata_error);
-  can2_send(0x000, senddata_error);
-
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+  send_actuator_cmd_run(&ai_cmd, &sys, &can_raw);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
@@ -1021,8 +889,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_ETHER) {
       uart_rx_cmd_idx = -1;
-      parseRxCmd(&connection_buf, &sys, &ai_cmd_buf, &integ_buf, data_from_cm4);
-      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd_buf, &connection_buf);
+      parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd_buf, &connection);
     }
   }
 
@@ -1043,7 +911,6 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   while (1) {
-    maintask_stop(255, 0);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
     actuator_buzzer(200, 200);
     // NVIC_sysReset();

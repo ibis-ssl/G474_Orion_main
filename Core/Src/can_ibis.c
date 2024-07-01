@@ -7,7 +7,9 @@
 
 #include "can_ibis.h"
 
+#include "actuator.h"
 #include "util.h"
+#include "ai_comm.h"
 
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
@@ -293,4 +295,84 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x503:
       break;
   }
+}
+
+void send_actuator_cmd_run(ai_cmd_t * ai_cmd, system_t * sys, can_raw_t * can_raw)
+{
+  if (ai_cmd->kick_power > 0) {
+    if (sys->kick_state == 0) {
+      if (can_raw->ball_detection[0] == 1) {
+        uint8_t kick_power_param = (float)ai_cmd->kick_power * 255.0;
+        if (ai_cmd->chip_en == true) {
+          actuator_kicker(2, 1);
+        } else {
+          actuator_kicker(2, 0);
+        }
+
+        actuator_kicker(3, (uint8_t)kick_power_param);
+
+        resetLocalSpeedControl(ai_cmd);
+        sys->kick_state = 1;
+      }
+    } else {
+      if (sys->kick_state > MAIN_LOOP_CYCLE / 2) {
+        if (can_raw->ball_detection[0] == 0) {
+          sys->kick_state = 0;
+        }
+      } else {
+        sys->kick_state++;
+      }
+    }
+  }
+
+  static uint8_t can_sending_index = 0;
+
+  can_sending_index++;
+  switch (can_sending_index) {
+    case 1:
+
+      break;
+
+    case 2:
+      if (ai_cmd->chip_en == true || ai_cmd->dribbler_up_flag) {
+        actuator_dribbler_up();
+      } else {
+        actuator_dribbler_down();
+      }
+      break;
+
+    case 3:
+      actuator_kicker(1, 1);
+      break;
+
+    case 4:
+      actuator_kicker_voltage(400.0);
+      break;
+
+    case 5:
+      actuator_motor5(ai_cmd->dribble_power, 1.0);
+      break;
+
+    default:
+      can_sending_index = 0;
+      break;
+  }
+}
+
+void maintask_stop(output_t * output)
+{
+  omni_move(0.0, 0.0, 0.0, 0.0, output);
+  actuator_motor5(0.0, 0.0);
+  actuator_kicker(1, 0);
+  actuator_kicker_voltage(0.0);
+  actuator_dribbler_down();
+}
+
+void send_can_error()
+{
+  uint8_t senddata_error[8];
+  can1_send(0x000, senddata_error);
+  can2_send(0x000, senddata_error);
+
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
 }
