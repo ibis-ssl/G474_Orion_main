@@ -6,8 +6,20 @@
  */
 
 #include "management.h"
-#include "util.h"
 #include "ring_buffer.h"
+#include "util.h"
+
+void convertGlobalToLocal(float global[], float local[], float yaw_rad)
+{
+  local[0] = global[0] * cos(-yaw_rad) - global[1] * sin(-yaw_rad);
+  local[1] = global[0] * sin(-yaw_rad) + global[1] * cos(-yaw_rad);
+}
+
+void convertLocalToGlobal(float local[], float global[], float yaw_rad)
+{
+  global[0] = local[0] * cos(yaw_rad) - local[1] * sin(yaw_rad);
+  global[1] = local[0] * sin(yaw_rad) + local[1] * cos(yaw_rad);
+}
 
 void mouseOdometry(mouse_t * mouse, imu_t * imu)
 {
@@ -17,8 +29,10 @@ void mouseOdometry(mouse_t * mouse, imu_t * imu)
   mouse->raw_odom[0] += mouse->raw_diff[0];
   mouse->raw_odom[1] += mouse->raw_diff[1];
 
-  mouse->floor_odom[0] += ((float)mouse->raw_diff[0] * cos(imu->yaw_angle_rad) - (float)mouse->raw_diff[1] * sin(imu->yaw_angle_rad)) / 2;
-  mouse->floor_odom[1] += ((float)mouse->raw_diff[0] * sin(imu->yaw_angle_rad) + (float)mouse->raw_diff[1] * cos(imu->yaw_angle_rad)) / 2;
+  float floor_odom_diff[2] = {0, 0};
+  convertLocalToGlobal(mouse->raw_diff, floor_odom_diff, imu->yaw_angle_rad);
+  mouse->floor_odom[0] += floor_odom_diff[0];
+  mouse->floor_odom[1] += floor_odom_diff[1];
 
   // 旋回ぶん補正 X方向は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
   mouse->odom[0] = mouse->floor_odom[0] - (0.066 * cos(imu->yaw_angle_rad) - 0.066);
@@ -50,24 +64,22 @@ void omniOdometry(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration
   //  +robot_rotation_adj * 2;
 
   // right back & left back
-  omni->odom_raw[0] += omni->travel_distance[0] * cos(imu->yaw_angle_rad) + omni->travel_distance[1] * sin(imu->yaw_angle_rad);
-  omni->odom_raw[1] += omni->travel_distance[0] * sin(imu->yaw_angle_rad) - omni->travel_distance[1] * cos(imu->yaw_angle_rad);
+  float global_travel[2] = {0, 0};
+  convertLocalToGlobal(omni->travel_distance, global_travel, imu->yaw_angle_rad);
+  omni->odom_raw[0] += global_travel[0];
+  omni->odom_raw[1] += global_travel[1];
 
   omni->pre_odom[0] = omni->odom[0];
   omni->pre_odom[1] = omni->odom[1];
 
+  // 後輪2輪によるodom
   omni->odom[0] = ((omni->odom_raw[0] * cos(M_PI * 3 / 4) - omni->odom_raw[1] * sin(M_PI * 3 / 4)) / 2) + (0.107 * cos(imu->yaw_angle_rad) - 0.107);
   omni->odom[1] = ((omni->odom_raw[0] * sin(M_PI * 3 / 4) + omni->odom_raw[1] * cos(M_PI * 3 / 4)) / 2) + (0.107 * sin(imu->yaw_angle_rad));
-
-  //omni->odom[0] += (omni->travel_distance[0] * cos(imu->yaw_angle_rad + M_PI * 3 / 4) - omni->travel_distance[1] * cos(imu->yaw_angle_rad + M_PI * 5 / 4)) / 2;
-  //omni->odom[1] += (omni->travel_distance[0] * sin(imu->yaw_angle_rad + M_PI * 3 / 4) - omni->travel_distance[1] * sin(imu->yaw_angle_rad + M_PI * 5 / 4)) / 2;
 
   omni->odom_speed[0] = (omni->odom[0] - omni->pre_odom[0]) * MAIN_LOOP_CYCLE;
   omni->odom_speed[1] = (omni->odom[1] - omni->pre_odom[1]) * MAIN_LOOP_CYCLE;
 
-  omni->local_odom_speed[0] = omni->odom_speed[0] * cos(-imu->yaw_angle_rad) - omni->odom_speed[1] * sin(-imu->yaw_angle_rad);
-  omni->local_odom_speed[1] = omni->odom_speed[0] * sin(-imu->yaw_angle_rad) + omni->odom_speed[1] * cos(-imu->yaw_angle_rad);
-
+  convertGlobalToLocal(omni->odom_speed, omni->local_odom_speed, imu->yaw_angle);
   for (int i = 0; i < 2; i++) {
     enqueue(omni->local_speed_log[i], omni->local_odom_speed[i]);
     omni->local_odom_speed_mvf[i] = sumNewestN(omni->local_speed_log[i], SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE) / SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE;
