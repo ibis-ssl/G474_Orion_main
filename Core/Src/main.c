@@ -43,6 +43,7 @@
 #include "omni_wheel.h"
 #include "ring_buffer.h"
 #include "robot_control.h"
+#include "robot_packet.h"
 #include "test_func.h"
 #include "util.h"
 
@@ -120,6 +121,8 @@ uint8_t data_from_cm4[RX_BUF_SIZE_ETHER];
 uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
 uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_it_buffer = 0;
 
+RobotCommandSerializedV2 cmd_data_v2;
+RobotCommandV2 cmd_v2;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -803,6 +806,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     if (uart_rx_cmd_idx >= 0 && uart_rx_cmd_idx < RX_BUF_SIZE_ETHER) {
       data_from_cm4[uart_rx_cmd_idx] = rx_data_tmp;
+      cmd_data_v2.data[uart_rx_cmd_idx] = rx_data_tmp;
     }
 
     // look up header byte
@@ -818,6 +822,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_ETHER) {
       uart_rx_cmd_idx = -1;
+      RobotCommandSerializedV2_serialize(&cmd_data_v2, &cmd_v2);
       parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd_buf, &connection);
     }
