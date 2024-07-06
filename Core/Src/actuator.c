@@ -6,8 +6,8 @@
  */
 #include "actuator.h"
 
-#include "util.h"
 #include "can_ibis.h"
+#include "util.h"
 
 static void motor_cmd_can1(uint16_t motor_id, float duty, float limit)
 {
@@ -65,7 +65,7 @@ void actuator_kicker(uint8_t id, uint8_t param)
   can2_send(0x110, senddata_kick);
 }
 
-void actuator_power_ONOFF(uint8_t power_on)
+void actuatorPower_ONOFF(uint8_t power_on)
 {
   /*id 0=>off
 	 *   1=>on

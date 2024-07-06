@@ -33,17 +33,19 @@
 #include <math.h>
 #include <stdarg.h>
 
+#include "management.h"
+#include "robot_packet.h"
+//
+
 #include "actuator.h"
 #include "ai_comm.h"
 #include "buzzer_control.h"
 #include "can_ibis.h"
 #include "icm20602_spi.h"
-#include "management.h"
 #include "odom.h"
 #include "omni_wheel.h"
 #include "ring_buffer.h"
 #include "robot_control.h"
-#include "robot_packet.h"
 #include "test_func.h"
 #include "util.h"
 
@@ -80,7 +82,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
 uint8_t getModeSwitch();
-void maintask_run();
+void maintaskRun();
 void yawFilter();
 bool allEncInitialized();
 uint32_t HAL_GetTick(void) { return uwTick; }
@@ -99,6 +101,8 @@ system_t sys;
 integration_control_t integ;
 accel_vector_t acc_vel;
 debug_t debug;
+
+RobotCommandV2 cmd_v2, cmd_v2_buf;
 
 UART_HandleTypeDef * huart_xprintf;
 
@@ -121,8 +125,6 @@ uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
 uint8_t tx_data_uart[TX_BUF_SIZE_CM4];
 uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_it_buffer = 0;
 
-RobotCommandSerializedV2 cmd_data_v2;
-RobotCommandV2 cmd_v2;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -227,7 +229,7 @@ int main(void)
   printf("\n\rstart can2\r\n");
   can2_init_ibis(&hfdcan2);
 
-  actuator_power_ONOFF(0);
+  actuatorPower_ONOFF(0);
   HAL_Delay(20);
 
   actuator_motor1(0.0, 0.0);
@@ -246,7 +248,7 @@ int main(void)
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
 
-  actuator_power_ONOFF(1);
+  actuatorPower_ONOFF(1);
 
   actuator_buzzer_frq(1046, 50);  //C5
   actuator_buzzer_frq(1174, 50);  //D5
@@ -255,7 +257,7 @@ int main(void)
   actuator_buzzer_frq(1318, 50);  //E5
   actuator_buzzer_frq(1396, 50);  //F5
 
-  actuator_power_ONOFF(1);
+  actuatorPower_ONOFF(1);
 
   sys.system_time_ms = 1000;                               //
   sys.stop_flag_request_time = sys.system_time_ms + 1000;  // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
@@ -265,7 +267,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 4;
+  debug.print_idx = 1;
 
   /* USER CODE END 2 */
 
@@ -398,7 +400,7 @@ int main(void)
           p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
           p("integ-diff %+6.3f %+6.3f ", integ.local_target_diff[0], integ.local_target_diff[1]);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
-          p("cmd-vel %+5.2f, %+5.2f, ", target.velocity[0], target.velocity[1]);
+          p("cmd-vel %+5.2f, %+5.2f, ", target.global_vel[0], target.global_vel[1]);
           p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
           p("acc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
@@ -553,7 +555,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
     parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
     // 関数のネストを浅くするためにparseCanCmd()の中から移動
     if (RxHeader.Identifier == 0x241) {
-      mouseOdometry(&mouse, &imu);
+      mouseOdometryUpdate(&mouse, &imu);
     }
   }
 }
@@ -575,9 +577,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   if (connection.updated_flag) {
     connection.updated_flag = false;
-    memcpy(&ai_cmd, &ai_cmd_buf, sizeof(ai_cmd));
-    integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
-    integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
+    memcpy(&cmd_v2, &cmd_v2_buf, sizeof(cmd_v2));
+    //memcpy(&ai_cmd, &ai_cmd_buf, sizeof(ai_cmd));
+    //integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
+    //integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
   }
 
   canRxTimeoutCntCycle();
@@ -595,7 +598,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       sys.stop_flag_request_time = sys.system_time_ms + 3000;
 
       // OFFコマンドでリセット
-      actuator_power_ONOFF(0);
+      actuatorPower_ONOFF(0);
     } else {
       sys.main_mode = MAIN_MODE_ERROR;
       resetLocalSpeedControl(&ai_cmd);
@@ -619,7 +622,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   debug.start_time[1] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   yawFilter();
-  omniOdometry(&ai_cmd, &motor, &omni, &integ, &connection, &imu);  // 250us
+  omniOdometryUpdate(&motor, &omni, &imu);  // 250us
   resetOdomAtEncInitialized();
 
   //slipDetection();
@@ -635,47 +638,47 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
     case MAIN_MODE_SPEED_CONTROL_ONLY:   // ローカル統合制御なし
       if (/*connection.connected_ai == false || */ sys.stop_flag) {
-        maintask_stop(&output);
+        maintaskStop(&output);
       } else {
-        maintask_run();
+        maintaskRun();
       }
       break;
     case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。
                                     // 相補フィルタなし、
       if (sys.stop_flag) {
-        maintask_stop(&output);
+        maintaskStop(&output);
       } else {
-        maintask_run();
+        maintaskRun();
       }
       break;
 
     case MAIN_MODE_MOTOR_TEST:  // motor test
-      motor_test(&sys, &output);
+      motorTest(&sys, &output);
       break;
 
     case MAIN_MODE_DRIBBLER_TEST:  // dribble test
-      dribbler_test(&sys, &output);
+      dribblerTest(&sys, &output);
       break;
 
     case MAIN_MODE_KICKER_AUTO_TEST:  // kicker test (auto)
-      kicker_test(&sys, &can_raw, false, &output);
+      kickerTest(&sys, &can_raw, false, &output);
       break;
 
     case MAIN_MODE_KICKER_MANUAL:  // kicker test (manual)
-      kicker_test(&sys, &can_raw, true, &output);
+      kickerTest(&sys, &can_raw, true, &output);
       break;
 
     case MAIN_MODE_MOTOR_CALIBRATION:
-      motor_calibration(&sys);
+      motorCalibration(&sys);
       break;
 
     case MAIN_MODE_ERROR:  // error
-      maintask_stop(&output);
-      send_can_error();
+      maintaskStop(&output);
+      sendCanError();
       break;
 
     default:
-      maintask_stop(&output);
+      maintaskStop(&output);
       break;
   }
 
@@ -693,7 +696,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     debug.print_flag = true;
 
-    actuator_power_ONOFF(1);
+    actuatorPower_ONOFF(1);
 
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
   }
@@ -779,36 +782,39 @@ void slipDetection(void)
   slip_detect.spin_total[3] = can_raw.motor_feedback_velocity[0] + can_raw.motor_feedback_velocity[1] + can_raw.motor_feedback_velocity[2];*/
 }
 
-void maintask_run()
+void maintaskRun()
 {
   // 全部で250us
-  local_feedback(&integ, &imu, &sys, &target, &ai_cmd, &omni, &mouse);
+  robotControl(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output);
+  /*local_feedback(&integ, &imu, &sys, &target, &ai_cmd, &omni, &mouse);
   accel_control(&acc_vel, &output, &target, &imu, &omni);
   speed_control(&acc_vel, &output, &target, &imu, &omni);
-  output_limit(&output, &debug);
+  output_limit(&output, &debug);*/
 
-  if (isLatencyCheckModeEnabled(&sys, &debug, &ai_cmd)) {
+  /*if (isLatencyCheckModeEnabled(&sys, &debug, &ai_cmd)) {
     debug.rotation_target_theta = getTargetThetaInLatencyCheckMode(&debug, &ai_cmd);
-    theta_control(debug.rotation_target_theta, &acc_vel, &output, &imu);
+    thetaControl(debug.rotation_target_theta, &acc_vel, &output, &imu);
   } else {
-    theta_control(ai_cmd.target_theta, &acc_vel, &output, &imu);
-  }
+    thetaControl(ai_cmd.target_theta, &acc_vel, &output, &imu);
+  }*/
 
   // デバッグモードではstopとvision_lostを無視する
   if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (ai_cmd.stop_request_flag || ai_cmd.vision_lost_flag)) {
     resetLocalSpeedControl(&ai_cmd);
-    omni_move(0.0, 0.0, 0.0, 0.0, &output);
+    omniMove(0.0, 0.0, 0.0, 0.0, &output);
   } else {
-    omni_move(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT, &output);
+    omniMove(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT, &output);
   }
 
-  send_actuator_cmd_run(&ai_cmd, &sys, &can_raw);
+  sendActuatorCanCmdRun(&ai_cmd, &sys, &can_raw);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   static int32_t uart_rx_cmd_idx = 0;
   uint8_t rx_data_tmp;
+  RobotCommandSerializedV2 cmd_data_v2;
+
   debug.uart_rx_itr_cnt++;
 
   if (huart->Instance == USART2) {
@@ -832,8 +838,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
       uart_rx_cmd_idx = -1;
+
       memcpy(&cmd_data_v2, &(data_from_cm4[1]), sizeof(cmd_data_v2));
-      cmd_v2 = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
+      cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
       //parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd_buf, &connection);
     }

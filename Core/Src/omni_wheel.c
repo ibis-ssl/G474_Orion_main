@@ -33,7 +33,7 @@ const float cosM3 = cos(225 * M_PI / 180);
 const float sinM4 = sin(150 * M_PI / 180);
 const float cosM4 = cos(150 * M_PI / 180);
 
-void omni_move(float vel_y_robot, float vel_x_robot, float omega_robot, float duty_limit, output_t * output)
+void omniMove(float vel_y_robot, float vel_x_robot, float omega_robot, float duty_limit, output_t * output)
 {
   float rotation_omega_motor;
 

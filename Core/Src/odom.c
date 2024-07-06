@@ -9,20 +9,8 @@
 #include "ring_buffer.h"
 #include "util.h"
 
-void convertGlobalToLocal(float global[], float local[], float yaw_rad)
-{
-  local[0] = global[0] * cos(-yaw_rad) - global[1] * sin(-yaw_rad);
-  local[1] = global[0] * sin(-yaw_rad) + global[1] * cos(-yaw_rad);
-}
-
-void convertLocalToGlobal(float local[], float global[], float yaw_rad)
-{
-  global[0] = local[0] * cos(yaw_rad) - local[1] * sin(yaw_rad);
-  global[1] = local[0] * sin(yaw_rad) + local[1] * cos(yaw_rad);
-}
-
 // 20ms cycle
-void mouseOdometry(mouse_t * mouse, imu_t * imu)
+void mouseOdometryUpdate(mouse_t * mouse, imu_t * imu)
 {
   const int MOUSE_ODOM_CYCLE = 20;
   mouse->raw_diff[0] = (float)mouse->raw[0] / MOUSE_ODOM_CYCLE;
@@ -47,7 +35,7 @@ void mouseOdometry(mouse_t * mouse, imu_t * imu)
   mouse->pre_yaw_angle_rad = imu->yaw_angle_rad;
 }
 
-void omniOdometry(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
+void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
 {
   // motor->enc_angle,/imu->yaw_angle_rad
 
@@ -91,7 +79,10 @@ void omniOdometry(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration
 
   // local座標系で入れているodom speedを,global系に修正する
   // vision座標だけ更新されているが、vision_update_cycle_cntが0になっていない場合に、1cycleだけpositionが飛ぶ
+}
 
+void inntegOdomUpdate(ai_cmd_t * ai_cmd, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
+{
   float latency_cycle = ai_cmd->latency_time_ms / (1000 / MAIN_LOOP_CYCLE);
   for (int i = 0; i < 2; i++) {
     enqueue(integ->odom_log[i], omni->odom_speed[i]);
@@ -100,12 +91,14 @@ void omniOdometry(ai_cmd_t * ai_cmd, motor_t * motor, omni_t * omni, integration
     integ->position_diff[i] = ai_cmd->global_target_position[i] - integ->vision_based_position[i];
   }
 
-  float target_diff[2], move_diff[2];
+  /*float target_diff[2], move_diff[2];
   for (int i = 0; i < 2; i++) {
-    target_diff[i] = ai_cmd->global_robot_position[i] - ai_cmd->global_target_position[i];  // Visionが更新された時点での現在地とtargetの距離
-    move_diff[i] = ai_cmd->global_robot_position[i] - integ->vision_based_position[i];      // Visionとtargetが更新されてからの移動量
-  }
+    target_diff[i] = ai_cmd->global_robot_position[i] -
+                     ai_cmd->global_target_position[i];  // Visionが更新された時点での現在地とtargetの距離
+    move_diff[i] =
+      ai_cmd->global_robot_position[i] - integ->vision_based_position[i];  // Visionとtargetが更新されてからの移動量
+  }*/
 
-  integ->target_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
-  integ->move_dist = sqrt(pow(integ->position_diff[0], 2) + pow(integ->position_diff[1], 2));
+  //integ->target_dist_diff = sqrt(pow(target_diff[0], 2) + pow(target_diff[1], 2));
+  //integ->move_dist = sqrt(pow(integ->position_diff[0], 2) + pow(integ->position_diff[1], 2));
 }

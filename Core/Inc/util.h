@@ -64,6 +64,11 @@ bool swLeftPushed(uint16_t sw_raw_data);
 bool swForwardPushed(uint16_t sw_raw_data);
 bool swBackPushed(uint16_t sw_raw_data);
 
+void convertGlobalToLocal(float global[], float local[], float yaw_rad);
+void convertLocalToGlobal(float local[], float global[], float yaw_rad);
+
+float calcScalar(float x, float y);
+
 #ifdef __cplusplus
 }
 #endif

@@ -12,9 +12,9 @@
 
 bool isLatencyCheckModeEnabled(system_t * sys, debug_t * debug, ai_cmd_t * ai_cmd);
 float getTargetThetaInLatencyCheckMode(debug_t * debug, ai_cmd_t * ai_cmd);
-void motor_test(system_t * sys, output_t * output);
-void dribbler_test(system_t * sys, output_t * output);
-void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t * output);
-void motor_calibration(system_t * sys);
+void motorTest(system_t * sys, output_t * output);
+void dribblerTest(system_t * sys, output_t * output);
+void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t * output);
+void motorCalibration(system_t * sys);
 
 #endif /* INC_TEST_FUNC_H_ */

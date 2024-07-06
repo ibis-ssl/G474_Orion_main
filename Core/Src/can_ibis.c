@@ -8,8 +8,9 @@
 #include "can_ibis.h"
 
 #include "actuator.h"
-#include "util.h"
 #include "ai_comm.h"
+#include "util.h"
+#include "omni_wheel.h"
 
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
@@ -297,7 +298,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
   }
 }
 
-void send_actuator_cmd_run(ai_cmd_t * ai_cmd, system_t * sys, can_raw_t * can_raw)
+void sendActuatorCanCmdRun(ai_cmd_t * ai_cmd, system_t * sys, can_raw_t * can_raw)
 {
   if (ai_cmd->kick_power > 0) {
     if (sys->kick_state == 0) {
@@ -359,16 +360,16 @@ void send_actuator_cmd_run(ai_cmd_t * ai_cmd, system_t * sys, can_raw_t * can_ra
   }
 }
 
-void maintask_stop(output_t * output)
+void maintaskStop(output_t * output)
 {
-  omni_move(0.0, 0.0, 0.0, 0.0, output);
+  omniMove(0.0, 0.0, 0.0, 0.0, output);
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
   actuator_dribbler_down();
 }
 
-void send_can_error()
+void sendCanError()
 {
   uint8_t senddata_error[8];
   can1_send(0x000, senddata_error);

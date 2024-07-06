@@ -20,7 +20,7 @@ void actuator_dribbler_up();
 void actuator_dribbler_down();
 void actuator_motor_param(uint8_t param1,float m1p,uint8_t param2,float m2p,uint8_t param3,float m3p,uint8_t param4,float m4p,uint8_t param5,float m5p);
 void actuator_kicker(uint8_t id,uint8_t param);
-void actuator_power_ONOFF(uint8_t power_on);
+void actuatorPower_ONOFF(uint8_t power_on);
 void actuator_power_param(uint8_t id,float param);
 void actuator_buzzer(uint16_t ontime, uint16_t offtime);
 void actuator_buzzer_on();

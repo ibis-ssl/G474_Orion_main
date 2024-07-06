@@ -42,31 +42,31 @@ float getTargetThetaInLatencyCheckMode(debug_t * debug, ai_cmd_t * ai_cmd)
   return debug->rotation_target_theta + (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
 }
 
-void motor_test(system_t * sys, output_t * output)
+void motorTest(system_t * sys, output_t * output)
 {
   if (swForwardPushed(sys->sw_data)) {
-    omni_move(4.0, 0.0, 0.0, 4.0, output);  // fwd
+    omniMove(4.0, 0.0, 0.0, 4.0, output);  // fwd
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (swBackPushed(sys->sw_data)) {
-    omni_move(-4.0, 0.0, 0.0, 4.0, output);  // back
+    omniMove(-4.0, 0.0, 0.0, 4.0, output);  // back
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (swLeftPushed(sys->sw_data)) {
-    omni_move(0.0, -4.0, 0.0, 4.0, output);  // left
+    omniMove(0.0, -4.0, 0.0, 4.0, output);  // left
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (swRightPushed(sys->sw_data)) {
-    omni_move(0.0, 4.0, 0.0, 4.0, output);  // right
+    omniMove(0.0, 4.0, 0.0, 4.0, output);  // right
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else if (swCentorPushed(sys->sw_data)) {
-    omni_move(0.0, 0.0, 20.0, 4.0, output);  // spin
+    omniMove(0.0, 0.0, 20.0, 4.0, output);  // spin
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else {
-    omni_move(0.0, 0.0, 0.0, 0.0, output);
+    omniMove(0.0, 0.0, 0.0, 0.0, output);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
   }
   actuator_motor5(0.0, 0.0);
 }
 
-void dribbler_test(system_t * sys, output_t * output)
+void dribblerTest(system_t * sys, output_t * output)
 {
   if (swCentorPushed(sys->sw_data)) {
     actuator_motor5(0.5, 1.0);
@@ -75,10 +75,10 @@ void dribbler_test(system_t * sys, output_t * output)
     actuator_motor5(0.0, 0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
   }
-  omni_move(0.0, 0.0, 0.0, 0.0, output);
+  omniMove(0.0, 0.0, 0.0, 0.0, output);
 }
 
-void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t * output)
+void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t * output)
 {
   static bool dribbler_up = false;
 
@@ -132,10 +132,10 @@ void kicker_test(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t
     actuator_kicker(1, 1);  // charge enable
     actuator_kicker_voltage(400.0);
   }
-  omni_move(0.0, 0.0, 0.0, 0.0, output);
+  omniMove(0.0, 0.0, 0.0, 0.0, output);
 }
 
-void motor_calibration(system_t * sys)
+void motorCalibration(system_t * sys)
 {
   static uint32_t calib_start_cnt = 0;
   if (swRightPushed(sys->sw_data)) {

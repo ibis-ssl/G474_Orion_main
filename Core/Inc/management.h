@@ -155,7 +155,7 @@ typedef struct
 
 typedef struct
 {
-  float velocity[2];             // m/s 速度指令値の入力
+  float global_vel[2];           // m/s 速度指令値の入力
   float local_vel[2];            // m/s 上記とほぼ同じ
   float local_vel_now[2];        // 台形制御指令値
   float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
@@ -201,8 +201,8 @@ typedef struct
   float vision_based_position[2];       // Visionによって更新された自己位置(global系)
   float position_diff[2];               // ai_cmdとvision_based_positionの差分(global系)
   float pre_global_target_position[2];  // ai_cmdとvision_based_positionの差分(global系)
-  float move_dist;                      // Visionとtargetが更新されてからの移動量
-  float target_dist_diff;               // Visionが更新された時点での現在地とtargetの距離
+  //float move_dist;                      // Visionとtargetが更新されてからの移動量
+  //float target_dist_diff;               // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
 } integration_control_t;
 

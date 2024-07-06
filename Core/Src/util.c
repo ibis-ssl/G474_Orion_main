@@ -195,6 +195,20 @@ float getAngleDiff(float angle_rad1, float angle_rad2)
   }
 }
 
+void convertGlobalToLocal(float global[], float local[], float yaw_rad)
+{
+  local[0] = global[0] * cos(-yaw_rad) - global[1] * sin(-yaw_rad);
+  local[1] = global[0] * sin(-yaw_rad) + global[1] * cos(-yaw_rad);
+}
+
+void convertLocalToGlobal(float local[], float global[], float yaw_rad)
+{
+  global[0] = local[0] * cos(yaw_rad) - local[1] * sin(yaw_rad);
+  global[1] = local[0] * sin(yaw_rad) + local[1] * cos(yaw_rad);
+}
+
+float calcScalar(float x, float y) { return pow(x * x + y * y, 0.5); }
+
 bool swCentorPushed(uint16_t sw_raw_data) { return sw_raw_data <= 100; }
 bool swRightPushed(uint16_t sw_raw_data) { return sw_raw_data <= 500 && sw_raw_data > 100; }
 bool swLeftPushed(uint16_t sw_raw_data) { return sw_raw_data <= 2000 && sw_raw_data > 500; }

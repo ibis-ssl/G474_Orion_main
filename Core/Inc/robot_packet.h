@@ -19,7 +19,7 @@ typedef struct
   uint8_t low;
 } TwoByte;
 
-TwoByte convertFloatToTwoByte(float val, float range)
+TwoByte inline convertFloatToTwoByte(float val, float range)
 {
   TwoByte result;
   uint16_t uint16 = (uint16_t)(32767.f * (float)(val / range) + 32767.f);
@@ -28,13 +28,13 @@ TwoByte convertFloatToTwoByte(float val, float range)
   return result;
 }
 
-float convertTwoByteToFloat(uint8_t byte_high, uint8_t byte_low, float range)
+float inline convertTwoByteToFloat(uint8_t byte_high, uint8_t byte_low, float range)
 {
   uint16_t two_byte = (byte_high << 8) | byte_low;
   return (float)(two_byte - 32767.f) / 32767.f * range;
 }
 
-TwoByte convertUInt16ToTwoByte(uint16_t val)
+TwoByte inline convertUInt16ToTwoByte(uint16_t val)
 {
   TwoByte result;
   result.high = (val & 0xFF00) >> 8;
@@ -42,19 +42,14 @@ TwoByte convertUInt16ToTwoByte(uint16_t val)
   return result;
 }
 
-uint16_t convertTwoByteToUInt16(uint8_t byte_high, uint8_t byte_low)
-{
-  return (byte_high << 8) | byte_low;
-}
+uint16_t inline convertTwoByteToUInt16(uint8_t byte_high, uint8_t byte_low) { return (byte_high << 8) | byte_low; }
 
-void forward(uint8_t * arg1, uint8_t * arg2, float val, float range)
+void inline forward(uint8_t * arg1, uint8_t * arg2, float val, float range)
 {
   TwoByte two_byte = convertFloatToTwoByte(val, range);
   *arg1 = two_byte.high;
   *arg2 = two_byte.low;
 }
-
-#define MODE_ARGS_SIZE (8)
 
 typedef struct
 {
@@ -66,7 +61,7 @@ typedef struct
   float target_global_vel_y;
 } LocalCameraModeArgs;
 
-void LocalCameraModeArgs_init(LocalCameraModeArgs * args, const uint8_t * data)
+void inline LocalCameraModeArgs_init(LocalCameraModeArgs * args, const uint8_t * data)
 {
   args->ball_x = convertTwoByteToFloat(data[0], data[1], 32.767);
   args->ball_y = convertTwoByteToFloat(data[2], data[3], 32.767);
@@ -76,7 +71,7 @@ void LocalCameraModeArgs_init(LocalCameraModeArgs * args, const uint8_t * data)
   args->target_global_vel_y = convertTwoByteToFloat(data[10], data[11], 32.767);
 }
 
-void LocalCameraModeArgs_serialize(const LocalCameraModeArgs * args, uint8_t * data)
+void inline LocalCameraModeArgs_serialize(const LocalCameraModeArgs * args, uint8_t * data)
 {
   forward(&data[0], &data[1], args->ball_x, 32.767);
   forward(&data[2], &data[3], args->ball_y, 32.767);
@@ -93,14 +88,14 @@ typedef struct
   float speed_limit_at_target;
 } PositionTargetModeArgs;
 
-void PositionTargetModeArgs_init(PositionTargetModeArgs * args, const uint8_t * data)
+void inline PositionTargetModeArgs_init(PositionTargetModeArgs * args, const uint8_t * data)
 {
   args->target_global_x = convertTwoByteToFloat(data[0], data[1], 32.767);
   args->target_global_y = convertTwoByteToFloat(data[2], data[3], 32.767);
   args->speed_limit_at_target = convertTwoByteToFloat(data[4], data[5], 32.767);
 }
 
-void PositionTargetModeArgs_serialize(const PositionTargetModeArgs * args, uint8_t * data)
+void inline PositionTargetModeArgs_serialize(const PositionTargetModeArgs * args, uint8_t * data)
 {
   forward(&data[0], &data[1], args->target_global_x, 32.767);
   forward(&data[2], &data[3], args->target_global_y, 32.767);
@@ -113,14 +108,13 @@ typedef struct
   float target_global_vy;
 } SimpleVelocityTargetModeArgs;
 
-void SimpleVelocityTargetModeArgs_init(SimpleVelocityTargetModeArgs * args, const uint8_t * data)
+void inline SimpleVelocityTargetModeArgs_init(SimpleVelocityTargetModeArgs * args, const uint8_t * data)
 {
   args->target_global_vx = convertTwoByteToFloat(data[0], data[1], 32.767);
   args->target_global_vy = convertTwoByteToFloat(data[2], data[3], 32.767);
 }
 
-void SimpleVelocityTargetModeArgs_serialize(
-  const SimpleVelocityTargetModeArgs * args, uint8_t * data)
+void inline SimpleVelocityTargetModeArgs_serialize(const SimpleVelocityTargetModeArgs * args, uint8_t * data)
 {
   forward(&data[0], &data[1], args->target_global_vx, 32.767);
   forward(&data[2], &data[3], args->target_global_vy, 32.767);
@@ -136,8 +130,7 @@ typedef struct
   float trajectory_curvature;
 } VelocityTargetWithTrajectoryModeArgs;
 
-void VelocityTargetWithTrajectoryModeArgs_init(
-  VelocityTargetWithTrajectoryModeArgs * args, const uint8_t * data)
+void inline VelocityTargetWithTrajectoryModeArgs_init(VelocityTargetWithTrajectoryModeArgs * args, const uint8_t * data)
 {
   args->target_global_vx = convertTwoByteToFloat(data[0], data[1], 32.767);
   args->target_global_vy = convertTwoByteToFloat(data[2], data[3], 32.767);
@@ -147,8 +140,7 @@ void VelocityTargetWithTrajectoryModeArgs_init(
   args->trajectory_curvature = convertTwoByteToFloat(data[10], data[11], 32.767);
 }
 
-void VelocityTargetWithTrajectoryModeArgs_serialize(
-  const VelocityTargetWithTrajectoryModeArgs * args, uint8_t * data)
+void inline VelocityTargetWithTrajectoryModeArgs_serialize(const VelocityTargetWithTrajectoryModeArgs * args, uint8_t * data)
 {
   forward(&data[0], &data[1], args->target_global_vx, 32.767);
   forward(&data[2], &data[3], args->target_global_vy, 32.767);
@@ -233,8 +225,7 @@ enum FlagAddress {
   PRIORITIZE_ACCURATE_ACCELERATION = 5,
 };
 
-void RobotCommandSerializedV2_serialize(
-  RobotCommandSerializedV2 * serialized, const RobotCommandV2 * command)
+void inline RobotCommandSerializedV2_serialize(RobotCommandSerializedV2 * serialized, const RobotCommandV2 * command)
 {
   serialized->data[HEADER] = command->header;
   serialized->data[CHECK_COUNTER] = command->check_counter;
@@ -290,7 +281,7 @@ void RobotCommandSerializedV2_serialize(
   }
 }
 
-RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSerializedV2 * serialized)
+RobotCommandV2 inline RobotCommandSerializedV2_deserialize(const RobotCommandSerializedV2 * serialized)
 {
   RobotCommandV2 command = {0};
   command.header = serialized->data[HEADER];
