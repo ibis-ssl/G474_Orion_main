@@ -50,10 +50,10 @@ void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, uint8_t d
   con->cmd_rx_frq = (float)1000 / (con->latest_cm4_cmd_update_time - pre_update_time_ms);
 
   // aiコマンドに関係なくカメラ情報は入れる(デバッグ用)
-  ai_cmd->ball_local_x = data[RX_BUF_SIZE_ETHER - 7] << 8 | data[RX_BUF_SIZE_ETHER - 6];
-  ai_cmd->ball_local_y = data[RX_BUF_SIZE_ETHER - 5] << 8 | data[RX_BUF_SIZE_ETHER - 4];
-  ai_cmd->ball_local_radius = data[RX_BUF_SIZE_ETHER - 3] << 8 | data[RX_BUF_SIZE_ETHER - 2];
-  ai_cmd->ball_local_FPS = data[RX_BUF_SIZE_ETHER - 1];
+  ai_cmd->ball_local_x = data[RX_BUF_SIZE_CM4 - 7] << 8 | data[RX_BUF_SIZE_CM4 - 6];
+  ai_cmd->ball_local_y = data[RX_BUF_SIZE_CM4 - 5] << 8 | data[RX_BUF_SIZE_CM4 - 4];
+  ai_cmd->ball_local_radius = data[RX_BUF_SIZE_CM4 - 3] << 8 | data[RX_BUF_SIZE_CM4 - 2];
+  ai_cmd->ball_local_FPS = data[RX_BUF_SIZE_CM4 - 1];
 
   // timer割り込み側でtimeout検知
   // バッファに前回の値が残っているのでクリアする

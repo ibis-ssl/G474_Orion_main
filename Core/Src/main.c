@@ -117,8 +117,8 @@ struct
 } latency_test;
 
 // communication with CM4
-uint8_t data_from_cm4[RX_BUF_SIZE_ETHER];
-uint8_t tx_data_uart[TX_BUF_SIZE_ETHER];
+uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
+uint8_t tx_data_uart[TX_BUF_SIZE_CM4];
 uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_it_buffer = 0;
 
 RobotCommandSerializedV2 cmd_data_v2;
@@ -342,11 +342,22 @@ int main(void)
 
           break;
         case 1:  //Motor
+          /*
           p("MOTOR ");
           p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
           p("Pw v0=%5.1f v1=%5.1f v2=%5.1f v3=%5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
           p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
           p("Temp m0=%3.0f m1=%3.0f m2=%3.0f m3=%3.0f ", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
+          */
+          p("cmd v2 ");
+          p("itr %5d", debug.uart_rx_itr_cnt);
+
+          p("speed limit %+6.2f, VisionX %+6.1f Y %+6.1f TarX %+6.2f Y %+6.2f ", cmd_v2.speed_limit, cmd_v2.vision_global_x, cmd_v2.vision_global_y, cmd_v2.mode_args.position.target_global_x,
+            cmd_v2.mode_args.position.target_global_y);
+          p("chk %3d mode %3d ", cmd_v2.check_counter, cmd_v2.control_mode);
+          p("GrV %+6.2f Y %+6.2f", cmd_v2.mode_args.velocity.target_global_vx, cmd_v2.mode_args.velocity.target_global_vy);
+          p("dri %+4.2f chip %d kick %+4.2f ", cmd_v2.dribble_power, cmd_v2.enable_chip, cmd_v2.kick_power);
+          p("vision theta %+4.1f tar %+4.1f ", cmd_v2.vision_global_theta, cmd_v2.target_global_theta);
 
           break;
         case 2:  // Dribblerテスト
@@ -804,9 +815,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     rx_data_tmp = uart2_rx_it_buffer;
     HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
 
-    if (uart_rx_cmd_idx >= 0 && uart_rx_cmd_idx < RX_BUF_SIZE_ETHER) {
+    if (uart_rx_cmd_idx >= 0 && uart_rx_cmd_idx < RX_BUF_SIZE_CM4) {
       data_from_cm4[uart_rx_cmd_idx] = rx_data_tmp;
-      cmd_data_v2.data[uart_rx_cmd_idx] = rx_data_tmp;
     }
 
     // look up header byte
@@ -815,15 +825,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     }
 
     // data byte
-    if (uart_rx_cmd_idx != -1 && uart_rx_cmd_idx < RX_BUF_SIZE_ETHER) {
+    if (uart_rx_cmd_idx != -1 && uart_rx_cmd_idx < RX_BUF_SIZE_CM4) {
       uart_rx_cmd_idx++;
     }
 
     // end
-    if (uart_rx_cmd_idx == RX_BUF_SIZE_ETHER) {
+    if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
       uart_rx_cmd_idx = -1;
-      RobotCommandSerializedV2_serialize(&cmd_data_v2, &cmd_v2);
-      parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
+      memcpy(&cmd_data_v2, &(data_from_cm4[1]), sizeof(cmd_data_v2));
+      cmd_v2 = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
+      //parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &ai_cmd_buf, &connection);
     }
   }
