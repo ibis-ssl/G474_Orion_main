@@ -5,6 +5,9 @@
 #include "util.h"
 #define MAX_AI_CMD_SPEED_SCALAR_LIMIT (6.0)
 
+#define AI_CMD_TIMEOUT (0.5)
+#define CM4_CMD_TIMEOUT (AI_CMD_TIMEOUT + 0.5)
+
 void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con)
 {
   static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
@@ -68,7 +71,7 @@ void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys) { connecti
 static void checkConnect2CM4(connection_t * connection, system_t * sys)
 {
   // CM4との通信状態チェック
-  if (sys->system_time_ms - connection->latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイムアウト
+  if (sys->system_time_ms - connection->latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * CM4_CMD_TIMEOUT) {  // CM4 コマンドタイムアウト
     connection->connected_cm4 = true;
   } else {
     connection->connected_cm4 = false;
@@ -85,7 +88,7 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
   }
 
   // AIとの通信状態チェック
-  if (sys->system_time_ms - connection->latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * 0.5) {  // AI コマンドタイムアウト
+  if (sys->system_time_ms - connection->latest_ai_cmd_update_time < MAIN_LOOP_CYCLE * AI_CMD_TIMEOUT) {  // AI コマンドタイムアウト
     connection->connected_ai = true;
     connection->already_connected_ai = true;
 
@@ -94,7 +97,6 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
     if (connection->vision_update_cycle_cnt < MAIN_LOOP_CYCLE * 10) {
       connection->vision_update_cycle_cnt++;
     }
-
   } else {
     connection->connected_ai = false;
     connection->cmd_rx_frq = 0;
@@ -105,7 +107,7 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
   }
 }
 
-void communicationStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd)
+void commStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd)
 {
   checkConnect2CM4(connection, sys);
   checkConnect2AI(connection, sys, ai_cmd);

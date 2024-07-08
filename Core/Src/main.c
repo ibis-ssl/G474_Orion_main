@@ -38,6 +38,7 @@
 //
 
 #include "actuator.h"
+#include "ai_comm.h"
 #include "buzzer_control.h"
 #include "can_ibis.h"
 #include "icm20602_spi.h"
@@ -48,7 +49,6 @@
 #include "stop_state_control.h"
 #include "test_func.h"
 #include "util.h"
-#include "ai_comm.h"
 
 /* USER CODE END Includes */
 
@@ -305,39 +305,54 @@ int main(void)
 
       switch (debug.print_idx) {
         case 0:
-          p("CMD ");
-          /*
           // 通信接続状態表示
-          if (connection.connected_ai) {
-            p("\e[32m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-          } else if (connection.connected_cm4) {
-            p("\e[33m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-          } else {
-            p("\e[31m%3d,%3.0f\e[37m ", connection.check_ver, connection.cmd_rx_frq);
-          }
-
-          p("AIcmd Vx %+4.1f Vy %+4.1f Tw %+6.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1],cmd_v2.target_global_theta * 180 / M_PI);
-          if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
-            if (cmd_v2.is_vision_available) {  // SSL-Vision (Robot)
-              p("\e[33m");
-            }
-            p("Vision X %+6.1f Y %+6.1f W %+4.1f ", ai_cmd.global_robot_position[0] * 1000, ai_cmd.global_robot_position[1] * 1000, cmd_v2.vision_global_theta);
-            p("AIcmd X %+6.2f Y %+6.2f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1]);
-            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * M_PI / 180.0, cmd_v2.vision_global_theta) * 180 / M_PI));
-            p("\e[37m ");  // end color
-            p("update %d ", debug.theta_override_flag);
-          } else {
-            p("omni X %+8.3f Y %+8.3f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
-            p("Wdidd %+5.1f", (getAngleDiff(imu.yaw_angle * M_PI / 180.0, cmd_v2.vision_global_theta) * 180 / M_PI));
-            p("Temp %3.0f %3.0f %3.0f %3.0f", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
-          }*/
+          //p("itr %4d %8d %8d ", debug.uart_rx_itr_cnt, connection.latest_cm4_cmd_update_time, connection.latest_ai_cmd_update_time);
 
           p("cmd v2 ");
-          p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
-          p("chk %3d mode %3d ", cmd_v2.check_counter, cmd_v2.control_mode);
-          p("dri %+4.2f chip %d kick %+4.2f ", cmd_v2.dribble_power, cmd_v2.enable_chip, cmd_v2.kick_power);
-          p("vision theta %+4.1f tar %+4.1f ", cmd_v2.vision_global_theta, cmd_v2.target_global_theta);
+          
+          if (connection.connected_ai) {
+            // 32 : green
+            p("\e[32m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
+          } else if (connection.connected_cm4) {
+            // 33 : yellow
+            p("\e[33m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
+          } else {
+            // 31 : red
+            p("\e[31m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
+          }
 
+          if (cmd_v2.is_vision_available) {
+            p("\e[32m");
+          } else {
+            p("\e[33m");
+          }
+          p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
+          p("theta %+4.1f ", cmd_v2.vision_global_theta);
+          p("\e[37m");
+
+          p("TarTheta %+6.2f ", cmd_v2.target_global_theta);
+          p("Limit Vel %4.2f Omg %4.2f ", cmd_v2.speed_limit, cmd_v2.omega_limit);
+
+          p("dri %+4.2f ", cmd_v2.dribble_power);
+          if (cmd_v2.lift_dribbler) {
+            p("UP ");
+          } else {
+            p("DN ");
+          }
+          if (cmd_v2.enable_chip) {
+            p("chip %3.2f ", cmd_v2.kick_power);
+          } else {
+            p("stlt %3.2f ", cmd_v2.kick_power);
+          }
+          p("Ltcy %3d ", cmd_v2.latency_time_ms);
+
+          if (cmd_v2.prioritize_accurate_acceleration) {
+            p("Pri-Acur ");
+          } else if (cmd_v2.prioritize_move) {
+            p("Pri-Move ");
+          }
+
+          /*********************************************************************************************** */
           switch (cmd_v2.control_mode) {
             case LOCAL_CAMERA_MODE:
               p("CAM ");
@@ -345,7 +360,6 @@ int main(void)
               p("VelX %+4.2f VelY %+4.2f ", cmd_v2.mode_args.local_camera.ball_vel[0], cmd_v2.mode_args.local_camera.ball_vel[1]);
               p("TarX %+4.2f TarY %+4.2f ", cmd_v2.mode_args.local_camera.target_global_vel[0], cmd_v2.mode_args.local_camera.target_global_vel[1]);
 
-              /* code */
               break;
             case POSITION_TARGET_MODE:
               p("POS ");
@@ -364,8 +378,10 @@ int main(void)
               p("Angle %+6.2f Cur %+6.2f ", cmd_v2.mode_args.velocity.trajectory_origin_angle, cmd_v2.mode_args.velocity.trajectory_curvature);
               break;
             default:
+              p("Unknown Mode ");
               break;
           }
+          /*********************************************************************************************** */
 
           break;
         case 1:  //Motor
@@ -433,22 +449,11 @@ int main(void)
 
           break;
         case 6:
-          /*p("CMD ");
-          p("ck%3d cnt %3d main %6d CR 0x%4x", connection.check_ver, debug.uart_rx_itr_cnt, debug.main_loop_cnt / 10, huart2.Instance->CR1);
-          p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
-          p("scl %4.1f ", ai_cmd.local_target_speed_scalar);
-          p("TPx %+4.1f TPy %+4.1f TW %+6.1f ", ai_cmd.global_target_position[0], ai_cmd.global_target_position[1], cmd_v2.target_global_theta * 180 / M_PI);
-          p("Vis Gbrl-rb X %+6.2f Y %+6.2f Theta %+6.1f ", ai_cmd.global_robot_position[0], ai_cmd.global_robot_position[1], cmd_v2.vision_global_theta);
-          //p("Gbrl-ball X %+6.2f Y %+6.2f ", ai_cmd.global_ball_position[0], ai_cmd.global_ball_position[1]);
-          p("lst %d stp %d kic %3.2f chp %d dri %3.2f kpr %d lcl %d ", cmd_v2.is_vision_available, cmd_v2.stop_emergency, ai_cmd.kick_power, ai_cmd.chip_en, ai_cmd.dribble_power,
-            ai_cmd.keeper_mode_en_flag, ai_cmd.local_vision_en_flag);*/
-          break;
-        case 7:
           p("LATENCY ");
           p("EN%d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
-        case 8:
+        case 7:
           p("SYSTEM TIME ");
           for (int i = 0; i < 7; i++) {
             p("%4d ", debug.start_time[i]);
@@ -469,7 +474,7 @@ int main(void)
       if (debug.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
         p("cnt %4d", debug.timer_itr_exit_cnt);
       }
-      p("\n\r");
+      p("\n");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
 
       debug.main_loop_cnt = 0;
@@ -596,7 +601,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     //integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
     //integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
   }
-  communicationStateCheck(&connection, &sys, &cmd_v2);
+  commStateCheck(&connection, &sys, &cmd_v2);
 
   canRxTimeoutCntCycle();
 
@@ -798,7 +803,7 @@ void maintaskRun()
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
-  static int32_t uart_rx_cmd_idx = 0;
+  static int32_t uart_rx_cmd_idx = -1;
   uint8_t rx_data_tmp;
   RobotCommandSerializedV2 cmd_data_v2;
 
@@ -814,6 +819,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     // look up header byte
     if (uart_rx_cmd_idx == -1 && rx_data_tmp == 254) {
+      data_from_cm4[0] = rx_data_tmp;
       uart_rx_cmd_idx++;
     }
 
@@ -825,10 +831,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
       uart_rx_cmd_idx = -1;
-
-      memcpy(&cmd_data_v2, &(data_from_cm4[1]), sizeof(cmd_data_v2));
+      memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
       cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
       updateCM4CmdTimeStamp(&connection, &sys);
+      connection.updated_flag = true;
       //parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection);
     }

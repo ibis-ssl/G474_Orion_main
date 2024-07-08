@@ -77,7 +77,7 @@ enum {
 #define CAN_TX_DATA_SIZE 8
 #define OMNI_DIAMETER 0.056
 #define ROBOT_RADIUS 0.080
-#define RX_BUF_SIZE_CM4 (64 + 8)
+#define RX_BUF_SIZE_CM4 (64 + 7)
 #define TX_BUF_SIZE_CM4 128
 
 // logging time : 0.5s -> 2s : without vision mode
