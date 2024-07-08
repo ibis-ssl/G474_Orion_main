@@ -88,7 +88,7 @@ void inntegOdomUpdate(RobotCommandV2 * ai_cmd, omni_t * omni, integration_contro
   for (int i = 0; i < 2; i++) {
     enqueue(integ->odom_log[i], omni->odom_speed[i]);
     integ->global_odom_vision_diff[i] = sumNewestN(integ->odom_log[i], latency_cycle + connection->vision_update_cycle_cnt) / MAIN_LOOP_CYCLE;
-    integ->vision_based_position[0] = ai_cmd->vision_global_pos[i] + integ->global_odom_vision_diff[0];
+    integ->vision_based_position[i] = ai_cmd->vision_global_pos[i] + integ->global_odom_vision_diff[i];
   }
 
 

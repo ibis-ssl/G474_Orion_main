@@ -309,7 +309,7 @@ int main(void)
           //p("itr %4d %8d %8d ", debug.uart_rx_itr_cnt, connection.latest_cm4_cmd_update_time, connection.latest_ai_cmd_update_time);
 
           p("cmd v2 ");
-          
+
           if (connection.connected_ai) {
             // 32 : green
             p("\e[32m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
@@ -422,14 +422,14 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
-          p("omg %+3.0f ", output.omega);
+          p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
           //p("cnt %4d ", connection.vision_update_cycle_cnt);
-          //p("integ %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          //p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
+          p("integ %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
+          p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
           //p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
-          p("integ-diff %+6.3f %+6.3f ", integ.local_target_diff[0], integ.local_target_diff[1]);
+          //p("integ-diff %+6.3f %+6.3f ", integ.local_target_diff[0], integ.local_target_diff[1]);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
           p("cmd-vel %+5.2f, %+5.2f, ", target.global_vel[0], target.global_vel[1]);
           p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
@@ -791,7 +791,7 @@ void maintaskRun()
   }*/
 
   // デバッグモードではstopとvision_lostを無視する
-  if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (cmd_v2.stop_emergency || cmd_v2.is_vision_available)) {
+  if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (cmd_v2.stop_emergency || !cmd_v2.is_vision_available)) {
     //resetLocalSpeedControl(&ai_cmd);
     omniMove(0.0, 0.0, 0.0, 0.0, &output);
   } else {

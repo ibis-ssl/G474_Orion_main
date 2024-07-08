@@ -38,9 +38,12 @@
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
-#define OUTPUT_XY_LIMIT (40.0)  //
+#define OUTPUT_XY_LIMIT (4.0)  //
+//#define OUTPUT_XY_LIMIT (40.0)  //
+
 // omegaぶんの制限
-#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
+#define OUTPUT_OMEGA_LIMIT (10.0)  // ~ rad/s
+//#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
 
 void thetaControl(float target_theta, output_t * output, imu_t * imu)
 {
@@ -62,6 +65,7 @@ void setOutXero(output_t * output)
   output->velocity[1] = 0;
   output->omega = 0;
 }
+
 void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse)
 {
   // 加速時はaccelControlと共通で良い
@@ -69,7 +73,11 @@ void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t 
 
   for (int i = 0; i < 2; i++) {
     integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
+    target->global_vel[i] = integ->position_diff[i];
   }
+
+  target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
+  target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_angle_rad) + (target->global_vel[1]) * cos(imu->yaw_angle_rad);
 }
 
 // 速度指令を乗っ取るのはあまりよくなさそう(速度制御の遅れの考慮が必要になるため)
@@ -289,8 +297,10 @@ void robotControl(
 
     case POSITION_TARGET_MODE:
       localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse);
-      accelControl(acc_vel, output, target, imu, omni);
-      speedControl(acc_vel, output, target, imu, omni);
+      //accelControl(acc_vel, output, target, imu, omni);
+      //speedControl(acc_vel, output, target, imu, omni);
+      output->velocity[0] = target->local_vel[0] * 10;
+      output->velocity[1] = target->local_vel[1] * 10;
       outputLimit(output, debug);
       thetaControl(ai_cmd->target_global_theta, output, imu);
       break;
