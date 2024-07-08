@@ -7,6 +7,7 @@
 
 #include "management.h"
 #include "ring_buffer.h"
+#include "robot_packet.h"
 #include "util.h"
 
 // 20ms cycle
@@ -81,15 +82,15 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
   // vision座標だけ更新されているが、vision_update_cycle_cntが0になっていない場合に、1cycleだけpositionが飛ぶ
 }
 
-void inntegOdomUpdate(ai_cmd_t * ai_cmd, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
+void inntegOdomUpdate(RobotCommandV2 * ai_cmd, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
 {
   float latency_cycle = ai_cmd->latency_time_ms / (1000 / MAIN_LOOP_CYCLE);
   for (int i = 0; i < 2; i++) {
     enqueue(integ->odom_log[i], omni->odom_speed[i]);
     integ->global_odom_vision_diff[i] = sumNewestN(integ->odom_log[i], latency_cycle + connection->vision_update_cycle_cnt) / MAIN_LOOP_CYCLE;
-    integ->vision_based_position[i] = ai_cmd->global_robot_position[i] + integ->global_odom_vision_diff[i];
-    integ->position_diff[i] = ai_cmd->global_target_position[i] - integ->vision_based_position[i];
+    integ->vision_based_position[0] = ai_cmd->vision_global_pos[i] + integ->global_odom_vision_diff[0];
   }
+
 
   /*float target_diff[2], move_diff[2];
   for (int i = 0; i < 2; i++) {

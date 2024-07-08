@@ -130,24 +130,6 @@ typedef struct
 
 typedef struct
 {
-  float target_theta, global_vision_theta;
-  float dribble_power;
-  float kick_power;
-  bool chip_en;
-  float local_target_speed[2];
-  float local_target_speed_scalar;
-  float global_robot_position[2];
-  float global_target_position[2];
-  float global_ball_position[2];
-  uint8_t allow_local_flags;
-  int ball_local_x, ball_local_y, ball_local_radius, ball_local_FPS;
-  bool vision_lost_flag, local_vision_en_flag, keeper_mode_en_flag, stop_request_flag, dribbler_up_flag;
-  bool pre_vision_lost_flag;
-  uint32_t latency_time_ms;
-} ai_cmd_t;
-
-typedef struct
-{
   float enc_angle[5];
   float pre_enc_angle[5];
   float angle_diff[4];
@@ -233,7 +215,7 @@ typedef struct
   bool error_flag, stop_flag;
   uint16_t error_id, error_info;
   float error_value;
-  uint32_t error_resume_cnt;
+  uint32_t error_resume_cnt;  // エラー時の自動復帰回数上限
   uint8_t main_mode;
   uint32_t system_time_ms;
   uint32_t stop_flag_request_time;
@@ -246,7 +228,7 @@ typedef struct
   volatile uint32_t main_loop_cnt, true_cycle_cnt;
   volatile float out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_total_spin, true_yaw_speed, limited_output;
-  volatile bool print_flag, acc_step_down_flag, theta_override_flag;
+  volatile bool print_flag, theta_override_flag;
   volatile bool latency_check_enabled;
   volatile int latency_check_seq_cnt;
   volatile float rotation_target_theta;

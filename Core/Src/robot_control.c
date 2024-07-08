@@ -66,6 +66,10 @@ void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t 
 {
   // 加速時はaccelControlと共通で良い
   // 減速時はodomのズレ､マウスの遅延､Visionの遅延があるので､出力トルク(=加速度)に制約かけて､位置に対してPIDやったほうがいいかも
+
+  for (int i = 0; i < 2; i++) {
+    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
+  }
 }
 
 // 速度指令を乗っ取るのはあまりよくなさそう(速度制御の遅れの考慮が必要になるため)
@@ -135,6 +139,7 @@ void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target
   //target->local_vel[1] = target->global_vel[1];
 
   // グローバル座標指令
+
   target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
   target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_angle_rad) + (target->global_vel[1]) * cos(imu->yaw_angle_rad);
 
@@ -241,11 +246,7 @@ void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target
 
 void outputLimit(output_t * output, debug_t * debug)
 {
-  if (debug->acc_step_down_flag) {
-    debug->limited_output = 0;  //スリップしてたら移動出力を0にする(仮)
-  } else {
-    debug->limited_output = OUTPUT_XY_LIMIT;
-  }
+  debug->limited_output = OUTPUT_XY_LIMIT;
 
   float limit_gain = 0;
   if (output->velocity[0] > debug->limited_output) {
@@ -295,8 +296,8 @@ void robotControl(
       break;
 
     case SIMPLE_VELOCITY_TARGET_MODE:
-      target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vx;
-      target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vy;
+      target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
+      target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
       accelControl(acc_vel, output, target, imu, omni);
       speedControl(acc_vel, output, target, imu, omni);
       outputLimit(output, debug);

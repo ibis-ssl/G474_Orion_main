@@ -1,253 +1,87 @@
 #include "ai_comm.h"
 
+#include "robot_packet.h"
+#include "stop_state_control.h"
 #include "util.h"
-
 #define MAX_AI_CMD_SPEED_SCALAR_LIMIT (6.0)
 
-void resetAiCmdData(ai_cmd_t * ai_cmd)
+void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con)
 {
-  ai_cmd->local_target_speed[0] = 0;
-  ai_cmd->local_target_speed[1] = 0;
-  ai_cmd->global_vision_theta = 0;
-  ai_cmd->target_theta = 0;
-  ai_cmd->chip_en = false;
-  ai_cmd->kick_power = 0;
-  ai_cmd->dribble_power = 0;
-  ai_cmd->allow_local_flags = 0;
+  static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
 
-  ai_cmd->global_ball_position[0] = 0;
-  ai_cmd->global_ball_position[1] = 0;
-  ai_cmd->global_robot_position[0] = 0;
-  ai_cmd->global_robot_position[1] = 0;
-  ai_cmd->global_target_position[0] = 0;
-  ai_cmd->global_target_position[1] = 0;
+  buf[0] = 0xAB;
+  buf[1] = 0xEA;
+  buf[2] = 10;
+  buf[3] = ai_cmd->check_counter;
 
-  // ローカルカメラ情報は消さない(デバッグ用)
-  /*
-  ai_cmd->ball_local_x = 0;
-  ai_cmd->ball_local_y = 0;
-  ai_cmd->ball_local_radius = 0;
-  ai_cmd->ball_local_FPS = 0;*/
+  float_to_uchar4(&(buf[4]), imu->yaw_angle);
 
-  ai_cmd->vision_lost_flag = true;
-  ai_cmd->local_vision_en_flag = false;
-  ai_cmd->keeper_mode_en_flag = false;
-  ai_cmd->stop_request_flag = false;  //
+  float_to_uchar4(&(buf[8]), can_raw->power_voltage[5]);
+
+  buf[12] = can_raw->ball_detection[0];
+  buf[13] = can_raw->ball_detection[1];
+  buf[14] = can_raw->ball_detection[2];
+  buf[15] = sys->kick_state / 10;
+
+  buf[16] = (uint8_t)(sys->error_id & 0xFF);
+  buf[17] = (uint8_t)((sys->error_id >> 8) & 0xFF);
+  buf[18] = (uint8_t)(sys->error_info & 0xFF);
+  buf[19] = (uint8_t)((sys->error_info >> 8) & 0xFF);
+
+  float_to_uchar4(&(buf[20]), sys->error_value);
+
+  buf[24] = (uint8_t)(can_raw->current[0] * 10);
+  buf[25] = (uint8_t)(can_raw->current[1] * 10);
+  buf[26] = (uint8_t)(can_raw->current[2] * 10);
+  buf[27] = (uint8_t)(can_raw->current[3] * 10);
+
+  buf[28] = can_raw->ball_detection[3];
+
+  buf[29] = (uint8_t)can_raw->temperature[0];
+  buf[30] = (uint8_t)can_raw->temperature[1];
+  buf[31] = (uint8_t)can_raw->temperature[2];
+  buf[32] = (uint8_t)can_raw->temperature[3];
+  buf[33] = (uint8_t)can_raw->temperature[4];
+  buf[34] = (uint8_t)can_raw->temperature[5];
+  buf[35] = (uint8_t)can_raw->temperature[6];
+
+  float diff_angle = imu->yaw_angle - ai_cmd->vision_global_theta;
+
+  float_to_uchar4(&(buf[36]), diff_angle);
+  float_to_uchar4(&(buf[40]), can_raw->power_voltage[6]);
+  float_to_uchar4(&(buf[44]), omni->odom[0]);
+  float_to_uchar4(&(buf[48]), omni->odom[1]);
+  float_to_uchar4(&(buf[52]), omni->odom_speed[0]);
+  float_to_uchar4(&(buf[56]), omni->odom_speed[1]);
+
+  buf[60] = con->check_ver;
+  buf[61] = 0;
+  buf[62] = 0;
+  buf[63] = 0;
+
+  HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }
 
-void parseRxCmd(connection_t * con, system_t * sys, ai_cmd_t * ai_cmd, uint8_t data[])
+static void updateAICmdTimeStamp(connection_t * connection, system_t * sys) { connection->latest_ai_cmd_update_time = sys->system_time_ms; }
+void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys) { connection->latest_cm4_cmd_update_time = sys->system_time_ms; }
+
+static void checkConnect2CM4(connection_t * connection, system_t * sys)
 {
-  con->check_ver = data[1];
-
-  if (con->check_ver != con->check_pre) {
-    con->latest_ai_cmd_update_time = sys->system_time_ms;
-
-    con->check_pre = con->check_ver;
-  }
-
-  float pre_update_time_ms = con->latest_cm4_cmd_update_time;
-  con->latest_cm4_cmd_update_time = sys->system_time_ms;
-  con->cmd_rx_frq = (float)1000 / (con->latest_cm4_cmd_update_time - pre_update_time_ms);
-
-  // aiコマンドに関係なくカメラ情報は入れる(デバッグ用)
-  ai_cmd->ball_local_x = data[RX_BUF_SIZE_CM4 - 7] << 8 | data[RX_BUF_SIZE_CM4 - 6];
-  ai_cmd->ball_local_y = data[RX_BUF_SIZE_CM4 - 5] << 8 | data[RX_BUF_SIZE_CM4 - 4];
-  ai_cmd->ball_local_radius = data[RX_BUF_SIZE_CM4 - 3] << 8 | data[RX_BUF_SIZE_CM4 - 2];
-  ai_cmd->ball_local_FPS = data[RX_BUF_SIZE_CM4 - 1];
-
-  // timer割り込み側でtimeout検知
-  // バッファに前回の値が残っているのでクリアする
-  if (con->connected_ai == false) {
-    resetAiCmdData(ai_cmd);
-    con->updated_flag = true;
-    return;
-  }
-
-  ai_cmd->local_target_speed[0] = two_to_float(&data[2]) * AI_CMD_VEL_MAX_MPS;
-  ai_cmd->local_target_speed[1] = two_to_float(&data[4]) * AI_CMD_VEL_MAX_MPS;
-
-  ai_cmd->local_target_speed_scalar = pow(pow(ai_cmd->local_target_speed[0], 2) + pow(ai_cmd->local_target_speed[1], 2), 0.5);
-  /*if (ai_cmd->local_target_speed_scalar > MAX_AI_CMD_SPEED_SCALAR_LIMIT) {
-    ai_cmd->local_target_speed[0] *= MAX_AI_CMD_SPEED_SCALAR_LIMIT / ai_cmd->local_target_speed_scalar;
-    ai_cmd->local_target_speed[1] *= MAX_AI_CMD_SPEED_SCALAR_LIMIT / ai_cmd->local_target_speed_scalar;
-  }*/
-
-  ai_cmd->global_vision_theta = two_to_float(&data[6]) * M_PI;
-  ai_cmd->target_theta = two_to_float(&data[8]) * M_PI;
-  if (data[10] >= 101) {
-    ai_cmd->chip_en = true;
-    ai_cmd->kick_power = (float)(data[10] - 101) / 20;
+  // CM4との通信状態チェック
+  if (sys->system_time_ms - connection->latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイムアウト
+    connection->connected_cm4 = true;
   } else {
-    ai_cmd->kick_power = (float)data[10] / 20;
-    ai_cmd->chip_en = false;
+    connection->connected_cm4 = false;
+    connection->connected_ai = false;
   }
-  ai_cmd->dribble_power = (float)data[11] / 20;
-
-  ai_cmd->allow_local_flags = data[12];
-
-  // <int>[mm] -> <float>[m]
-  ai_cmd->global_ball_position[0] = (float)two_to_int(&data[13]) / 1000;
-  ai_cmd->global_ball_position[1] = (float)two_to_int(&data[15]) / 1000;
-  ai_cmd->global_robot_position[0] = (float)two_to_int(&data[17]) / 1000;
-  ai_cmd->global_robot_position[1] = (float)two_to_int(&data[19]) / 1000;
-  ai_cmd->global_target_position[0] = (float)two_to_int(&data[21]) / 1000;
-  ai_cmd->global_target_position[1] = (float)two_to_int(&data[23]) / 1000;
-
-  // 値がおかしい時は0にする (+-30を超えることはない)
-  for (int i = 0; i < 2; i++) {
-    if (ai_cmd->global_target_position[i] > 30.0 || ai_cmd->global_target_position[i] < -30) {
-      ai_cmd->global_target_position[i] = 0;
-    }
-  }
-
-  if ((ai_cmd->allow_local_flags & FLAG_SSL_VISION_OK) != 0) {
-    ai_cmd->vision_lost_flag = false;
-  } else {
-    ai_cmd->vision_lost_flag = true;
-  }
-  if (!ai_cmd->vision_lost_flag) {
-    con->vision_update_cycle_cnt = 0;
-  }
-
-  if ((ai_cmd->allow_local_flags & FLAG_ENABLE_LOCAL_VISION) != 0) {
-    ai_cmd->local_vision_en_flag = true;
-  } else {
-    ai_cmd->local_vision_en_flag = false;
-  }
-
-  if ((ai_cmd->allow_local_flags & FLAG_ENABLE_KEEPER_MODE) != 0) {
-    ai_cmd->keeper_mode_en_flag = true;
-  } else {
-    ai_cmd->keeper_mode_en_flag = false;
-  }
-
-  if ((ai_cmd->allow_local_flags & FLAG_STOP_REQUEST) != 0) {
-    ai_cmd->stop_request_flag = true;
-  } else {
-    ai_cmd->stop_request_flag = false;
-  }
-
-  if ((ai_cmd->allow_local_flags & FLAG_DRIBBLER_UP) != 0) {
-    ai_cmd->dribbler_up_flag = true;
-  } else {
-    ai_cmd->dribbler_up_flag = false;
-  }
-
-  con->updated_flag = true;
 }
 
-void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, ai_cmd_t * ai_cmd, connection_t * con)
+static void checkConnect2AI(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd)
 {
-  tx_msg_t msg;
-  static uint8_t ring_counter = 0;
-
-  ring_counter++;
-  if (ring_counter > 200) {
-    ring_counter = 0;
-  }
-
-  // AI側のcheckをそのまま返す
-  ring_counter = con->check_ver;
-  char * temp;
-
-  static uint8_t senddata[64];
-
-  senddata[0] = 0xAB;
-  senddata[1] = 0xEA;
-  senddata[2] = 10;
-  senddata[3] = ring_counter;
-  temp = (char *)&imu->yaw_angle;
-  senddata[4] = temp[0];
-  senddata[5] = temp[1];
-  senddata[6] = temp[2];
-  senddata[7] = temp[3];
-  temp = (char *)&(can_raw->power_voltage[5]);
-  senddata[8] = temp[0];
-  senddata[9] = temp[1];
-  senddata[10] = temp[2];
-  senddata[11] = temp[3];
-  senddata[12] = can_raw->ball_detection[0];
-  senddata[13] = can_raw->ball_detection[1];
-  senddata[14] = can_raw->ball_detection[2];
-  senddata[15] = sys->kick_state / 10;
-
-  senddata[16] = (uint8_t)(sys->error_id & 0xFF);
-  senddata[17] = (uint8_t)((sys->error_id >> 8) & 0xFF);
-  senddata[18] = (uint8_t)(sys->error_info & 0xFF);
-  senddata[19] = (uint8_t)((sys->error_info >> 8) & 0xFF);
-  temp = (char *)&(sys->error_value);
-  senddata[20] = temp[0];
-  senddata[21] = temp[1];
-  senddata[22] = temp[2];
-  senddata[23] = temp[3];
-
-  senddata[24] = (uint8_t)(can_raw->current[0] * 10);
-  senddata[25] = (uint8_t)(can_raw->current[1] * 10);
-  senddata[26] = (uint8_t)(can_raw->current[2] * 10);
-  senddata[27] = (uint8_t)(can_raw->current[3] * 10);
-
-  senddata[28] = can_raw->ball_detection[3];
-
-  senddata[29] = (uint8_t)can_raw->temperature[0];
-  senddata[30] = (uint8_t)can_raw->temperature[1];
-  senddata[31] = (uint8_t)can_raw->temperature[2];
-  senddata[32] = (uint8_t)can_raw->temperature[3];
-  senddata[33] = (uint8_t)can_raw->temperature[4];
-  senddata[34] = (uint8_t)can_raw->temperature[5];
-  senddata[35] = (uint8_t)can_raw->temperature[6];
-
-  msg.data.diff_angle = imu->yaw_angle - ai_cmd->global_vision_theta;
-  temp = (char *)&msg.data.diff_angle;
-  senddata[36] = temp[0];
-  senddata[37] = temp[1];
-  senddata[38] = temp[2];
-  senddata[39] = temp[3];
-  temp = (char *)&(can_raw->power_voltage[6]);
-  senddata[40] = temp[0];
-  senddata[41] = temp[1];
-  senddata[42] = temp[2];
-  senddata[43] = temp[3];
-  temp = (char *)&omni->odom[0];
-  senddata[44] = temp[0];
-  senddata[45] = temp[1];
-  senddata[46] = temp[2];
-  senddata[47] = temp[3];
-  temp = (char *)&omni->odom[1];
-  senddata[48] = temp[0];
-  senddata[49] = temp[1];
-  senddata[50] = temp[2];
-  senddata[51] = temp[3];
-  temp = (char *)&omni->odom_speed[0];
-  //temp = (char *)&integ.vision_based_position[0];
-  senddata[52] = temp[0];
-  senddata[53] = temp[1];
-  senddata[54] = temp[2];
-  senddata[55] = temp[3];
-  temp = (char *)&omni->odom_speed[1];
-  //temp = (char *)&integ.vision_based_position[1];
-  senddata[56] = temp[0];
-  senddata[57] = temp[1];
-  senddata[58] = temp[2];
-  senddata[59] = temp[3];
-  senddata[60] = con->check_ver;
-  senddata[61] = 0;
-  senddata[62] = 0;
-  senddata[63] = 0;
-
-  HAL_UART_Transmit_DMA(&huart2, senddata, sizeof(senddata));
-}
-
-void communicationStateCheck(connection_t * connection, system_t * sys, ai_cmd_t * ai_cmd)
-{
-  // AI通信切断時、3sでリセット
-  static uint32_t self_timeout_reset_cnt = 0;
-  if (!connection->connected_cm4 && connection->already_connected_ai && sys->main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
-    self_timeout_reset_cnt++;
-    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
-      NVIC_SystemReset();
-    }
-  } else {
-    self_timeout_reset_cnt = 0;
+  static uint8_t pre_ai_counter = 0;
+  if (pre_ai_counter != ai_cmd->check_counter) {
+    pre_ai_counter = ai_cmd->check_counter;
+    updateAICmdTimeStamp(connection, sys);
   }
 
   // AIとの通信状態チェック
@@ -265,25 +99,25 @@ void communicationStateCheck(connection_t * connection, system_t * sys, ai_cmd_t
     connection->connected_ai = false;
     connection->cmd_rx_frq = 0;
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-    resetAiCmdData(ai_cmd);
+    //resetAiCmdData(ai_cmd);
 
-    sys->stop_flag_request_time = sys->system_time_ms + MAIN_LOOP_CYCLE;  // 前回のタイムアウト時から1.0s間は動かさない
-  }
-
-  // CM4との通信状態チェック
-  if (sys->system_time_ms - connection->latest_cm4_cmd_update_time < MAIN_LOOP_CYCLE * 0.2) {  // CM4 コマンドタイムアウト
-    connection->connected_cm4 = true;
-  } else {
-    connection->connected_cm4 = false;
-    connection->connected_ai = false;
-    resetAiCmdData(ai_cmd);
+    requestStop(sys, 1.0);
   }
 }
 
-void resetLocalSpeedControl(ai_cmd_t * ai_cmd)
+void communicationStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd)
 {
-  for (int i = 0; i < 2; i++) {
-    //target.global_pos[i] = omni.odom[i];
-    ai_cmd->local_target_speed[i] = 0;
+  checkConnect2CM4(connection, sys);
+  checkConnect2AI(connection, sys, ai_cmd);
+
+  // AI通信切断時、3sでリセット
+  static uint32_t self_timeout_reset_cnt = 0;
+  if (!connection->connected_cm4 && connection->already_connected_ai && sys->main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
+    self_timeout_reset_cnt++;
+    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
+      NVIC_SystemReset();
+    }
+  } else {
+    self_timeout_reset_cnt = 0;
   }
 }

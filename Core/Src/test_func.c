@@ -4,7 +4,7 @@
 #include "omni_wheel.h"
 #include "util.h"
 
-bool isLatencyCheckModeEnabled(system_t * sys, debug_t * debug, ai_cmd_t * ai_cmd)
+bool isLatencyCheckModeEnabled(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd)
 {
   if (debug->latency_check_enabled) {
     return true;
@@ -19,22 +19,22 @@ bool isLatencyCheckModeEnabled(system_t * sys, debug_t * debug, ai_cmd_t * ai_cm
   if (debug->latency_check_seq_cnt > MAIN_LOOP_CYCLE) {
     debug->latency_check_enabled = true;
     debug->latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
-    debug->rotation_target_theta = ai_cmd->target_theta;
+    debug->rotation_target_theta = ai_cmd->target_global_theta;
   }
   return debug->latency_check_enabled;
 }
 
-float getTargetThetaInLatencyCheckMode(debug_t * debug, ai_cmd_t * ai_cmd)
+float getTargetThetaInLatencyCheckMode(debug_t * debug, RobotCommandV2 * ai_cmd)
 {
   if (!debug->latency_check_enabled) {
-    return ai_cmd->target_theta;  // そもそも呼ばれないようにするべきだが、安全なのはこれ
+    return ai_cmd->target_global_theta;  // そもそも呼ばれないようにするべきだが、安全なのはこれ
   }
 
   if (debug->latency_check_seq_cnt > 0) {
     debug->latency_check_seq_cnt--;
   } else {
     // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
-    if (getAngleDiff(ai_cmd->target_theta, debug->rotation_target_theta) < 0.1) {
+    if (getAngleDiff(ai_cmd->target_global_theta, debug->rotation_target_theta) < 0.1) {
       debug->latency_check_enabled = false;
     }
     // complete!!

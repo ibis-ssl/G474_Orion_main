@@ -8,9 +8,8 @@
 #include "can_ibis.h"
 
 #include "actuator.h"
-#include "ai_comm.h"
-#include "util.h"
 #include "omni_wheel.h"
+#include "util.h"
 
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
@@ -298,13 +297,13 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
   }
 }
 
-void sendActuatorCanCmdRun(ai_cmd_t * ai_cmd, system_t * sys, can_raw_t * can_raw)
+void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * can_raw)
 {
   if (ai_cmd->kick_power > 0) {
     if (sys->kick_state == 0) {
       if (can_raw->ball_detection[0] == 1) {
         uint8_t kick_power_param = (float)ai_cmd->kick_power * 255.0;
-        if (ai_cmd->chip_en == true) {
+        if (ai_cmd->enable_chip == true) {
           actuator_kicker(2, 1);
         } else {
           actuator_kicker(2, 0);
@@ -312,7 +311,7 @@ void sendActuatorCanCmdRun(ai_cmd_t * ai_cmd, system_t * sys, can_raw_t * can_ra
 
         actuator_kicker(3, (uint8_t)kick_power_param);
 
-        resetLocalSpeedControl(ai_cmd);
+        //resetLocalSpeedControl(ai_cmd);
         sys->kick_state = 1;
       }
     } else {
@@ -335,7 +334,7 @@ void sendActuatorCanCmdRun(ai_cmd_t * ai_cmd, system_t * sys, can_raw_t * can_ra
       break;
 
     case 2:
-      if (ai_cmd->chip_en == true || ai_cmd->dribbler_up_flag) {
+      if (ai_cmd->enable_chip == true || ai_cmd->lift_dribbler) {
         actuator_dribbler_up();
       } else {
         actuator_dribbler_down();
