@@ -38,11 +38,11 @@
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
-#define OUTPUT_XY_LIMIT (4.0)  //
+#define OUTPUT_XY_LIMIT (1.0)  //
 //#define OUTPUT_XY_LIMIT (40.0)  //
 
 // omegaぶんの制限
-#define OUTPUT_OMEGA_LIMIT (10.0)  // ~ rad/s
+#define OUTPUT_OMEGA_LIMIT (0.0)  // ~ rad/s
 //#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
 
 void thetaControl(float target_theta, output_t * output, imu_t * imu)
@@ -75,70 +75,7 @@ void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t 
     integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
     target->global_vel[i] = integ->position_diff[i];
   }
-
-  target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
-  target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_angle_rad) + (target->global_vel[1]) * cos(imu->yaw_angle_rad);
-}
-
-// 速度指令を乗っ取るのはあまりよくなさそう(速度制御の遅れの考慮が必要になるため)
-void localPositionFeedback_old(integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse)
-{
-  const float CMB_CTRL_DIFF_DEAD_ZONE = (0.02);  // [m]
-
-  // グローバル→ローカル座標系
-  //integ->local_target_diff[0] = integ->position_diff[0] * cos(-imu->yaw_angle_rad) - integ->position_diff[1] * sin(-imu->yaw_angle_rad);
-  //integ->local_target_diff[1] = integ->position_diff[0] * sin(-imu->yaw_angle_rad) + integ->position_diff[1] * cos(-imu->yaw_angle_rad);
-
-  // 精密性はそれほどいらないので、振動対策に不感帯入れる
-  // XYで独立していると追従性に悪影響あり
-  //float dist_x2 = integ->local_target_diff[0] * integ->local_target_diff[0];
-  //float dist_y2 = integ->local_target_diff[1] * integ->local_target_diff[1];
-  //  float dist_xy = pow(dist_x2 + dist_y2, 0.5);
-
-  convertGlobalToLocal(integ->local_target_diff, integ->position_diff, imu->yaw_angle_rad);
-
-  bool in_dead_zone_flag = false;
-  float dist_xy = calcScalar(integ->local_target_diff[0], integ->local_target_diff[1]);
-  if (dist_xy < CMB_CTRL_DIFF_DEAD_ZONE) {
-    in_dead_zone_flag = true;
-  }
-
-  const float CMB_CTRL_FACTOR_LIMIT = (4.0);  // [m/s]
-  const float CMB_CTRL_GAIN_KP = (10.0);
-  const float CMB_CTRL_GAIN_KD = (4.0);  //3.0 ,5.0はデカすぎる
-  const float MARGINE_RATE = 0.5;
-
-  for (int i = 0; i < 2; i++) {
-    //
-    /*else if (fabs(2 * ACCEL_LIMIT_BACK * DEC_BOOST_GAIN * MARGINE_RATE * integ->local_target_diff[i]) < target->local_vel_now[i] * target->local_vel_now[i]) {
-      if (integ->local_target_diff[i] > 0) {
-        target->global_vel[i] = pow(fabs(2 * ACCEL_LIMIT_BACK * 2 * MARGINE_RATE * integ->local_target_diff[i]), 0.5) * 0.8;
-      } else {
-        target->global_vel[i] = -pow(fabs(2 * ACCEL_LIMIT_BACK * 2 * MARGINE_RATE * integ->local_target_diff[i]), 0.5) * 0.8;
-      }
-
-    } */
-
-    // 2ax < v^2
-    if (fabs(2 * ACCEL_LIMIT_BACK * DEC_BOOST_GAIN * MARGINE_RATE * integ->local_target_diff[i]) < omni->local_odom_speed_mvf[i] * omni->local_odom_speed_mvf[i] || in_dead_zone_flag) {
-      target->global_vel[i] = 0;
-
-    } else {
-      // やっぱKDいる
-      target->global_vel[i] = integ->local_target_diff[i] * CMB_CTRL_GAIN_KP - target->local_vel_now[i] * CMB_CTRL_GAIN_KD;
-
-      // 本当はXYで合わせて制限したほうがいい
-      if (target->global_vel[i] > CMB_CTRL_FACTOR_LIMIT) {
-        target->global_vel[i] = CMB_CTRL_FACTOR_LIMIT;
-      } else if (target->global_vel[i] < -CMB_CTRL_FACTOR_LIMIT) {
-        target->global_vel[i] = -CMB_CTRL_FACTOR_LIMIT;
-      }
-    }
-    /*if (in_dead_zone_flag) {
-      target->global_vel[i] = 0;
-    } else {
-    }*/
-  }
+  convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
 }
 
 void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
@@ -256,25 +193,10 @@ void outputLimit(output_t * output, debug_t * debug)
 {
   debug->limited_output = OUTPUT_XY_LIMIT;
 
-  float limit_gain = 0;
-  if (output->velocity[0] > debug->limited_output) {
-    limit_gain = output->velocity[0] / debug->limited_output;
-    output->velocity[0] = debug->limited_output;
-    output->velocity[1] /= limit_gain;
-  } else if (output->velocity[0] < -debug->limited_output) {
-    limit_gain = -output->velocity[0] / debug->limited_output;
-    output->velocity[0] = -debug->limited_output;
-    output->velocity[1] /= limit_gain;
-  }
-
-  if (output->velocity[1] > debug->limited_output) {
-    limit_gain = output->velocity[1] / debug->limited_output;
-    output->velocity[1] = debug->limited_output;
-    output->velocity[0] /= limit_gain;
-  } else if (output->velocity[1] < -debug->limited_output) {
-    limit_gain = -output->velocity[1] / debug->limited_output;
-    output->velocity[1] = -debug->limited_output;
-    output->velocity[0] /= limit_gain;
+  float scalar = calcScalar(output->velocity[0], output->velocity[1]);
+  if (debug->limited_output < scalar) {
+    output->velocity[0] *= debug->limited_output / scalar;
+    output->velocity[1] *= debug->limited_output / scalar;
   }
 }
 
@@ -301,8 +223,8 @@ void robotControl(
       //speedControl(acc_vel, output, target, imu, omni);
       output->velocity[0] = target->local_vel[0] * 10;
       output->velocity[1] = target->local_vel[1] * 10;
-      outputLimit(output, debug);
-      thetaControl(ai_cmd->target_global_theta, output, imu);
+      //outputLimit(output, debug);
+      //thetaControl(ai_cmd->target_global_theta, output, imu);
       break;
 
     case SIMPLE_VELOCITY_TARGET_MODE:

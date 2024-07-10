@@ -263,7 +263,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 0;
+  debug.print_idx = 5;
 
   /* USER CODE END 2 */
 
@@ -331,7 +331,7 @@ int main(void)
           p("\e[37m");
 
           p("TarTheta %+6.2f ", cmd_v2.target_global_theta);
-          p("Limit Vel %4.2f Omg %4.2f ", cmd_v2.speed_limit, cmd_v2.omega_limit);
+          p("MaxVel %4.2f Omg %4.2f ", cmd_v2.speed_limit, cmd_v2.omega_limit);
 
           p("dri %+4.2f ", cmd_v2.dribble_power);
           if (cmd_v2.lift_dribbler) {
@@ -364,7 +364,7 @@ int main(void)
             case POSITION_TARGET_MODE:
               p("POS ");
               p("TarX %+6.2f Y %+6.2f ", cmd_v2.mode_args.position.target_global_pos[0], cmd_v2.mode_args.position.target_global_pos[1]);
-              p("SpdLimit %4.1f ", cmd_v2.mode_args.position.speed_limit_at_target);
+              p("TermSpd %4.1f ", cmd_v2.mode_args.position.speed_limit_at_target);
               break;
             case SIMPLE_VELOCITY_TARGET_MODE:
               p("SimpleVel ");
@@ -422,17 +422,19 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
-          p("theta %+4.1f imu %+4.1f", cmd_v2.vision_global_theta * 180 / M_PI, imu.yaw_angle);
+          p("theta %+5.1f imu %+5.1f", cmd_v2.vision_global_theta * 180 / M_PI, imu.yaw_angle);
 
-          p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
+          //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
-          p("omni-speed X %+8.1f ,Y %+8.1f. ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
-          //p("cnt %4d ", connection.vision_update_cycle_cnt);
+          //p("odomL X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
+          //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
+          p("cnt %4d ", connection.vision_update_cycle_cnt);
           p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
-          p("integ.govd %+5.2f %+5.2f ", integ.global_odom_vision_diff[0], integ.global_odom_vision_diff[1]);
-          p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          p("");
-          //p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
+          p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
+          //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
+          p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
+          p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
+          p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
           //p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
           //p("integ-diff %+6.3f %+6.3f ", integ.local_target_diff[0], integ.local_target_diff[1]);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
@@ -446,7 +448,6 @@ int main(void)
           //p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
-          //p("odom X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
 
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
@@ -599,12 +600,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   static uint8_t sw_mode;
   sw_mode = getModeSwitch();
 
+  // 関数化したほうがええかも
   if (connection.updated_flag) {
     connection.updated_flag = false;
     memcpy(&cmd_v2, &cmd_v2_buf, sizeof(cmd_v2));
     //memcpy(&ai_cmd, &ai_cmd_buf, sizeof(ai_cmd));
     //integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
     //integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
+
+    if (cmd_v2.is_vision_available && connection.connected_ai) {
+      connection.vision_update_cycle_cnt = 0;
+    }
   }
   commStateCheck(&connection, &sys, &cmd_v2);
 
