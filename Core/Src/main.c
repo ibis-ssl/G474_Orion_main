@@ -327,7 +327,7 @@ int main(void)
             p("\e[33m");
           }
           p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
-          p("theta %+4.1f ", cmd_v2.vision_global_theta);
+          p("theta %+4.1f ", cmd_v2.vision_global_theta * 180 / M_PI);
           p("\e[37m");
 
           p("TarTheta %+6.2f ", cmd_v2.target_global_theta);
@@ -422,23 +422,28 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
+          p("theta %+4.1f imu %+4.1f", cmd_v2.vision_global_theta * 180 / M_PI, imu.yaw_angle);
+
           p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
-          //p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+          p("omni-speed X %+8.1f ,Y %+8.1f. ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
           //p("cnt %4d ", connection.vision_update_cycle_cnt);
-          p("integ %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
+          p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
+          p("integ.govd %+5.2f %+5.2f ", integ.global_odom_vision_diff[0], integ.global_odom_vision_diff[1]);
+          p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
+          p("");
+          //p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
           //p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
           //p("integ-diff %+6.3f %+6.3f ", integ.local_target_diff[0], integ.local_target_diff[1]);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
-          p("cmd-vel %+5.2f, %+5.2f, ", target.global_vel[0], target.global_vel[1]);
-          p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
-          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
+          //p("cmd-vel %+5.2f, %+5.2f, ", target.global_vel[0], target.global_vel[1]);
+          //p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
+          //p("acc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
-          p("vcp-d X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
+          //p("vcp-d X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
-          p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
+          //p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
           //p("odom X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
@@ -725,12 +730,12 @@ void yawFilter()
   imu.pre_yaw_angle_rad = imu.yaw_angle_rad;
   imu.pre_yaw_angle = imu.yaw_angle;
 
-  static bool pre_vision_lost_flag = false;
-  // vision更新されたときに強制更新するやつ
-  if (cmd_v2.is_vision_available == false && pre_vision_lost_flag == true) {
+  static bool pre_vision_available_flag = false;
+  // vision NG -> ONになったときに強制更新するやつ
+  if (cmd_v2.is_vision_available && !pre_vision_available_flag) {
     imu.yaw_angle = cmd_v2.vision_global_theta * 180 / M_PI;
   }
-  pre_vision_lost_flag = cmd_v2.is_vision_available;
+  pre_vision_available_flag = cmd_v2.is_vision_available;
 
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
 
@@ -738,7 +743,7 @@ void yawFilter()
     // デバッグ用、targetへ補正する
     imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * M_PI / 180.0, cmd_v2.target_global_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
 
-  } else if (cmd_v2.is_vision_available || debug.latency_check_enabled) {
+  } else if (!cmd_v2.is_vision_available || debug.latency_check_enabled) {
     // VisionLost時は補正しない
     // レイテンシチェック中(一定速度での旋回中)は相補フィルタ切る
 
