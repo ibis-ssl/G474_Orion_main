@@ -721,7 +721,7 @@ void yawFilter()
       debug.theta_override_flag = true;
 
       // visionとの角度差があるときにアプデ
-      if (connection.connected_ai && cmd_v2.is_vision_available && getAngleDiff(imu.yaw_angle, cmd_v2.vision_global_theta) > 10) {
+      if (connection.connected_ai && cmd_v2.is_vision_available && getAngleDiff(imu.yaw_angle, cmd_v2.vision_global_theta) > 10 * M_PI / 180) {
         imu.yaw_angle = cmd_v2.vision_global_theta * 180 / M_PI;
       }
     } else {
@@ -733,12 +733,16 @@ void yawFilter()
   imu.pre_yaw_angle_rad = imu.yaw_angle_rad;
   imu.pre_yaw_angle = imu.yaw_angle;
 
-  static bool pre_vision_available_flag = false;
+  static int vision_lost_cycle_cnt = 0;
   // vision NG -> ONになったときに強制更新するやつ
-  if (cmd_v2.is_vision_available && !pre_vision_available_flag) {
-    imu.yaw_angle = cmd_v2.vision_global_theta * 180 / M_PI;
+  if (cmd_v2.is_vision_available) {
+    if (vision_lost_cycle_cnt >= MAIN_LOOP_CYCLE) {
+      imu.yaw_angle = cmd_v2.vision_global_theta * 180 / M_PI;
+    }
+    vision_lost_cycle_cnt = 0;
+  } else if (vision_lost_cycle_cnt <= MAIN_LOOP_CYCLE) {
+    vision_lost_cycle_cnt++;
   }
-  pre_vision_available_flag = cmd_v2.is_vision_available;
 
   ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
 
