@@ -377,12 +377,26 @@ void sendCanError()
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
 }
 
+const int CAN_ENC_TIMEOUT_CYCLE_CNT = 100;
+
 bool canRxTimeoutDetection(can_raw_t * can_raw)
 {
   for (int i = 0; i < BOARD_ID_MAX; i++) {
-    if (can_raw->board_rx_timeout_cnt[i] > 100) {
+    if (can_raw->board_rx_timeout_cnt[i] > CAN_ENC_TIMEOUT_CYCLE_CNT) {
       return true;
     }
   }
   return false;
 }
+
+void canRxTimeoutCntCycle(can_raw_t * can_raw)
+{
+  for (int i = 0; i < BOARD_ID_MAX; i++) {
+    if (can_raw->board_rx_timeout_cnt[i] < CAN_ENC_TIMEOUT_CYCLE_CNT * 10) {
+      can_raw->board_rx_timeout_cnt[i]++;
+    }
+  }
+}
+
+// エンコーダ&オムニ角度取得済みかどうか
+bool allEncInitialized(can_raw_t * can_raw) { return can_raw->mouse_rx_flag & can_raw->enc_rx_flag[0] & can_raw->enc_rx_flag[1] & can_raw->enc_rx_flag[2] & can_raw->enc_rx_flag[3]; }

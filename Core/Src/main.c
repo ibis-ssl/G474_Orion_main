@@ -311,7 +311,6 @@ int main(void)
           p("cmd v2 ");
 
           if (connection.connected_ai) {
-            // 32 : green
             p("\e[32m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
           } else if (connection.connected_cm4) {
             // 33 : yellow
@@ -322,9 +321,14 @@ int main(void)
           }
 
           if (cmd_v2.is_vision_available) {
+            // 32 : green
             p("\e[32m");
-          } else {
+          } else if (!cmd_v2.stop_emergency) {
+            // 33 : yellow
             p("\e[33m");
+          } else {
+            // 31 : red
+            p("\e[31m");
           }
           p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
           p("theta %+4.1f ", cmd_v2.vision_global_theta * 180 / M_PI);
@@ -409,7 +413,7 @@ int main(void)
           break;
         case 4:  // Mouse odom
           p("MOUSE ");
-          p("%d / %d %d %d %d", allEncInitialized(), can_raw.enc_rx_flag[0], can_raw.enc_rx_flag[1], can_raw.enc_rx_flag[2], can_raw.enc_rx_flag[3]);
+          p("%d / %d %d %d %d", allEncInitialized(&can_raw), can_raw.enc_rx_flag[0], can_raw.enc_rx_flag[1], can_raw.enc_rx_flag[2], can_raw.enc_rx_flag[3]);
           //p("raw_odom X %+8.3f Y %+8.3f ", mouse.raw_odom[0] * 1000, mouse.raw_odom[1] * 1000);
           //p("mouse floor X %+8.3f Y %+8.3f ", mouse.floor_odom[0] * 1000, mouse.floor_odom[1] * 1000);
           p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
@@ -467,7 +471,7 @@ int main(void)
           for (int i = 0; i < 7; i++) {
             p("%4d ", debug.start_time[i]);
           }
-          p(" can enc rx : ");
+          p(" EncRxTO : ");
           for (int i = 0; i < BOARD_ID_MAX; i++) {
             p("%6d ", can_raw.board_rx_timeout_cnt[i]);
           }
@@ -542,22 +546,12 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void canRxTimeoutCntCycle(void)
-{
-  for (int i = 0; i < BOARD_ID_MAX; i++) {
-    can_raw.board_rx_timeout_cnt[i]++;
-  }
-}
-
-// エンコーダ&オムニ角度取得済みかどうか
-bool allEncInitialized() { return can_raw.mouse_rx_flag & can_raw.enc_rx_flag[0] & can_raw.enc_rx_flag[1] & can_raw.enc_rx_flag[2] & can_raw.enc_rx_flag[3]; }
-
 // 必要なデータが揃ったらodom系をゼロで初期化
 void resetOdomAtEncInitialized()
 {
   static bool initialized_flag = false;
 
-  if (initialized_flag == false && allEncInitialized()) {
+  if (initialized_flag == false && allEncInitialized(&can_raw)) {
     for (int i = 0; i < 2; i++) {
       omni.odom[i] = 0;
       omni.pre_odom[i] = 0;
@@ -617,9 +611,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   }
   commStateCheck(&connection, &sys, &cmd_v2);
 
-  canRxTimeoutCntCycle();
+  canRxTimeoutCntCycle(&can_raw);
 
-  stopStateControl(&sys, sw_mode, canRxTimeoutDetection(&can_raw), allEncInitialized());
+  stopStateControl(&sys, sw_mode, canRxTimeoutDetection(&can_raw), allEncInitialized(&can_raw));
 
   // 以後sys.main_modeによる動作切り替え
 
@@ -643,7 +637,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
     case MAIN_MODE_SPEED_CONTROL_ONLY:   // ローカル統合制御なし
-      if (/*connection.connected_ai == false || */ sys.stop_flag) {
+      if (sys.stop_flag) {
         maintaskStop(&output);
       } else {
         maintaskRun();

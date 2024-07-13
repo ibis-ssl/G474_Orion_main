@@ -22,5 +22,9 @@ void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_raw, sys
 void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * can_raw);
 void maintaskStop(output_t * output);
 void sendCanError();
+
 bool canRxTimeoutDetection(can_raw_t * can_raw);
+void canRxTimeoutCntCycle(can_raw_t * can_raw);
+bool allEncInitialized(can_raw_t * can_raw);
+
 #endif /* CAN_IBIS_H_ */

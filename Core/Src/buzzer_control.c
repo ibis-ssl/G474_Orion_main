@@ -19,14 +19,19 @@ inline static bool isLowVoltage(can_raw_t * can_raw)
 
 inline static bool isVisionLost(system_t * sys, connection_t * con, RobotCommandV2 * ai_cmd)
 {
-  if (con->connected_ai) {
-    if (!ai_cmd->is_vision_available) {
-      if (sys->main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
-        return true;
-      }
-    }
+  if (!con->connected_ai) {
+    return false;
   }
-  return false;
+
+  if (ai_cmd->is_vision_available) {
+    return false;
+  }
+
+  if (sys->main_mode > MAIN_MODE_CMD_DEBUG_MODE) {
+    return false;
+  }
+  
+  return true;
 }
 
 inline void buzzerControl(can_raw_t * can_raw, system_t * sys, connection_t * con, RobotCommandV2 * ai_cmd)
