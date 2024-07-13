@@ -46,8 +46,8 @@
 #include "omni_wheel.h"
 #include "ring_buffer.h"
 #include "robot_control.h"
+#include "state_func.h"
 #include "stop_state_control.h"
-#include "test_func.h"
 #include "util.h"
 
 /* USER CODE END Includes */
@@ -70,8 +70,6 @@
 
 /* USER CODE BEGIN PV */
 
-#define OMNI_OUTPUT_LIMIT (40)  //上げると過電流エラーになりがち
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -83,7 +81,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
 uint8_t getModeSwitch();
-void maintaskRun();
 void yawFilter();
 bool allEncInitialized();
 uint32_t HAL_GetTick(void) { return uwTick; }
@@ -463,7 +460,8 @@ int main(void)
           break;
         case 6:
           p("LATENCY ");
-          p("EN%d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
+          p("setting : %3d / ", cmd_v2.latency_time_ms);
+          p("EN %d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
         case 7:
@@ -625,7 +623,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   resetOdomAtEncInitialized();
 
-  //slipDetection();
   debug.start_time[2] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
@@ -640,7 +637,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       if (sys.stop_flag) {
         maintaskStop(&output);
       } else {
-        maintaskRun();
+        maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw);
       }
       break;
     case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。
@@ -648,7 +645,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       if (sys.stop_flag) {
         maintaskStop(&output);
       } else {
-        maintaskRun();
+        maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw);
       }
       break;
 
@@ -666,6 +663,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     case MAIN_MODE_KICKER_MANUAL:  // kicker test (manual)
       kickerTest(&sys, &can_raw, true, &output);
+      break;
+
+    case MAIN_MODE_LATENCY_CHECK:
+      latencyCheck(&sys, &debug, &cmd_v2, &output, &imu);
       break;
 
     case MAIN_MODE_MOTOR_CALIBRATION:
@@ -759,58 +760,6 @@ void yawFilter()
   }
 
   imu.yaw_angle_rad = imu.yaw_angle * M_PI / 180;
-}
-
-// 後輪だけ位置制御に使っているせいでタイヤ回転数によるスリップ検出がだいぶ無理がある
-void slipDetection(void)
-{
-  for (int calc_idx = 0; calc_idx < 4; calc_idx++) {
-    slip_detect.spin_total[calc_idx] = 0;
-    for (int motor_idx = 0; motor_idx < 4; motor_idx++) {
-      if (motor_idx != calc_idx) {
-        slip_detect.spin_total[calc_idx] += can_raw.motor_feedback_velocity[motor_idx];
-      }
-    }
-  }
-
-  //対角
-  slip_detect.diff[0] = slip_detect.spin_total[0] - slip_detect.spin_total[2];
-  slip_detect.diff[1] = slip_detect.spin_total[1] - slip_detect.spin_total[3];
-
-  // 左右
-  slip_detect.diff[2] = slip_detect.spin_total[0] - slip_detect.spin_total[1];
-  slip_detect.diff[3] = slip_detect.spin_total[2] - slip_detect.spin_total[3];
-  /* slip_detect.spin_total[0] = can_raw.motor_feedback_velocity[1] + can_raw.motor_feedback_velocity[2] + can_raw.motor_feedback_velocity[3];
-  slip_detect.spin_total[1] = can_raw.motor_feedback_velocity[0] + can_raw.motor_feedback_velocity[2] + can_raw.motor_feedback_velocity[3];
-  slip_detect.spin_total[2] = can_raw.motor_feedback_velocity[0] + can_raw.motor_feedback_velocity[1] + can_raw.motor_feedback_velocity[3];
-  slip_detect.spin_total[3] = can_raw.motor_feedback_velocity[0] + can_raw.motor_feedback_velocity[1] + can_raw.motor_feedback_velocity[2];*/
-}
-
-void maintaskRun()
-{
-  // 全部で250us
-  robotControl(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output);
-  /*local_feedback(&integ, &imu, &sys, &target, &ai_cmd, &omni, &mouse);
-  accel_control(&acc_vel, &output, &target, &imu, &omni);
-  speed_control(&acc_vel, &output, &target, &imu, &omni);
-  output_limit(&output, &debug);*/
-
-  /*if (isLatencyCheckModeEnabled(&sys, &debug, &ai_cmd)) {
-    debug.rotation_target_theta = getTargetThetaInLatencyCheckMode(&debug, &ai_cmd);
-    thetaControl(debug.rotation_target_theta, &acc_vel, &output, &imu);
-  } else {
-    thetaControlcmd_v2.target_global_theta, &acc_vel, &output, &imu);
-  }*/
-
-  // デバッグモードではstopとvision_lostを無視する
-  if (sys.main_mode != MAIN_MODE_CMD_DEBUG_MODE && (cmd_v2.stop_emergency || !cmd_v2.is_vision_available)) {
-    //resetLocalSpeedControl(&ai_cmd);
-    omniMove(0.0, 0.0, 0.0, 0.0, &output);
-  } else {
-    omniMove(output.velocity[0], output.velocity[1], output.omega, OMNI_OUTPUT_LIMIT, &output);
-  }
-
-  sendActuatorCanCmdRun(&cmd_v2, &sys, &can_raw);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)

@@ -20,7 +20,7 @@ void canTxEmptyInterrupt(FDCAN_HandleTypeDef * hfdcan);
 
 void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_raw, system_t * sys, motor_t * motor, mouse_t * mouse);
 void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * can_raw);
-void maintaskStop(output_t * output);
+void sendActuatorCanCmdStop();
 void sendCanError();
 
 bool canRxTimeoutDetection(can_raw_t * can_raw);

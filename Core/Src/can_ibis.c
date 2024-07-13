@@ -359,9 +359,8 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
   }
 }
 
-void maintaskStop(output_t * output)
+void sendActuatorCanCmdStop()
 {
-  omniMove(0.0, 0.0, 0.0, 0.0, output);
   actuator_motor5(0.0, 0.0);
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);

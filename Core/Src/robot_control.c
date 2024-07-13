@@ -42,20 +42,15 @@
 //#define OUTPUT_XY_LIMIT (40.0)  //
 
 // omegaぶんの制限
-#define OUTPUT_OMEGA_LIMIT (5.0)  // ~ rad/s
-//#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
 
 void thetaControl(float target_theta, output_t * output, imu_t * imu)
 {
+  const float OUTPUT_OMEGA_LIMIT = 10.0;  // ~ rad/s
+  //#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
+
   // PID
   output->omega = (getAngleDiff(target_theta, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
-
-  if (output->omega > OUTPUT_OMEGA_LIMIT) {
-    output->omega = OUTPUT_OMEGA_LIMIT;
-  }
-  if (output->omega < -OUTPUT_OMEGA_LIMIT) {
-    output->omega = -OUTPUT_OMEGA_LIMIT;
-  }
+  output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
   //output->omega = 0;
 }
 
@@ -68,13 +63,18 @@ void setOutXero(output_t * output)
 
 void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse)
 {
+  static float pre_vision_pos[2] = {0, 0};
+  float vision_vel[2] = {0, 0};
   // 加速時はaccelControlと共通で良い
   // 減速時はodomのズレ､マウスの遅延､Visionの遅延があるので､出力トルク(=加速度)に制約かけて､位置に対してPIDやったほうがいいかも
 
   for (int i = 0; i < 2; i++) {
     integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
-    target->global_vel[i] = integ->position_diff[i] * 50 - omni->local_odom_speed_mvf[i] * 1;
     // + mouse->global_vel[i] * 1;
+    vision_vel[i] = (ai_cmd->vision_global_pos[i] - pre_vision_pos[i]) * MAIN_LOOP_CYCLE;  // カタついてしゃーない
+    pre_vision_pos[i] = ai_cmd->vision_global_pos[i];
+
+    target->global_vel[i] = integ->position_diff[i] * 50;
   }
   //clampScalarSize(target->global_vel, OUTPUT_XY_LIMIT);
 

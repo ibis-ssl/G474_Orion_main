@@ -33,19 +33,32 @@ const float cosM3 = cos(225 * M_PI / 180);
 const float sinM4 = sin(150 * M_PI / 180);
 const float cosM4 = cos(150 * M_PI / 180);
 
-void omniMove(float vel_y_robot, float vel_x_robot, float omega_robot, float duty_limit, output_t * output)
+void omniMove(output_t * output, float out_limit)
 {
   float rotation_omega_motor;
 
-  rotation_omega_motor = ROBOT_RADIUS * omega_robot;
+  rotation_omega_motor = ROBOT_RADIUS * output->omega;
 
-  output->motor_voltage[0] = ((vel_x_robot * sinM1) + (vel_y_robot * cosM1) + rotation_omega_motor) / rotation_length_omni;
-  output->motor_voltage[1] = ((vel_x_robot * sinM2) + (vel_y_robot * cosM2) + rotation_omega_motor) / rotation_length_omni;
-  output->motor_voltage[2] = ((vel_x_robot * sinM3) + (vel_y_robot * cosM3) + rotation_omega_motor) / rotation_length_omni;
-  output->motor_voltage[3] = ((vel_x_robot * sinM4) + (vel_y_robot * cosM4) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[0] = ((output->velocity[0] * sinM1) + (output->velocity[1] * cosM1) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[1] = ((output->velocity[0] * sinM2) + (output->velocity[1] * cosM2) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[2] = ((output->velocity[0] * sinM3) + (output->velocity[1] * cosM3) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[3] = ((output->velocity[0] * sinM4) + (output->velocity[1] * cosM4) + rotation_omega_motor) / rotation_length_omni;
 
-  actuator_motor1(output->motor_voltage[0], duty_limit);
-  actuator_motor2(output->motor_voltage[1], duty_limit);
-  actuator_motor3(output->motor_voltage[2], duty_limit);
-  actuator_motor4(output->motor_voltage[3], duty_limit);
+  actuator_motor1(output->motor_voltage[0], out_limit);
+  actuator_motor2(output->motor_voltage[1], out_limit);
+  actuator_motor3(output->motor_voltage[2], out_limit);
+  actuator_motor4(output->motor_voltage[3], out_limit);
+}
+
+void omniStopAll(output_t * output)
+{
+  output->motor_voltage[0] = 0;
+  output->motor_voltage[1] = 0;
+  output->motor_voltage[2] = 0;
+  output->motor_voltage[3] = 0;
+
+  actuator_motor1(output->motor_voltage[0], 0);
+  actuator_motor2(output->motor_voltage[1], 0);
+  actuator_motor3(output->motor_voltage[2], 0);
+  actuator_motor4(output->motor_voltage[3], 0);
 }

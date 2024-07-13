@@ -13,6 +13,7 @@
 
 #include "management.h"
 
-void omniMove(float vel_y_robot, float vel_x_robot, float omega_robot, float duty_limit, output_t * output);
+void omniMove(output_t * output, float out_limit);
+void omniStopAll(output_t * output);
 
 #endif /* OMNI_WHEEL_H_ */

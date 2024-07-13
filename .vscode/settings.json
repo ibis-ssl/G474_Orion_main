@@ -11,6 +11,12 @@
         "stm32g4xx_hal_gpio.h": "c",
         "array": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "robot_control.h": "c",
+        "usart.h": "c",
+        "complex": "c",
+        "robot_packet.h": "c",
+        "ranges": "c",
+        "random": "c"
     }
 }

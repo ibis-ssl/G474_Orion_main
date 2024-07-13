@@ -217,6 +217,18 @@ void clampScalarSize(float xy_value[], float scalar_limit)
     xy_value[1] *= scalar_limit / scalar;
   }
 }
+
+float clampSize(float in, float max)
+{
+  if (in > max) {
+    in = max;
+  }
+  if (in < -max) {
+    in = -max;
+  }
+  return in;
+}
+
 bool swCentorPushed(uint16_t sw_raw_data) { return sw_raw_data <= 100; }
 bool swRightPushed(uint16_t sw_raw_data) { return sw_raw_data <= 500 && sw_raw_data > 100; }
 bool swLeftPushed(uint16_t sw_raw_data) { return sw_raw_data <= 2000 && sw_raw_data > 500; }
