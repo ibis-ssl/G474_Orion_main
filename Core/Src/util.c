@@ -209,6 +209,14 @@ void convertLocalToGlobal(float local[], float global[], float yaw_rad)
 
 float calcScalar(float x, float y) { return pow(x * x + y * y, 0.5); }
 
+void clampScalarSize(float xy_value[], float scalar_limit)
+{
+  float scalar = calcScalar(xy_value[0], xy_value[1]);
+  if (scalar_limit < scalar) {
+    xy_value[0] *= scalar_limit / scalar;
+    xy_value[1] *= scalar_limit / scalar;
+  }
+}
 bool swCentorPushed(uint16_t sw_raw_data) { return sw_raw_data <= 100; }
 bool swRightPushed(uint16_t sw_raw_data) { return sw_raw_data <= 500 && sw_raw_data > 100; }
 bool swLeftPushed(uint16_t sw_raw_data) { return sw_raw_data <= 2000 && sw_raw_data > 500; }

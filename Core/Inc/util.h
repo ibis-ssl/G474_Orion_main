@@ -68,6 +68,7 @@ void convertGlobalToLocal(float global[], float local[], float yaw_rad);
 void convertLocalToGlobal(float local[], float global[], float yaw_rad);
 
 float calcScalar(float x, float y);
+void clampScalarSize(float xy_value[], float scalar_limit);
 
 #ifdef __cplusplus
 }

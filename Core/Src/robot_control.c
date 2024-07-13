@@ -38,11 +38,11 @@
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
-#define OUTPUT_XY_LIMIT (1.0)  //
+#define OUTPUT_XY_LIMIT (3.0)  //
 //#define OUTPUT_XY_LIMIT (40.0)  //
 
 // omegaぶんの制限
-#define OUTPUT_OMEGA_LIMIT (0.0)  // ~ rad/s
+#define OUTPUT_OMEGA_LIMIT (5.0)  // ~ rad/s
 //#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
 
 void thetaControl(float target_theta, output_t * output, imu_t * imu)
@@ -73,8 +73,11 @@ void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t 
 
   for (int i = 0; i < 2; i++) {
     integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
-    target->global_vel[i] = integ->position_diff[i];
+    target->global_vel[i] = integ->position_diff[i] * 50 - omni->local_odom_speed_mvf[i] * 1;
+    // + mouse->global_vel[i] * 1;
   }
+  //clampScalarSize(target->global_vel, OUTPUT_XY_LIMIT);
+
   convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
 }
 
@@ -189,17 +192,6 @@ void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target
   output->velocity[1] = omni->robot_pos_diff[1] * OUTPUT_GAIN_ODOM_DIFF_KP + target->local_vel_ff_factor[1] - target->local_vel_now[1] * OUTPUT_GAIN_ODOM_DIFF_KD;
 }
 
-void outputLimit(output_t * output, debug_t * debug)
-{
-  debug->limited_output = OUTPUT_XY_LIMIT;
-
-  float scalar = calcScalar(output->velocity[0], output->velocity[1]);
-  if (debug->limited_output < scalar) {
-    output->velocity[0] *= debug->limited_output / scalar;
-    output->velocity[1] *= debug->limited_output / scalar;
-  }
-}
-
 void robotControl(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output)
 {
@@ -221,10 +213,10 @@ void robotControl(
       localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse);
       //accelControl(acc_vel, output, target, imu, omni);
       //speedControl(acc_vel, output, target, imu, omni);
-      output->velocity[0] = target->local_vel[0] * 10;
-      output->velocity[1] = target->local_vel[1] * 10;
-      //outputLimit(output, debug);
-      //thetaControl(ai_cmd->target_global_theta, output, imu);
+      output->velocity[0] = target->local_vel[0];
+      output->velocity[1] = target->local_vel[1];
+      clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
+      thetaControl(ai_cmd->target_global_theta, output, imu);
       break;
 
     case SIMPLE_VELOCITY_TARGET_MODE:
@@ -232,7 +224,7 @@ void robotControl(
       target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
       accelControl(acc_vel, output, target, imu, omni);
       speedControl(acc_vel, output, target, imu, omni);
-      outputLimit(output, debug);
+      clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
       thetaControl(ai_cmd->target_global_theta, output, imu);
       return;
 

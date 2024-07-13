@@ -13,6 +13,9 @@
 // 20ms cycle
 void mouseOdometryUpdate(mouse_t * mouse, imu_t * imu)
 {
+  mouse->pre_odom[0] = mouse->odom[0];
+  mouse->pre_odom[1] = mouse->odom[1];
+
   const int MOUSE_ODOM_CYCLE = 20;
   mouse->raw_diff[0] = (float)mouse->raw[0] / MOUSE_ODOM_CYCLE;
   mouse->raw_diff[1] = (float)mouse->raw[1] / MOUSE_ODOM_CYCLE;
@@ -25,13 +28,16 @@ void mouseOdometryUpdate(mouse_t * mouse, imu_t * imu)
   mouse->floor_odom[0] += floor_odom_diff[0];
   mouse->floor_odom[1] += floor_odom_diff[1];
 
-  // 旋回ぶん補正
+  // 旋回速度ぶん補正
   const float DIST_CORRECITON_RATE = 0.066 / 3 * 1.56;
   mouse->odom[0] = DIST_CORRECITON_RATE * mouse->floor_odom[0] - (DIST_CORRECITON_RATE * cos(imu->yaw_angle_rad) - DIST_CORRECITON_RATE);
   // X位置補正は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
   //  +(0.009 * sin(imu->yaw_angle_rad));
   mouse->odom[1] = DIST_CORRECITON_RATE * mouse->floor_odom[1] - (DIST_CORRECITON_RATE * sin(imu->yaw_angle_rad));
   //  +(0.009 * cos(imu->yaw_angle_rad) - 0.009);
+
+  mouse->global_vel[0] = mouse->odom[0] - mouse->pre_odom[0];
+  mouse->global_vel[1] = mouse->odom[1] - mouse->pre_odom[1];
 
   mouse->pre_yaw_angle_rad = imu->yaw_angle_rad;
 }

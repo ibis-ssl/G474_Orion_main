@@ -154,10 +154,10 @@ typedef struct
 
 typedef struct
 {
-  float velocity[2];
+  float global_vel[2];
   float raw_odom[2];
   float floor_odom[2];
-  float odom[2];
+  float odom[2], pre_odom[2];
   int16_t raw[2];
   float raw_diff[2];
   uint16_t quality;

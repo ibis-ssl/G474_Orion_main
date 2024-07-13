@@ -416,6 +416,7 @@ int main(void)
           p("mouse X %+8.2f Y %+8.2f ", mouse.odom[0] * 1000, mouse.odom[1] * 1000);
           p("Error X %+8.2f Y %+8.2f ", (mouse.odom[0] - omni.odom[0]) * 1000, (mouse.odom[1] - omni.odom[1]) * 1000);
           p("diff X %+8.2f Y %+8.2f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
+          p("MsVel X %+8.2f Y %+8.2f ", mouse.global_vel[0], mouse.global_vel[1]);
           //p("mouseRaw X %+8.1f Y %+8.1f ", mouse.raw[0], mouse.raw[1]);
           p("raw X %+4d Y %+4d Q %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
 
@@ -428,13 +429,15 @@ int main(void)
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("odomL X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
           //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
-          p("cnt %4d ", connection.vision_update_cycle_cnt);
+          //p("cnt %4d ", connection.vision_update_cycle_cnt);
           p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
           p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          p("integ-diffG %+5.2f %+5.2f ", integ.position_diff[0], integ.position_diff[1]);
+          p("integ-diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
           p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
           p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
+
+          p("MsVel X %+8.4f Y %+8.4f ", mouse.global_vel[0], mouse.global_vel[1]);
           //p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
           //p("integ-diff %+6.3f %+6.3f ", integ.local_target_diff[0], integ.local_target_diff[1]);
           //p("tar-pos X %+8.1f, Y %+8.1f ", target.global_vel_now[0], target.global_vel_now[1]);
@@ -447,7 +450,7 @@ int main(void)
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           //p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
-          p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
+          //p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
 
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
