@@ -9,8 +9,9 @@
 
 inline static bool isLowVoltage(can_raw_t * can_raw)
 {
-  if (can_raw->power_voltage[5] != 0.0) {
-    if (can_raw->power_voltage[5] < LOW_VOLTAGE_LIMIT) {
+  // 4 : SubBoard
+  if (can_raw->power_voltage[4] != 0.0) {
+    if (can_raw->power_voltage[4] < LOW_VOLTAGE_LIMIT) {
       return true;
     }
   }
