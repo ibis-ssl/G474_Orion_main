@@ -79,6 +79,15 @@ static void checkConnect2CM4(connection_t * connection, system_t * sys)
   }
 }
 
+void resetAiCmdData(RobotCommandV2 * ai_cmd)
+{
+  ai_cmd->dribble_power = 0;
+  ai_cmd->is_vision_available = false;
+  ai_cmd->stop_emergency = true;
+  ai_cmd->omega_limit = 0;
+  ai_cmd->speed_limit = 0;
+}
+
 static void checkConnect2AI(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd)
 {
   static uint8_t pre_ai_counter = 0;
@@ -101,7 +110,7 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
     connection->connected_ai = false;
     connection->cmd_rx_frq = 0;
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-    //resetAiCmdData(ai_cmd);
+    resetAiCmdData(ai_cmd);
 
     requestStop(sys, 1.0);
   }
