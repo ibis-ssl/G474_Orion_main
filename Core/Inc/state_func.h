@@ -12,7 +12,7 @@
 #include "robot_packet.h"
 
 void motorTest(system_t * sys, output_t * output);
-void dribblerTest(system_t * sys, output_t * output);
+void dribblerTest(system_t * sys, output_t * output, can_raw_t * can_raw);
 void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t * output);
 void latencyCheck(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu);
 void motorCalibration(system_t * sys);

@@ -51,10 +51,15 @@ void motorTest(system_t * sys, output_t * output)
   actuator_motor5(0.0, 0.0);
 }
 
-void dribblerTest(system_t * sys, output_t * output)
+void dribblerTest(system_t * sys, output_t * output, can_raw_t * can_raw)
 {
   if (swCentorPushed(sys->sw_data)) {
-    actuator_motor5(0.5, 1.0);
+    if (can_raw->ball_detection[0]) {
+      actuator_motor5(0.5, 1.0);
+
+    } else {
+      actuator_motor5(0.25, 1.0);
+    }
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else {
     actuator_motor5(0.0, 0.0);
@@ -151,7 +156,7 @@ void latencyCheck(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd, outp
     output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
     output->velocity[0] = 0;
     output->velocity[1] = 0;
-    
+
     omniMove(output, 10);
     return;
   } else {

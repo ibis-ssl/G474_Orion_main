@@ -654,7 +654,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case MAIN_MODE_DRIBBLER_TEST:  // dribble test
-      dribblerTest(&sys, &output);
+      dribblerTest(&sys, &output, &can_raw);
       break;
 
     case MAIN_MODE_KICKER_AUTO_TEST:  // kicker test (auto)
