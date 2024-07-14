@@ -62,6 +62,11 @@ void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * om
   buf[62] = 0;
   buf[63] = 0;
 
+  float_to_uchar4(&(buf[64]), mouse->odom[0]);
+  float_to_uchar4(&(buf[68]), mouse->odom[1]);
+  float_to_uchar4(&(buf[72]), mouse->global_vel[0]);
+  float_to_uchar4(&(buf[76]), mouse->global_vel[1]);
+
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }
 
