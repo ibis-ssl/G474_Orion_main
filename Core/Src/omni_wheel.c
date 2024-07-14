@@ -39,10 +39,10 @@ void omniMove(output_t * output, float out_limit)
 
   rotation_omega_motor = ROBOT_RADIUS * output->omega;
 
-  output->motor_voltage[0] = ((output->velocity[0] * sinM1) + (output->velocity[1] * cosM1) + rotation_omega_motor) / rotation_length_omni;
-  output->motor_voltage[1] = ((output->velocity[0] * sinM2) + (output->velocity[1] * cosM2) + rotation_omega_motor) / rotation_length_omni;
-  output->motor_voltage[2] = ((output->velocity[0] * sinM3) + (output->velocity[1] * cosM3) + rotation_omega_motor) / rotation_length_omni;
-  output->motor_voltage[3] = ((output->velocity[0] * sinM4) + (output->velocity[1] * cosM4) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[0] = ((output->velocity[1] * sinM1) + (output->velocity[0] * cosM1) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[1] = ((output->velocity[1] * sinM2) + (output->velocity[0] * cosM2) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[2] = ((output->velocity[1] * sinM3) + (output->velocity[0] * cosM3) + rotation_omega_motor) / rotation_length_omni;
+  output->motor_voltage[3] = ((output->velocity[1] * sinM4) + (output->velocity[0] * cosM4) + rotation_omega_motor) / rotation_length_omni;
 
   actuator_motor1(output->motor_voltage[0], out_limit);
   actuator_motor2(output->motor_voltage[1], out_limit);
