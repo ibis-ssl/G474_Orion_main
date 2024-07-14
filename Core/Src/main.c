@@ -305,7 +305,8 @@ int main(void)
           // 通信接続状態表示
           //p("itr %4d %8d %8d ", debug.uart_rx_itr_cnt, connection.latest_cm4_cmd_update_time, connection.latest_ai_cmd_update_time);
 
-          p("cmd v2 ");
+          p("CMD ");
+          p("STP%d ", cmd_v2.stop_emergency);
 
           if (connection.connected_ai) {
             p("\e[32m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
@@ -469,9 +470,13 @@ int main(void)
           for (int i = 0; i < 7; i++) {
             p("%4d ", debug.start_time[i]);
           }
-          p(" EncRxTO : ");
+          p("EncRxTO: ");
           for (int i = 0; i < BOARD_ID_MAX; i++) {
             p("%6d ", can_raw.board_rx_timeout_cnt[i]);
+          }
+          p("Motor: ");
+          for (int i = 0; i < 4; i++) {
+            p("%+6.3f ", output.motor_voltage[i]);
           }
           break;
         default:

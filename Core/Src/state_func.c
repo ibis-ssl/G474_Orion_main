@@ -204,8 +204,8 @@ void maintaskRun(
   // 全部で250us
   robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output);
 
-  // デバッグモードではstopとvision_lostを無視する
-  if (sys->main_mode != MAIN_MODE_CMD_DEBUG_MODE && (ai_cmd->stop_emergency || !ai_cmd->is_vision_available)) {
+  // いまのところvision lostしたら止める
+  if (ai_cmd->stop_emergency || !ai_cmd->is_vision_available) {
     //resetLocalSpeedControl(&ai_cmd);
     omniStopAll(output);
   } else {
