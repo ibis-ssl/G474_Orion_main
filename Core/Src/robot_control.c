@@ -207,6 +207,7 @@ void robotControl(
     case LOCAL_CAMERA_MODE:
       // これはいつか実装する
       setOutZero(output);
+      thetaControl(ai_cmd->target_global_theta, output, imu);  // thetaだけ制御する
       return;
 
     case POSITION_TARGET_MODE:
