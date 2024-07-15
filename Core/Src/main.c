@@ -282,10 +282,10 @@ int main(void)
       // 30:black 31:red 32:green 33:yellow 34:blue 35:magenta 36:cyan 37:white(default)
       p("\e[0m");
       //p("yaw=%+6.1f ", imu.yaw_angle);
-      if (can_raw.power_voltage[5] < LOW_VOLTAGE_LIMIT) {
-        p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[5]);
+      if (can_raw.power_voltage[4] < LOW_VOLTAGE_LIMIT) {
+        p("\e[33mBatt=%3.1f\e[37m ", can_raw.power_voltage[4]);
       } else {
-        p("Batt=%3.1f ", can_raw.power_voltage[5]);
+        p("Batt=%3.1f ", can_raw.power_voltage[4]);
       }
       debug.out_total_spin = output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
       debug.fb_total_spin = (can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]) / 1.5;

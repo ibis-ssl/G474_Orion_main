@@ -20,7 +20,8 @@ void sendRobotInfo(
 
   float_to_uchar4(&(buf[4]), imu->yaw_angle);
 
-  float_to_uchar4(&(buf[8]), can_raw->power_voltage[5]);
+  // battery(from sub)
+  float_to_uchar4(&(buf[8]), can_raw->power_voltage[4]);
 
   buf[12] = can_raw->ball_detection[0];
   buf[13] = can_raw->ball_detection[1];
@@ -52,6 +53,7 @@ void sendRobotInfo(
   float diff_angle = imu->yaw_angle - ai_cmd->vision_global_theta;
 
   float_to_uchar4(&(buf[36]), diff_angle);
+  // capacitor boost
   float_to_uchar4(&(buf[40]), can_raw->power_voltage[6]);
   float_to_uchar4(&(buf[44]), omni->odom[0]);
   float_to_uchar4(&(buf[48]), omni->odom[1]);
@@ -78,6 +80,12 @@ void sendRobotInfo(
 
   float_to_uchar4(&(buf[104]), target->global_vel_now[0]);
   float_to_uchar4(&(buf[108]), target->global_vel_now[1]);
+
+  //float_to_uchar4(&(buf[112]), target->global_vel_now[0]);
+  //float_to_uchar4(&(buf[116]), target->global_vel_now[1]);
+
+  //float_to_uchar4(&(buf[120]), target->global_vel_now[0]);
+  //float_to_uchar4(&(buf[124]), target->global_vel_now[1]);
 
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }

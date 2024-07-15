@@ -233,8 +233,8 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x212:  // m2
     case 0x213:  // m3
     case 0x214:  // sub board (not used)
-    case 0x215:  // battery
-    case 0x216:  // capacitor
+    case 0x215:  // power battery
+    case 0x216:  // power capacitor
       can_raw->power_voltage[rx_can_id - 0x210] = uchar4_to_float(rx_data);
       if (rx_can_id == 0x215) {
         can_raw->board_rx_timeout_cnt[BOARD_ID_POWER] = 0;
