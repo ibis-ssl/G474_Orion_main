@@ -76,8 +76,8 @@ void sendRobotInfo(
   float_to_uchar4(&(buf[96]), out->accel[0]);
   float_to_uchar4(&(buf[100]), out->accel[1]);
 
-  float_to_uchar4(&(buf[100]), target->global_vel_now[0]);
-  float_to_uchar4(&(buf[100]), target->global_vel_now[0]);
+  float_to_uchar4(&(buf[104]), target->global_vel_now[0]);
+  float_to_uchar4(&(buf[108]), target->global_vel_now[1]);
 
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }
