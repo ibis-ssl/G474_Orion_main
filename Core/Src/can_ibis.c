@@ -327,9 +327,9 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
 
   static uint8_t can_sending_index = 0;
   float dribbler_power = ai_cmd->dribble_power;
-  /*if (!can_raw->ball_detection[0]) {
+  if (!can_raw->ball_detection[0]) {
     dribbler_power /= 2;
-  }*/
+  }
   can_sending_index++;
   switch (can_sending_index) {
     case 1:
