@@ -38,7 +38,7 @@
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
-#define OUTPUT_XY_LIMIT (3.0)  //
+#define OUTPUT_XY_LIMIT (2.0)  //
 //#define OUTPUT_XY_LIMIT (40.0)  //
 
 // omegaぶんの制限
