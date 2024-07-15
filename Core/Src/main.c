@@ -802,7 +802,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       updateCM4CmdTimeStamp(&connection, &sys);
       connection.updated_flag = true;
       //parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
-      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output);
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
     }
   }
 
