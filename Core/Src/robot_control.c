@@ -166,12 +166,12 @@ void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target
     // pos = 1 odom = 0
     // 1 - 0 > 0.33
     // -> pos = 0 + 0.33
-    /*const float odom_diff_max = (float)OUTPUT_OUTPUTLIMIT_ODOM_DIFF / OUTPUT_GAIN_ODOM_DIFF_KP;
+    const float odom_diff_max = (float)OUTPUT_OUTPUTLIMIT_ODOM_DIFF / OUTPUT_GAIN_ODOM_DIFF_KP;
     if (target->global_pos[i] - omni->odom[i] > odom_diff_max) {
       target->global_pos[i] = omni->odom[i] + odom_diff_max;
     } else if (target->global_pos[i] - omni->odom[i] < -odom_diff_max) {
       target->global_pos[i] = omni->odom[i] - odom_diff_max;
-    }*/
+    }
 
     // pos = 0,
     omni->global_odom_diff[i] = target->global_pos[i] - omni->odom[i];
