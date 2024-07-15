@@ -54,7 +54,7 @@ void thetaControl(float target_theta, output_t * output, imu_t * imu)
   //output->omega = 0;
 }
 
-void setOutXero(output_t * output)
+void setOutZero(output_t * output)
 {
   output->velocity[0] = 0;
   output->velocity[1] = 0;
@@ -206,7 +206,7 @@ void robotControl(
   switch (ai_cmd->control_mode) {
     case LOCAL_CAMERA_MODE:
       // これはいつか実装する
-      setOutXero(output);
+      setOutZero(output);
       return;
 
     case POSITION_TARGET_MODE:
@@ -230,12 +230,12 @@ void robotControl(
 
     case VELOCITY_TARGET_WITH_TRAJECTORY_MODE:
       // これはいつか実装する
-      setOutXero(output);
+      setOutZero(output);
       thetaControl(ai_cmd->target_global_theta, output, imu);  // thetaだけ制御する
       return;
 
     default:
-      setOutXero(output);
+      setOutZero(output);
       return;
   }
 }
