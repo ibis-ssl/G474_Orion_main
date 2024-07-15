@@ -8,7 +8,8 @@
 #define AI_CMD_TIMEOUT (0.5)
 #define CM4_CMD_TIMEOUT (AI_CMD_TIMEOUT + 0.5)
 
-void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con)
+void sendRobotInfo(
+  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integration_control_t * integ, output_t * out, target_t * target)
 {
   static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
 
@@ -66,6 +67,17 @@ void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * om
   float_to_uchar4(&(buf[68]), mouse->odom[1]);
   float_to_uchar4(&(buf[72]), mouse->global_vel[0]);
   float_to_uchar4(&(buf[76]), mouse->global_vel[1]);
+
+  float_to_uchar4(&(buf[80]), integ->vision_based_position[0]);
+  float_to_uchar4(&(buf[84]), integ->vision_based_position[1]);
+  float_to_uchar4(&(buf[88]), out->velocity[0]);
+  float_to_uchar4(&(buf[92]), out->velocity[1]);
+
+  float_to_uchar4(&(buf[96]), out->accel[0]);
+  float_to_uchar4(&(buf[100]), out->accel[1]);
+
+  float_to_uchar4(&(buf[100]), target->global_vel_now[0]);
+  float_to_uchar4(&(buf[100]), target->global_vel_now[0]);
 
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }

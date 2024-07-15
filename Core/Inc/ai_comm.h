@@ -12,7 +12,8 @@
 #include "robot_packet.h"
 
 void resetAiCmdData(RobotCommandV2 * ai_cmd);
-void sendRobotInfo(can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con);
+void sendRobotInfo(
+  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integration_control_t * integ, output_t * out, target_t * target);
 void commStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd);
 void resetLocalSpeedControl(RobotCommandV2 * ai_cmd);
 void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys);
