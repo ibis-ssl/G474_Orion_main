@@ -353,7 +353,7 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
       break;
 
     case 5:
-      actuator_motor5(dribbler_power, 1.0);
+      actuator_motor5(dribbler_power);
       break;
 
     default:
@@ -364,7 +364,7 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
 
 void sendActuatorCanCmdStop()
 {
-  actuator_motor5(0.0, 0.0);
+  actuator_motor5(0.0);
   actuator_kicker(1, 0);
   actuator_kicker_voltage(0.0);
   actuator_dribbler_down();

@@ -9,7 +9,7 @@
 #include "actuator.h"
 #include "management.h"
 #include "math.h"
-
+#include "util.h"
 /*motor place
  *
  *    	  5(dribble)
@@ -19,7 +19,7 @@
  *  motor3      	motor2
  *
  * */
-
+// 0.056 * 3.14
 float rotation_length_omni = OMNI_DIAMETER * M_PI;
 const float sinM1 = sin(30 * M_PI / 180);
 const float cosM1 = cos(30 * M_PI / 180);
@@ -44,10 +44,14 @@ void omniMove(output_t * output, float out_limit)
   output->motor_voltage[2] = ((output->velocity[1] * sinM3) + (output->velocity[0] * cosM3) + rotation_omega_motor) / rotation_length_omni;
   output->motor_voltage[3] = ((output->velocity[1] * sinM4) + (output->velocity[0] * cosM4) + rotation_omega_motor) / rotation_length_omni;
 
-  actuator_motor1(output->motor_voltage[0], out_limit);
-  actuator_motor2(output->motor_voltage[1], out_limit);
-  actuator_motor3(output->motor_voltage[2], out_limit);
-  actuator_motor4(output->motor_voltage[3], out_limit);
+  for (int i = 0; i < 4; i++) {
+    output->motor_voltage[i] = clampSize(output->motor_voltage[i], out_limit);
+  }
+
+  actuator_motor1(output->motor_voltage[0]);
+  actuator_motor2(output->motor_voltage[1]);
+  actuator_motor3(output->motor_voltage[2]);
+  actuator_motor4(output->motor_voltage[3]);
 }
 
 void omniStopAll(output_t * output)
@@ -57,8 +61,8 @@ void omniStopAll(output_t * output)
   output->motor_voltage[2] = 0;
   output->motor_voltage[3] = 0;
 
-  actuator_motor1(output->motor_voltage[0], 0);
-  actuator_motor2(output->motor_voltage[1], 0);
-  actuator_motor3(output->motor_voltage[2], 0);
-  actuator_motor4(output->motor_voltage[3], 0);
+  actuator_motor1(output->motor_voltage[0]);
+  actuator_motor2(output->motor_voltage[1]);
+  actuator_motor3(output->motor_voltage[2]);
+  actuator_motor4(output->motor_voltage[3]);
 }

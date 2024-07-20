@@ -8,8 +8,8 @@
 
 void motorTest(system_t * sys, output_t * output)
 {
-  const float OUT_LIMIT_TEST = 4.0;
-  const float OUT_MOVE_VEL = 4.0;
+  const float OUT_LIMIT_TEST = 20.0;
+  const float OUT_MOVE_VEL = 2.0;
   const float OUT_SPIN_OMG = 20;
   if (swForwardPushed(sys->sw_data)) {
     output->velocity[0] = OUT_MOVE_VEL;
@@ -48,21 +48,21 @@ void motorTest(system_t * sys, output_t * output)
     omniStopAll(output);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
   }
-  actuator_motor5(0.0, 0.0);
+  actuator_motor5(0.0);
 }
 
 void dribblerTest(system_t * sys, output_t * output, can_raw_t * can_raw)
 {
   if (swCentorPushed(sys->sw_data)) {
     if (can_raw->ball_detection[0]) {
-      actuator_motor5(0.5, 1.0);
+      actuator_motor5(0.5);
 
     } else {
-      actuator_motor5(0.25, 1.0);
+      actuator_motor5(0.20);
     }
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   } else {
-    actuator_motor5(0.0, 0.0);
+    actuator_motor5(0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
   }
   omniStopAll(output);
@@ -92,7 +92,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
 
   if (swCentorPushed(sys->sw_data)) {
     if (!manual_mode) {
-      actuator_motor5(0.5, 1.0);
+      actuator_motor5(0.5);
     }
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
@@ -105,7 +105,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     }
   } else if (swBackPushed(sys->sw_data)) {
     if (!manual_mode) {
-      actuator_motor5(0.5, 1.0);
+      actuator_motor5(0.5);
     }
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
@@ -117,7 +117,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
       }
     }
   } else {
-    actuator_motor5(0.0, 0.0);
+    actuator_motor5(0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
     actuator_kicker(1, 1);  // charge enable
     actuator_kicker_voltage(400.0);

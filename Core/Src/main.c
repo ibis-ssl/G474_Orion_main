@@ -225,11 +225,11 @@ int main(void)
   actuatorPower_ONOFF(0);
   HAL_Delay(20);
 
-  actuator_motor1(0.0, 0.0);
-  actuator_motor2(0.0, 0.0);
-  actuator_motor3(0.0, 0.0);
-  actuator_motor4(0.0, 0.0);
-  actuator_motor5(0.0, 0.0);
+  actuator_motor1(0.0);
+  actuator_motor2(0.0);
+  actuator_motor3(0.0);
+  actuator_motor4(0.0);
+  actuator_motor5(0.0);
 
   actuator_kicker(1, 1);
   actuator_kicker_voltage(0.0);
@@ -452,7 +452,7 @@ int main(void)
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           //p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
-          //p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
+          p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
 
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
