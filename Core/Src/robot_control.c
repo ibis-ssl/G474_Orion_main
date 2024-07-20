@@ -13,6 +13,8 @@
 #define ACCEL_LIMIT (6.0)       // m/ss
 #define ACCEL_LIMIT_BACK (4.0)  // m/ss
 
+#define ACCEL_TO_OUTPUT_GAIN (0.5)
+
 // 減速方向は制動力を増強 1.5～2.0
 #define DEC_BOOST_GAIN (2.0)
 
@@ -97,16 +99,28 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
     acc_vel->vel_error_xy[i] = target->local_vel[i] - omni->local_odom_speed_mvf[i];
   }
 
-  // 目標速度に追従するためのゲイン
+  // 目標速度との差に対するゲイン
+  // 目標速度方向に対する追従ゲインとしての意味合いも強い
+  // 高くしすぎると速度ノイズによってガタつく
   for (int i = 0; i < 2; i++) {
     output->accel[i] = acc_vel->vel_error_xy[i] * 10;
   }
 
-  // 加速度をオムニがグリップできる程度に制限
-  clampScalarSize(output->accel, 2);
+  if (ai_cmd->prioritize_move) {
+    // 加速度をオムニがグリップできる程度に制限
+    clampScalarSize(output->accel, ACCEL_LIMIT);
+
+    // バック方向だけ加速度制限
+    if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
+      output->accel[0] = -(ACCEL_LIMIT_BACK);
+    }
+  } else {
+    // 加速度をオムニがグリップできる程度に制限
+    clampScalarSize(output->accel, ACCEL_LIMIT_BACK);
+  }
 
   for (int i = 0; i < 2; i++) {
-    output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i];
+    output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
   }
 }
 
