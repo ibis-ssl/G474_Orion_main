@@ -43,7 +43,7 @@
 
 // omegaぶんの制限
 
-void thetaControl(float target_theta, output_t * output, imu_t * imu)
+static void thetaControl(float target_theta, output_t * output, imu_t * imu)
 {
   const float OUTPUT_OMEGA_LIMIT = 10.0;  // ~ rad/s
   //#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
@@ -54,34 +54,63 @@ void thetaControl(float target_theta, output_t * output, imu_t * imu)
   //output->omega = 0;
 }
 
-void setOutZero(output_t * output)
+static void setOutZero(output_t * output)
 {
   output->velocity[0] = 0;
   output->velocity[1] = 0;
   output->omega = 0;
 }
 
-void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse)
+static void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse, accel_vector_t * acc_vel, output_t * output)
 {
-  static float pre_vision_pos[2] = {0, 0};
-  float vision_vel[2] = {0, 0};
   // 加速時はaccelControlと共通で良い
   // 減速時はodomのズレ､マウスの遅延､Visionの遅延があるので､出力トルク(=加速度)に制約かけて､位置に対してPIDやったほうがいいかも
 
   for (int i = 0; i < 2; i++) {
     integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
     // + mouse->global_vel[i] * 1;
-    vision_vel[i] = (ai_cmd->vision_global_pos[i] - pre_vision_pos[i]) * MAIN_LOOP_CYCLE;  // カタついてしゃーない
-    pre_vision_pos[i] = ai_cmd->vision_global_pos[i];
 
     target->global_vel[i] = integ->position_diff[i] * 50;
+    // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
   }
-  //clampScalarSize(target->global_vel, OUTPUT_XY_LIMIT);
 
   convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
+
+  /********************** 以後ローカル座標系 ************************/
+
+  clampScalarSize(target->local_vel, ai_cmd->speed_limit);
+
+  // ターゲット座標で停止するために目標速度を0にする
+  const float DECCEL_MAX = 5.0;
+  float stop_distance_xy = 0;
+  float vel_xy_pow2 = pow(omni->local_odom_speed_mvf[0], 4) + pow(omni->local_odom_speed_mvf[1], 4);
+  stop_distance_xy = pow(vel_xy_pow2, 0.5) / (2 * DECCEL_MAX);
+  float tar_distance_xy = calcScalar(integ->position_diff[0], integ->position_diff[1]);
+
+  if (stop_distance_xy >= tar_distance_xy) {
+    target->local_vel[0] = 0;
+    target->local_vel[1] = 0;
+  }
+
+  // 速度差→加速度計算
+  for (int i = 0; i < 2; i++) {
+    acc_vel->vel_error_xy[i] = target->local_vel[i] - omni->local_odom_speed_mvf[i];
+  }
+
+  // 目標速度に追従するためのゲイン
+  for (int i = 0; i < 2; i++) {
+    output->accel[i] = acc_vel->vel_error_xy[i] * 10;
+  }
+
+  // 加速度をオムニがグリップできる程度に制限
+  clampScalarSize(output->accel, 2);
+
+  for (int i = 0; i < 2; i++) {
+    output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i];
+  }
 }
 
-void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
+static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
   //target->local_vel[0] = target->global_vel[0];
   //target->local_vel[1] = target->global_vel[1];
@@ -125,7 +154,7 @@ void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target
   }
 }
 
-void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
+static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
   // 目標速度と差が小さい場合は目標速度をそのまま代入する
   // 目標速度が連続的に変化する場合に適切でないかも
@@ -211,11 +240,7 @@ void robotControl(
       return;
 
     case POSITION_TARGET_MODE:
-      localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse);
-      //accelControl(acc_vel, output, target, imu, omni);
-      //speedControl(acc_vel, output, target, imu, omni);
-      output->velocity[0] = target->local_vel[0];
-      output->velocity[1] = target->local_vel[1];
+      localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
       thetaControl(ai_cmd->target_global_theta, output, imu);
       break;
