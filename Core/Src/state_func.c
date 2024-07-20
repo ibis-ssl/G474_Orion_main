@@ -6,9 +6,9 @@
 #include "robot_control.h"
 #include "util.h"
 
-void motorTest(system_t * sys, output_t * output)
+void motorTest(system_t * sys, output_t * output, omni_t * omni)
 {
-  const float OUT_LIMIT_TEST = 20.0;
+  const float OUT_LIMIT_TEST = 40.0;
   const float OUT_MOVE_VEL = 2.0;
   const float OUT_SPIN_OMG = 20;
   if (swForwardPushed(sys->sw_data)) {

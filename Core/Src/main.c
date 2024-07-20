@@ -655,7 +655,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case MAIN_MODE_MOTOR_TEST:  // motor test
-      motorTest(&sys, &output);
+      motorTest(&sys, &output, &omni);
       break;
 
     case MAIN_MODE_DRIBBLER_TEST:  // dribble test
