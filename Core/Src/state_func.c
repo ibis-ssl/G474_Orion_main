@@ -199,13 +199,13 @@ void maintaskRun(
   can_raw_t * can_raw)
 
 {
-  const float OMNI_OUTPUT_LIMIT = 40;  //上げると過電流エラーになりがち
+  const float OMNI_OUTPUT_LIMIT = 10;  //上げると過電流エラーになりがち
 
   // 全部で250us
   robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output);
 
   // いまのところvision lostしたら止める
-  if (ai_cmd->stop_emergency || !ai_cmd->is_vision_available) {
+  if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available) {
     //resetLocalSpeedControl(&ai_cmd);
     omniStopAll(output);
   } else {
