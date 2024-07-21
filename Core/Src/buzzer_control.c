@@ -20,15 +20,21 @@ inline static bool isLowVoltage(can_raw_t * can_raw)
 
 inline static bool isVisionLost(system_t * sys, connection_t * con, RobotCommandV2 * ai_cmd)
 {
+  static bool is_vision_available_once = false;
   if (!con->connected_ai) {
     return false;
   }
 
   if (ai_cmd->is_vision_available) {
+    is_vision_available_once = true;
     return false;
   }
 
   if (sys->main_mode > MAIN_MODE_CMD_DEBUG_MODE) {
+    return false;
+  }
+
+  if (is_vision_available_once == false) {
     return false;
   }
   
