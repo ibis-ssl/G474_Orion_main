@@ -199,7 +199,9 @@ void maintaskRun(
   can_raw_t * can_raw)
 
 {
-  const float OMNI_OUTPUT_LIMIT = 10;  //上げると過電流エラーになりがち
+  const float OMNI_OUTPUT_LIMIT = 20;
+  // 上げると過電流エラーになりがち｡
+  // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
   // 全部で250us
   robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output);

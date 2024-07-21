@@ -143,6 +143,7 @@ typedef struct
   float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
   float global_vel_now[2];       // ターゲットグローバル速度
   float global_pos[2];           // 上記で移動するX,Y座標
+  float stop_distance_xy, tar_distance_xy;
 } target_t;
 
 typedef struct

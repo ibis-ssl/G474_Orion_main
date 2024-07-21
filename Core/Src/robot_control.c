@@ -10,8 +10,8 @@
 #include "util.h"
 
 // 加速度パラメーター
-#define ACCEL_LIMIT (6.0)       // m/ss
-#define ACCEL_LIMIT_BACK (4.0)  // m/ss
+#define ACCEL_LIMIT (3.0)       // m/ss
+#define ACCEL_LIMIT_BACK (2.0)  // m/ss
 
 #define ACCEL_TO_OUTPUT_GAIN (0.5)
 
@@ -40,14 +40,14 @@
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
-#define OUTPUT_XY_LIMIT (2.0)  //
+#define OUTPUT_XY_LIMIT (4.0)  //
 //#define OUTPUT_XY_LIMIT (40.0)  //
 
 // omegaぶんの制限
 
 static void thetaControl(float target_theta, output_t * output, imu_t * imu)
 {
-  const float OUTPUT_OMEGA_LIMIT = 10.0;  // ~ rad/s
+  const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
   //#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
 
   // PID
@@ -72,7 +72,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
     integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
     // + mouse->global_vel[i] * 1;
 
-    target->global_vel[i] = integ->position_diff[i] * 50;
+    target->global_vel[i] = integ->position_diff[i] * 40;
     // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
   }
 
@@ -80,18 +80,22 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
 
   /********************** 以後ローカル座標系 ************************/
 
+  //clampScalarSize(target->local_vel, ai_cmd->speed_limit);
   clampScalarSize(target->local_vel, ai_cmd->speed_limit);
 
   // ターゲット座標で停止するために目標速度を0にする
-  const float DECCEL_MAX = 5.0;
-  float stop_distance_xy = 0;
+  // 原則なので2倍の値を適用
+  const float DECCEL_MAX = ACCEL_LIMIT_BACK * DEC_BOOST_GAIN;
   float vel_xy_pow2 = pow(omni->local_odom_speed_mvf[0], 4) + pow(omni->local_odom_speed_mvf[1], 4);
-  stop_distance_xy = pow(vel_xy_pow2, 0.5) / (2 * DECCEL_MAX);
-  float tar_distance_xy = calcScalar(integ->position_diff[0], integ->position_diff[1]);
+  //float vel_xy_pow2 = pow(1.0, 4) + pow(1, 4);
+  target->stop_distance_xy = pow(vel_xy_pow2, 0.5) / (2 * DECCEL_MAX);
+  target->tar_distance_xy = calcScalar(integ->position_diff[0], integ->position_diff[1]);
 
-  if (stop_distance_xy >= tar_distance_xy) {
+  float deccel_gain = 1.0;
+  if (target->stop_distance_xy * 1.5 >= target->tar_distance_xy) {
     target->local_vel[0] = 0;
     target->local_vel[1] = 0;
+    deccel_gain = DEC_BOOST_GAIN;
   }
 
   // 速度差→加速度計算
@@ -103,20 +107,20 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   // 目標速度方向に対する追従ゲインとしての意味合いも強い
   // 高くしすぎると速度ノイズによってガタつく
   for (int i = 0; i < 2; i++) {
-    output->accel[i] = acc_vel->vel_error_xy[i] * 10;
+    output->accel[i] = acc_vel->vel_error_xy[i] * 5;
   }
 
   if (ai_cmd->prioritize_move) {
     // 加速度をオムニがグリップできる程度に制限
-    clampScalarSize(output->accel, ACCEL_LIMIT);
+    clampScalarSize(output->accel, ACCEL_LIMIT * deccel_gain);
 
     // バック方向だけ加速度制限
-    if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
-      output->accel[0] = -(ACCEL_LIMIT_BACK);
+    if (output->accel[0] < -(ACCEL_LIMIT_BACK * deccel_gain)) {
+      output->accel[0] = -(ACCEL_LIMIT_BACK * deccel_gain);
     }
   } else {
     // 加速度をオムニがグリップできる程度に制限
-    clampScalarSize(output->accel, ACCEL_LIMIT_BACK);
+    clampScalarSize(output->accel, ACCEL_LIMIT_BACK * deccel_gain);
   }
 
   for (int i = 0; i < 2; i++) {
