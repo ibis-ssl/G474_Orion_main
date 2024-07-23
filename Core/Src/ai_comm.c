@@ -80,8 +80,8 @@ void sendRobotInfo(
 
   float_to_uchar4(&(buf[104]), target->global_vel_now[0]);
   float_to_uchar4(&(buf[108]), target->global_vel_now[1]);
-
-  //float_to_uchar4(&(buf[112]), target->global_vel_now[0]);
+  float mouse_q = mouse->quality;
+  float_to_uchar4(&(buf[112]), mouse_q);
   //float_to_uchar4(&(buf[116]), target->global_vel_now[1]);
 
   //float_to_uchar4(&(buf[120]), target->global_vel_now[0]);
