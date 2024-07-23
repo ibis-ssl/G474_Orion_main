@@ -79,12 +79,10 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   float target_vel_angle = atan2(target->local_vel[1], target->global_vel[0]);
   float global_odom_speed[2];
   convertLocalToGlobal(omni->local_odom_speed_mvf, global_odom_speed, imu->yaw_angle_rad);
-  float current_vel_angle = atan2(global_odom_speed[1], global_odom_speed[0]);
-  float speed_angle_diff = getAngleDiff(target_vel_angle, current_vel_angle);
 
   float current_speed_target_crd[2];
   // 関数名と違うけどターゲット速度座標系に変換｡
-  convertLocalToGlobal(global_odom_speed, current_speed_target_crd, speed_angle_diff);
+  convertLocalToGlobal(global_odom_speed, current_speed_target_crd, target_vel_angle);
   float target_crd_acc[2];
   target_crd_acc[0] = ai_cmd->speed_limit - current_speed_target_crd[0] * 10;
   target_crd_acc[1] = -current_speed_target_crd[1] * 10;
@@ -92,10 +90,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   target_crd_acc[0] = clampSize(target_crd_acc[0], ACCEL_LIMIT);      // 速度超過時の減速は控えめにしたいので､減速条件でも1倍のまま
   target_crd_acc[1] = clampSize(target_crd_acc[1], ACCEL_LIMIT * 2);  // 減速方向のみなので､2倍する
 
-  //ここのゲインはそこそこでいい
-  float global_acc[2];
-  convertGlobalToLocal(target_crd_acc, global_acc, speed_angle_diff);
-  convertGlobalToLocal(global_acc, acc_vel, imu->yaw_angle_rad);
+  convertGlobalToLocal(target_crd_acc, acc_vel, imu->yaw_angle_rad + target_vel_angle);
 
   for (int i = 0; i < 2; i++) {
     output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
