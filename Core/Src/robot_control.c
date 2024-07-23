@@ -76,6 +76,48 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
     // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
   }
 
+  float target_vel_angle = atan2(target->local_vel[1], target->global_vel[0]);
+  float global_odom_speed[2];
+  convertLocalToGlobal(omni->local_odom_speed_mvf, global_odom_speed, imu->yaw_angle_rad);
+  float current_vel_angle = atan2(global_odom_speed[1], global_odom_speed[0]);
+  float speed_angle_diff = getAngleDiff(target_vel_angle, current_vel_angle);
+
+  float current_speed_target_crd[2];
+  // 関数名と違うけどターゲット速度座標系に変換｡
+  convertLocalToGlobal(global_odom_speed, current_speed_target_crd, speed_angle_diff);
+  float target_crd_acc[2];
+  target_crd_acc[0] = ai_cmd->speed_limit - current_speed_target_crd[0] * 10;
+  target_crd_acc[1] = -current_speed_target_crd[1] * 10;
+
+  target_crd_acc[0] = clampSize(target_crd_acc[0], ACCEL_LIMIT);      // 速度超過時の減速は控えめにしたいので､減速条件でも1倍のまま
+  target_crd_acc[1] = clampSize(target_crd_acc[1], ACCEL_LIMIT * 2);  // 減速方向のみなので､2倍する
+
+  //ここのゲインはそこそこでいい
+  float global_acc[2];
+  convertGlobalToLocal(target_crd_acc, global_acc, speed_angle_diff);
+  convertGlobalToLocal(global_acc, acc_vel, imu->yaw_angle_rad);
+
+  for (int i = 0; i < 2; i++) {
+    output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
+  }
+}
+
+// 不必要な減速をしないが､追従はゆるやか
+// ターゲット角度追従モードの減速方向のゲインを変えるだけで再現できるので不要のはず
+static void localPositionFeedback_InertialMode(
+  integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse, accel_vector_t * acc_vel, output_t * output)
+{
+  // 加速時はaccelControlと共通で良い
+  // 減速時はodomのズレ､マウスの遅延､Visionの遅延があるので､出力トルク(=加速度)に制約かけて､位置に対してPIDやったほうがいいかも
+
+  for (int i = 0; i < 2; i++) {
+    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
+    // + mouse->global_vel[i] * 1;
+
+    target->global_vel[i] = integ->position_diff[i] * 40;
+    // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
+  }
+
   convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
 
   /********************** 以後ローカル座標系 ************************/
@@ -258,7 +300,7 @@ void robotControl(
       return;
 
     case POSITION_TARGET_MODE:
-      localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
+      localPositionFeedback_(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
       thetaControl(ai_cmd->target_global_theta, output, imu);
       break;
