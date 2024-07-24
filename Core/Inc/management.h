@@ -144,6 +144,12 @@ typedef struct
   float global_vel_now[2];       // ターゲットグローバル速度
   float global_pos[2];           // 上記で移動するX,Y座標
   float stop_distance_xy, tar_distance_xy;
+
+  float target_vel_angle;
+  float global_odom_speed[2];
+  float current_speed_target_crd[2];
+  float target_crd_acc[2];
+
 } target_t;
 
 typedef struct

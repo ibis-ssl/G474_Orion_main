@@ -69,28 +69,41 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   // 減速時はodomのズレ､マウスの遅延､Visionの遅延があるので､出力トルク(=加速度)に制約かけて､位置に対してPIDやったほうがいいかも
 
   for (int i = 0; i < 2; i++) {
-    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
+    // 今はvision_availableがリアルタイムでないので､一旦visionの値をそのまま使う
+    //integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
+    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - ai_cmd->vision_global_pos[i];
+
     // + mouse->global_vel[i] * 1;
 
     target->global_vel[i] = integ->position_diff[i] * 40;
     // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
   }
+  clampScalarSize(target->global_vel, 9.9);  //表示上の都合
 
-  float target_vel_angle = atan2(target->local_vel[1], target->global_vel[0]);
-  float global_odom_speed[2];
-  convertLocalToGlobal(omni->local_odom_speed_mvf, global_odom_speed, imu->yaw_angle_rad);
+  //デバッグ用の一時実装
+  float target_scalar_vel = calcScalar(integ->position_diff[0], integ->position_diff[0]) * 5;
+  if (target_scalar_vel > 1) {
+    target_scalar_vel = 1;
+  }
+  if (target_scalar_vel < 0.9) {
+    target_scalar_vel = 0;
+  }
 
-  float current_speed_target_crd[2];
+  target->target_vel_angle = atan2(target->global_vel[1], target->global_vel[0]);
+  //float dummy_speed[2] = {1, 0};
+  //convertLocalToGlobal(dummy_speed, target->global_odom_speed, imu->yaw_angle_rad);
+  convertLocalToGlobal(omni->local_odom_speed_mvf, target->global_odom_speed, imu->yaw_angle_rad);
+
   // 関数名と違うけどターゲット速度座標系に変換｡
-  convertLocalToGlobal(global_odom_speed, current_speed_target_crd, target_vel_angle);
-  float target_crd_acc[2];
-  target_crd_acc[0] = ai_cmd->speed_limit - current_speed_target_crd[0] * 10;
-  target_crd_acc[1] = -current_speed_target_crd[1] * 10;
+  convertGlobalToLocal(target->global_odom_speed, target->current_speed_target_crd, target->target_vel_angle);
+  //target->target_crd_acc[0] = (ai_cmd->speed_limit - target->current_speed_target_crd[0]) * 10;
+  target->target_crd_acc[0] = (target_scalar_vel - target->current_speed_target_crd[0]) * 10;
+  target->target_crd_acc[1] = -target->current_speed_target_crd[1] * 10;
 
-  target_crd_acc[0] = clampSize(target_crd_acc[0], ACCEL_LIMIT);      // 速度超過時の減速は控えめにしたいので､減速条件でも1倍のまま
-  target_crd_acc[1] = clampSize(target_crd_acc[1], ACCEL_LIMIT * 2);  // 減速方向のみなので､2倍する
+  target->target_crd_acc[0] = clampSize(target->target_crd_acc[0], ACCEL_LIMIT);      // 速度超過時の減速は控えめにしたいので､減速条件でも1倍のまま
+  target->target_crd_acc[1] = clampSize(target->target_crd_acc[1], ACCEL_LIMIT * 2);  // 減速方向のみなので､2倍する
 
-  convertGlobalToLocal(target_crd_acc, acc_vel, imu->yaw_angle_rad + target_vel_angle);
+  convertLocalToGlobal(target->target_crd_acc, output->accel, -imu->yaw_angle_rad + target->target_vel_angle);
 
   for (int i = 0; i < 2; i++) {
     output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
@@ -295,7 +308,7 @@ void robotControl(
       return;
 
     case POSITION_TARGET_MODE:
-      localPositionFeedback_(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
+      localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
       thetaControl(ai_cmd->target_global_theta, output, imu);
       break;
