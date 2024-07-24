@@ -438,7 +438,7 @@ int main(void)
           p("diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
           p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
           p("angle %+5.2f ", target.target_vel_angle);
-          p("CrSpdCrd %+5.2f,%+5.2f ", target.current_speed_target_crd[0], target.current_speed_target_crd[1]);
+          p("CrSpdCrd %+5.2f,%+5.2f ", target.current_speed_crd[0], target.current_speed_crd[1]);
           p("accCrd X %+8.2f, Y %+8.2f, ", target.target_crd_acc[0], target.target_crd_acc[1]);
           p("acc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);

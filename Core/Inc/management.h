@@ -147,7 +147,7 @@ typedef struct
 
   float target_vel_angle;
   float global_odom_speed[2];
-  float current_speed_target_crd[2];
+  float current_speed_crd[2];
   float target_crd_acc[2];
 
 } target_t;
