@@ -137,23 +137,6 @@ typedef struct
 
 typedef struct
 {
-  float global_vel[2];           // m/s 速度指令値の入力
-  float local_vel[2];            // m/s 上記とほぼ同じ
-  float local_vel_now[2];        // 台形制御指令値
-  float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
-  float global_vel_now[2];       // ターゲットグローバル速度
-  float global_pos[2];           // 上記で移動するX,Y座標
-  float stop_distance_xy, tar_distance_xy;
-
-  float target_vel_angle;
-  float global_odom_speed[2];
-  float current_speed_crd[2];
-  float target_crd_acc[2];
-
-} target_t;
-
-typedef struct
-{
   float vel_error_xy[2];
   float vel_error_scalar, vel_error_rad;
   //float vel_error_real_scalar, vel_error_real_rad;
@@ -194,6 +177,27 @@ typedef struct
   //float target_dist_diff;               // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
 } integration_control_t;
+
+typedef struct
+{
+  float global_vel[2];           // m/s 速度指令値の入力
+  float local_vel[2];            // m/s 上記とほぼ同じ
+  float local_vel_now[2];        // 台形制御指令値
+  float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
+  float global_vel_now[2];       // ターゲットグローバル速度
+  float global_pos[2];           // 上記で移動するX,Y座標
+  float stop_distance_xy, tar_distance_xy;
+
+  float target_vel_angle;
+  float global_odom_speed[2];
+  float current_speed_crd[2];
+  float target_crd_acc[2];
+} target_t;
+
+typedef struct
+{
+  float current_target;
+} omega_target_t;
 
 typedef struct
 {

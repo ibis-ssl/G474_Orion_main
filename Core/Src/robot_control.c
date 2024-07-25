@@ -45,13 +45,16 @@
 
 // omegaぶんの制限
 
-static void thetaControl(float target_theta, output_t * output, imu_t * imu)
+static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu, omega_target_t * omega_target)
 {
   const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
   //#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
 
+  float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
+  target_diff_angle = clampSize(target_diff_angle, ai_cmd->omega_limit / MAIN_LOOP_CYCLE);
+  omega_target->current_target += target_diff_angle;
   // PID
-  output->omega = (getAngleDiff(target_theta, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
+  output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
   output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
   //output->omega = 0;
 }
@@ -65,9 +68,6 @@ static void setOutZero(output_t * output)
 
 static void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse, accel_vector_t * acc_vel, output_t * output)
 {
-  // 加速時はaccelControlと共通で良い
-  // 減速時はodomのズレ､マウスの遅延､Visionの遅延があるので､出力トルク(=加速度)に制約かけて､位置に対してPIDやったほうがいいかも
-
   for (int i = 0; i < 2; i++) {
     // 今はvision_availableがリアルタイムでないので､一旦visionの値をそのまま使う
     //integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
@@ -305,7 +305,8 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
 }
 
 void robotControl(
-  system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output)
+  system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
+  omega_target_t * omega_target)
 {
   // 出力しない
   if (sys->main_mode > MAIN_MODE_CMD_DEBUG_MODE) {
@@ -319,13 +320,13 @@ void robotControl(
     case LOCAL_CAMERA_MODE:
       // これはいつか実装する
       setOutZero(output);
-      thetaControl(ai_cmd->target_global_theta, output, imu);  // thetaだけ制御する
+      thetaControl(ai_cmd, output, imu, omega_target);  // thetaだけ制御する
       return;
 
     case POSITION_TARGET_MODE:
       localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
-      thetaControl(ai_cmd->target_global_theta, output, imu);
+      thetaControl(ai_cmd, output, imu, omega_target);
       break;
 
     case SIMPLE_VELOCITY_TARGET_MODE:
@@ -334,13 +335,13 @@ void robotControl(
       accelControl(acc_vel, output, target, imu, omni);
       speedControl(acc_vel, output, target, imu, omni);
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
-      thetaControl(ai_cmd->target_global_theta, output, imu);
+      thetaControl(ai_cmd, output, imu, omega_target);
       return;
 
     case VELOCITY_TARGET_WITH_TRAJECTORY_MODE:
       // これはいつか実装する
       setOutZero(output);
-      thetaControl(ai_cmd->target_global_theta, output, imu);  // thetaだけ制御する
+      thetaControl(ai_cmd, output, imu, omega_target);  // thetaだけ制御する
       return;
 
     default:

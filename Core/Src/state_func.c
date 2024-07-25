@@ -196,7 +196,7 @@ void motorCalibration(system_t * sys)
 
 void maintaskRun(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
-  can_raw_t * can_raw)
+  can_raw_t * can_raw, omega_target_t * omega_target)
 
 {
   const float OMNI_OUTPUT_LIMIT = 20;
@@ -204,7 +204,7 @@ void maintaskRun(
   // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
   // 全部で250us
-  robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output);
+  robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output, omega_target);
 
   // いまのところvision lostしたら止める
   if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available) {
