@@ -197,10 +197,10 @@ typedef struct
 
 typedef struct
 {
-  volatile float velocity[2];
-  volatile float omega;
-  volatile float accel[2];
-  volatile float motor_voltage[4];
+  float velocity[2];
+  float omega;
+  float accel[2];
+  float motor_voltage[4];
 } output_t;
 
 typedef struct

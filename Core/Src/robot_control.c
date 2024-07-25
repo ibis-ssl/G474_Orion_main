@@ -84,6 +84,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   float target_pos_dist_scalar = calcScalar(integ->position_diff[0], integ->position_diff[1]);
 
   // 0^2 + v^2 = 2ax
+  // v = √2ax
   // 機体の向きによって制動力が変化するのを考慮したほうが良い｡
   float target_scalar_vel = pow(2 * (ACCEL_LIMIT / 2) * target_pos_dist_scalar, 0.5);
 
@@ -127,7 +128,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
 
 // 不必要な減速をしないが､追従はゆるやか
 // ターゲット角度追従モードの減速方向のゲインを変えるだけで再現できるので不要のはず
-static void localPositionFeedback_InertialMode(
+/*static void localPositionFeedback_InertialMode(
   integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse, accel_vector_t * acc_vel, output_t * output)
 {
   // 加速時はaccelControlと共通で良い
@@ -143,7 +144,6 @@ static void localPositionFeedback_InertialMode(
 
   convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
 
-  /********************** 以後ローカル座標系 ************************/
 
   //clampScalarSize(target->local_vel, ai_cmd->speed_limit);
   clampScalarSize(target->local_vel, ai_cmd->speed_limit);
@@ -191,7 +191,7 @@ static void localPositionFeedback_InertialMode(
   for (int i = 0; i < 2; i++) {
     output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
   }
-}
+}*/
 
 static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
