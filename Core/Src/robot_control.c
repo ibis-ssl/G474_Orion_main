@@ -48,7 +48,6 @@
 static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu, omega_target_t * omega_target)
 {
   const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
-  //#define OUTPUT_OMEGA_LIMIT (20.0)  // ~ rad/s
 
   float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
   target_diff_angle = clampSize(target_diff_angle, ai_cmd->omega_limit / MAIN_LOOP_CYCLE);
@@ -126,78 +125,9 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   }
 }
 
-// 不必要な減速をしないが､追従はゆるやか
-// ターゲット角度追従モードの減速方向のゲインを変えるだけで再現できるので不要のはず
-/*static void localPositionFeedback_InertialMode(
-  integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse, accel_vector_t * acc_vel, output_t * output)
-{
-  // 加速時はaccelControlと共通で良い
-  // 減速時はodomのズレ､マウスの遅延､Visionの遅延があるので､出力トルク(=加速度)に制約かけて､位置に対してPIDやったほうがいいかも
-
-  for (int i = 0; i < 2; i++) {
-    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
-    // + mouse->global_vel[i] * 1;
-
-    target->global_vel[i] = integ->position_diff[i] * 40;
-    // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
-  }
-
-  convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
-
-
-  //clampScalarSize(target->local_vel, ai_cmd->speed_limit);
-  clampScalarSize(target->local_vel, ai_cmd->speed_limit);
-
-  // ターゲット座標で停止するために目標速度を0にする
-  // 原則なので2倍の値を適用
-  const float DECCEL_MAX = ACCEL_LIMIT_BACK * DEC_BOOST_GAIN;
-  float vel_xy_pow2 = pow(omni->local_odom_speed_mvf[0], 4) + pow(omni->local_odom_speed_mvf[1], 4);
-  //float vel_xy_pow2 = pow(1.0, 4) + pow(1, 4);
-  target->stop_distance_xy = pow(vel_xy_pow2, 0.5) / (2 * DECCEL_MAX);
-  target->tar_distance_xy = calcScalar(integ->position_diff[0], integ->position_diff[1]);
-
-  float deccel_gain = 1.0;
-  if (target->stop_distance_xy * 1.5 >= target->tar_distance_xy) {
-    target->local_vel[0] = 0;
-    target->local_vel[1] = 0;
-    deccel_gain = DEC_BOOST_GAIN;
-  }
-
-  // 速度差→加速度計算
-  for (int i = 0; i < 2; i++) {
-    acc_vel->vel_error_xy[i] = target->local_vel[i] - omni->local_odom_speed_mvf[i];
-  }
-
-  // 目標速度との差に対するゲイン
-  // 目標速度方向に対する追従ゲインとしての意味合いも強い
-  // 高くしすぎると速度ノイズによってガタつく
-  for (int i = 0; i < 2; i++) {
-    output->accel[i] = acc_vel->vel_error_xy[i] * 5;
-  }
-
-  if (ai_cmd->prioritize_move) {
-    // 加速度をオムニがグリップできる程度に制限
-    clampScalarSize(output->accel, ACCEL_LIMIT * deccel_gain);
-
-    // バック方向だけ加速度制限
-    if (output->accel[0] < -(ACCEL_LIMIT_BACK * deccel_gain)) {
-      output->accel[0] = -(ACCEL_LIMIT_BACK * deccel_gain);
-    }
-  } else {
-    // 加速度をオムニがグリップできる程度に制限
-    clampScalarSize(output->accel, ACCEL_LIMIT_BACK * deccel_gain);
-  }
-
-  for (int i = 0; i < 2; i++) {
-    output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
-  }
-}*/
 
 static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
-  //target->local_vel[0] = target->global_vel[0];
-  //target->local_vel[1] = target->global_vel[1];
-
   // グローバル座標指令
 
   target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
