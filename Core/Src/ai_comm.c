@@ -65,6 +65,8 @@ void sendRobotInfo(
   buf[62] = 0;
   buf[63] = 0;
 
+  // 以下float array
+
   float_to_uchar4(&(buf[64]), mouse->odom[0]);
   float_to_uchar4(&(buf[68]), mouse->odom[1]);
   float_to_uchar4(&(buf[72]), mouse->global_vel[0]);
@@ -82,10 +84,10 @@ void sendRobotInfo(
   float_to_uchar4(&(buf[108]), target->global_vel_now[1]);
   float mouse_q = mouse->quality;
   float_to_uchar4(&(buf[112]), mouse_q);
-  //float_to_uchar4(&(buf[116]), target->global_vel_now[1]);
 
-  //float_to_uchar4(&(buf[120]), target->global_vel_now[0]);
-  //float_to_uchar4(&(buf[124]), target->global_vel_now[1]);
+  float_to_uchar4(&(buf[116]), omni->local_odom_speed_mvf[0]);
+  float_to_uchar4(&(buf[120]), omni->local_odom_speed_mvf[1]);
+  float_to_uchar4(&(buf[124]), omni->local_odom_speed_mvf[2]);
 
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }

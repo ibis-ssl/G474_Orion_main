@@ -82,13 +82,20 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   //デバッグ用の一時実装
   float target_pos_dist_scalar = calcScalar(integ->position_diff[0], integ->position_diff[1]);
 
+  //convertGlobalToLocal(integ->position_diff, integ->local_target_diff, imu->yaw_angle_rad);
+  // つかってない
+
+  float using_omni_speed[2];
+  using_omni_speed[0] = omni->local_odom_speed_mvf[0];
+  using_omni_speed[1] = omni->local_odom_speed_mvf[1];
+
   // 0^2 + v^2 = 2ax
   // v = √2ax
   // 機体の向きによって制動力が変化するのを考慮したほうが良い｡
   float target_scalar_vel = pow(2 * (ACCEL_LIMIT / 2) * target_pos_dist_scalar, 0.5);
 
-  //target_scalar_vel = clampSize(target_scalar_vel, ai_cmd->speed_limit);
-  target_scalar_vel = clampSize(target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
+  target_scalar_vel = clampSize(target_scalar_vel, ai_cmd->speed_limit);
+  //target_scalar_vel = clampSize(target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
   // 0.2 : ほぼ誤差でなくて良い
   // 0.5 : ちょっとガバい
   // 目標地点付近での制御は純粋に位置にPでいい気がする
@@ -99,7 +106,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   target->target_vel_angle = atan2(target->global_vel[1], target->global_vel[0]);
   //float dummy_speed[2] = {1, 0};
   //convertLocalToGlobal(dummy_speed, target->global_odom_speed, imu->yaw_angle_rad);
-  convertLocalToGlobal(omni->local_odom_speed_mvf, target->global_odom_speed, imu->yaw_angle_rad);
+  convertLocalToGlobal(using_omni_speed, target->global_odom_speed, imu->yaw_angle_rad);
 
   // 関数名と違うけどターゲット速度座標系に変換
   convertGlobalToLocal(target->global_odom_speed, target->current_speed_crd, target->target_vel_angle);
@@ -120,11 +127,15 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
     output->accel[0] = -(ACCEL_LIMIT_BACK);
   }
 
+  if (output->accel[0] > 0) {
+    //たぶん問題ないけど一旦コメントアウト
+    //using_omni_speed[0] = omni->local_odom_speed_mvf[2];
+  }
+
   for (int i = 0; i < 2; i++) {
-    output->velocity[i] = omni->local_odom_speed_mvf[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
+    output->velocity[i] = using_omni_speed[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
   }
 }
-
 
 static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {

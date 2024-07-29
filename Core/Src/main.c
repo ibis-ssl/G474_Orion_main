@@ -184,6 +184,7 @@ int main(void)
   integ.odom_log[1] = initRingBuffer(SPEED_LOG_BUF_SIZE);
   omni.local_speed_log[0] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
   omni.local_speed_log[1] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
+  omni.local_speed_log[2] = initRingBuffer(SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE);
 
   sys.kick_state = 0;
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
@@ -261,7 +262,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 5;
+  debug.print_idx = 8;
 
   /* USER CODE END 2 */
 
@@ -331,10 +332,11 @@ int main(void)
           }
           p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
           p("theta %+4.1f ", cmd_v2.vision_global_theta * 180 / M_PI);
+          p("elt %4d ", cmd_v2.elapsed_time_ms_since_last_vision);
           p("\e[37m");
 
           p("TarTheta %+6.2f ", cmd_v2.target_global_theta);
-          p("MaxVel %4.2f Omg %4.2f ", cmd_v2.speed_limit, cmd_v2.omega_limit);
+          p("SpdLmt %4.2f OmgLmt %4.2f ", cmd_v2.speed_limit, cmd_v2.omega_limit);
 
           p("dri %+4.2f ", cmd_v2.dribble_power);
           if (cmd_v2.lift_dribbler) {
@@ -367,7 +369,7 @@ int main(void)
             case POSITION_TARGET_MODE:
               p("POS ");
               p("TarX %+6.2f Y %+6.2f ", cmd_v2.mode_args.position.target_global_pos[0], cmd_v2.mode_args.position.target_global_pos[1]);
-              p("TermSpd %4.1f ", cmd_v2.mode_args.position.speed_limit_at_target);
+              p("TermSpd %4.1f ", cmd_v2.mode_args.position.terminal_velocity);
               break;
             case SIMPLE_VELOCITY_TARGET_MODE:
               p("SimpleVel ");
@@ -436,13 +438,13 @@ int main(void)
           //p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
           //p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          p("diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
+          /*           p("diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
           p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
           p("angle %+5.2f ", target.target_vel_angle);
           p("CrSpdCrd %+5.2f,%+5.2f ", target.current_speed_crd[0], target.current_speed_crd[1]);
           p("accCrd X %+8.2f, Y %+8.2f, ", target.target_crd_acc[0], target.target_crd_acc[1]);
           p("acc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
-          p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
+          p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]); */
 
           //p("MsVel X %+8.4f Y %+8.4f ", mouse.global_vel[0], mouse.global_vel[1]);
           //p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
@@ -456,7 +458,7 @@ int main(void)
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           //p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
-          //p("real-vel X %+8.3f, Y %+8.3f, ", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1]);
+          p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           //p("stop %+5.3f tarD %+5.3f", target.stop_distance_xy, target.tar_distance_xy);
 
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
@@ -482,6 +484,11 @@ int main(void)
           p("Motor: ");
           for (int i = 0; i < 4; i++) {
             p("%+6.3f ", output.motor_voltage[i]);
+          }
+          break;
+        case 8:
+          for (int i = 0; i < 64; i++) {
+            printf("0x%02x ", data_from_cm4[i]);
           }
           break;
         default:
@@ -798,7 +805,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
       updateCM4CmdTimeStamp(&connection, &sys);
       connection.updated_flag = true;
-      //parseRxCmd(&connection, &sys, &ai_cmd_buf, data_from_cm4);
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
     }
   }

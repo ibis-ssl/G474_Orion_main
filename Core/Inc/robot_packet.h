@@ -83,21 +83,21 @@ inline void LocalCameraModeArgs_serialize(const LocalCameraModeArgs * args, uint
 typedef struct
 {
   float target_global_pos[2];
-  float speed_limit_at_target;
+  float terminal_velocity;
 } PositionTargetModeArgs;
 
 inline void PositionTargetModeArgs_init(PositionTargetModeArgs * args, const uint8_t * data)
 {
   args->target_global_pos[0] = convertTwoByteToFloat(data[0], data[1], 32.767);
   args->target_global_pos[1] = convertTwoByteToFloat(data[2], data[3], 32.767);
-  args->speed_limit_at_target = convertTwoByteToFloat(data[4], data[5], 32.767);
+  args->terminal_velocity = convertTwoByteToFloat(data[4], data[5], 32.767);
 }
 
 inline void PositionTargetModeArgs_serialize(const PositionTargetModeArgs * args, uint8_t * data)
 {
   forward(&data[0], &data[1], args->target_global_pos[0], 32.767);
   forward(&data[2], &data[3], args->target_global_pos[1], 32.767);
-  forward(&data[4], &data[5], args->speed_limit_at_target, 32.767);
+  forward(&data[4], &data[5], args->terminal_velocity, 32.767);
 }
 
 typedef struct
@@ -171,6 +171,7 @@ typedef struct
   uint16_t latency_time_ms;
   bool prioritize_move;
   bool prioritize_accurate_acceleration;
+  uint16_t elapsed_time_ms_since_last_vision;
   ControlMode control_mode;
 
   union {
@@ -205,6 +206,8 @@ enum Address {
   OMEGA_LIMIT_LOW,
   LATENCY_TIME_MS_HIGH,
   LATENCY_TIME_MS_LOW,
+  ELAPSED_TIME_MS_SINCE_LAST_VISION_HIGH,
+  ELAPSED_TIME_MS_SINCE_LAST_VISION_LOW,
   FLAGS,
   CONTROL_MODE,
   CONTROL_MODE_ARGS,
@@ -234,6 +237,9 @@ inline void RobotCommandSerializedV2_serialize(RobotCommandSerializedV2 * serial
   TwoByte latency_time = convertUInt16ToTwoByte(command->latency_time_ms);
   serialized->data[LATENCY_TIME_MS_HIGH] = latency_time.high;
   serialized->data[LATENCY_TIME_MS_LOW] = latency_time.low;
+  TwoByte elapsed_time = convertUInt16ToTwoByte(command->elapsed_time_ms_since_last_vision);
+  serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_HIGH] = elapsed_time.high;
+  serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_LOW] = elapsed_time.low;
   uint8_t flags = 0x00;
   flags |= (command->is_vision_available << IS_VISION_AVAILABLE);
   flags |= (command->enable_chip << ENABLE_CHIP);
@@ -261,7 +267,7 @@ inline void RobotCommandSerializedV2_serialize(RobotCommandSerializedV2 * serial
 
 inline RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSerializedV2 * serialized)
 {
-  RobotCommandV2 command = {0};
+  RobotCommandV2 command;
   command.header = serialized->data[HEADER];
   command.check_counter = serialized->data[CHECK_COUNTER];
   command.vision_global_pos[0] = convertTwoByteToFloat(serialized->data[VISION_GLOBAL_X_HIGH], serialized->data[VISION_GLOBAL_X_LOW], 32.767);
@@ -273,6 +279,7 @@ inline RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSer
   command.speed_limit = convertTwoByteToFloat(serialized->data[SPEED_LIMIT_HIGH], serialized->data[SPEED_LIMIT_LOW], 32.767);
   command.omega_limit = convertTwoByteToFloat(serialized->data[OMEGA_LIMIT_HIGH], serialized->data[OMEGA_LIMIT_LOW], 32.767);
   command.latency_time_ms = convertTwoByteToUInt16(serialized->data[LATENCY_TIME_MS_HIGH], serialized->data[LATENCY_TIME_MS_LOW]);
+  command.elapsed_time_ms_since_last_vision = convertTwoByteToUInt16(serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_HIGH], serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_LOW]);
   uint8_t flags = serialized->data[FLAGS];
   command.is_vision_available = (flags >> IS_VISION_AVAILABLE) & 0x01;
   command.enable_chip = (flags >> ENABLE_CHIP) & 0x01;

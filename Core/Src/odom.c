@@ -53,29 +53,21 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
     }
     motor->angle_diff[i] = getAngleDiff(motor->enc_angle[i], motor->pre_enc_angle[i]);
     motor->pre_enc_angle[i] = motor->enc_angle[i];
+    omni->travel_distance[i] = motor->angle_diff[i] * OMNI_DIAMETER;
   }
 
-  // float robot_rotation_adj;
-  // robot_rotation_adj = normalizeAngle(imu->yaw_angle_rad - imu->pre_yaw_angle_rad) * OMNI_ROTATION_LENGTH;  // mm
-
-  omni->travel_distance[0] = motor->angle_diff[1] * OMNI_DIAMETER;
-  //  +robot_rotation_adj * 2;
-  omni->travel_distance[1] = motor->angle_diff[2] * OMNI_DIAMETER;
-  //  +robot_rotation_adj * 2;
-
   // right back & left back
-  float global_travel[2] = {0, 0};
-  //convertLocalToGlobal(omni->travel_distance, global_travel, imu->yaw_angle_rad);
-  omni->odom_raw[0] += omni->travel_distance[0] * cos(imu->yaw_angle_rad) + omni->travel_distance[1] * sin(imu->yaw_angle_rad);
-  omni->odom_raw[1] += omni->travel_distance[0] * sin(imu->yaw_angle_rad) - omni->travel_distance[1] * cos(imu->yaw_angle_rad);
 
-  omni->odom_raw[0] += global_travel[0];
-  omni->odom_raw[1] += global_travel[1];
+  // 右後方車輪を基準とした座標系､travel_distance[2]は反転している
+  omni->odom_raw[0] += omni->travel_distance[1] * cos(imu->yaw_angle_rad) + omni->travel_distance[2] * sin(imu->yaw_angle_rad);
+  omni->odom_raw[1] += omni->travel_distance[1] * sin(imu->yaw_angle_rad) - omni->travel_distance[2] * cos(imu->yaw_angle_rad);
 
   omni->pre_odom[0] = omni->odom[0];
   omni->pre_odom[1] = omni->odom[1];
 
   // 後輪2輪によるodom
+  // 基準座標の原点が後輪輪の推力線の交点になるので､機体中心位置までずらす
+  // 原点座標が交点にあるため､回転の影響を無視できる
   omni->odom[0] = ((omni->odom_raw[0] * cos(M_PI * 3 / 4) - omni->odom_raw[1] * sin(M_PI * 3 / 4)) / 2) + (0.107 * cos(imu->yaw_angle_rad) - 0.107);
   omni->odom[1] = ((omni->odom_raw[0] * sin(M_PI * 3 / 4) + omni->odom_raw[1] * cos(M_PI * 3 / 4)) / 2) + (0.107 * sin(imu->yaw_angle_rad));
 
@@ -83,7 +75,10 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
   omni->odom_speed[1] = (omni->odom[1] - omni->pre_odom[1]) * MAIN_LOOP_CYCLE;
 
   convertLocalToGlobal(omni->odom_speed, omni->local_odom_speed, imu->yaw_angle_rad);
-  for (int i = 0; i < 2; i++) {
+
+  omni->local_odom_speed[2] = (-omni->travel_distance[0] + omni->travel_distance[3]) * MAIN_LOOP_CYCLE * 0.5 * 0.5;
+
+  for (int i = 0; i < 3; i++) {
     enqueue(omni->local_speed_log[i], omni->local_odom_speed[i]);
     omni->local_odom_speed_mvf[i] = sumNewestN(omni->local_speed_log[i], SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE) / SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE;
   }
