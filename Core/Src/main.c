@@ -446,6 +446,7 @@ int main(void)
           p("\e[37m");
 
           p("imu %+5.1f ", imu.yaw_angle);
+          p("Dt %4d ", connection.ai_cmd_delta_time);
           p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
           p("omni.gos X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
@@ -453,7 +454,7 @@ int main(void)
           p("omg %+6.2f ", output.omega);
           break;
         case 6:
-          p("MTION ");
+          p("MOTION ");
           p("theta %+6.1f ", imu.yaw_angle);
 
           //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
@@ -493,7 +494,7 @@ int main(void)
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
-          //p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
+          p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           //p("stop %+5.3f tarD %+5.3f", target.stop_distance_xy, target.tar_distance_xy);
 
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
@@ -668,7 +669,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   yawFilter();
   omniOdometryUpdate(&motor, &omni, &imu);  // 250us
-  inntegOdomUpdate(&cmd_v2, &omni, &integ, &connection, &imu);
+  inntegOdomUpdate(&cmd_v2, &omni, &integ, &connection, &imu, &sys);
 
   resetOdomAtEncInitialized();
 
