@@ -51,7 +51,7 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
     if (isnan(motor->enc_angle[i])) {
       motor->enc_angle[i] = 0;
     }
-    motor->angle_diff[i] = getAngleDiff(motor->enc_angle[i], motor->pre_enc_angle[i]);
+    motor->angle_diff[i] = getAngleDiff(motor->pre_enc_angle[i], motor->enc_angle[i]);
     motor->pre_enc_angle[i] = motor->enc_angle[i];
     omni->travel_distance[i] = motor->angle_diff[i] * OMNI_DIAMETER;
   }
@@ -59,24 +59,35 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
   // right back & left back
 
   // 右後方車輪を基準とした座標系､travel_distance[2]は反転している
-  omni->odom_raw[0] += omni->travel_distance[1] * cos(imu->yaw_angle_rad) + omni->travel_distance[2] * sin(imu->yaw_angle_rad);
-  omni->odom_raw[1] += omni->travel_distance[1] * sin(imu->yaw_angle_rad) - omni->travel_distance[2] * cos(imu->yaw_angle_rad);
+  float raw_odom_angle = -(M_PI * 1 / 4);  // + imu->yaw_angle_rad;
+  omni->local_raw_odom_vel[0] = omni->travel_distance[1] * cos(raw_odom_angle) + omni->travel_distance[2] * sin(raw_odom_angle);
+  omni->local_raw_odom_vel[1] = omni->travel_distance[1] * sin(raw_odom_angle) - omni->travel_distance[2] * cos(raw_odom_angle);
 
-  omni->pre_odom[0] = omni->odom[0];
-  omni->pre_odom[1] = omni->odom[1];
+  omni->local_raw_odom_vel[0] *= MAIN_LOOP_CYCLE / 2;
+  omni->local_raw_odom_vel[1] *= MAIN_LOOP_CYCLE / 2;
+
+  float global_raw_odom_vel[2] = {0, 0};
+  convertLocalToGlobal(omni->local_raw_odom_vel, global_raw_odom_vel, imu->yaw_angle_rad);
 
   // 後輪2輪によるodom
   // 基準座標の原点が後輪輪の推力線の交点になるので､機体中心位置までずらす
   // 原点座標が交点にあるため､回転の影響を無視できる
-  omni->odom[0] = ((omni->odom_raw[0] * cos(M_PI * 3 / 4) - omni->odom_raw[1] * sin(M_PI * 3 / 4)) / 2) + (0.107 * cos(imu->yaw_angle_rad) - 0.107);
-  omni->odom[1] = ((omni->odom_raw[0] * sin(M_PI * 3 / 4) + omni->odom_raw[1] * cos(M_PI * 3 / 4)) / 2) + (0.107 * sin(imu->yaw_angle_rad));
+  float zero_point_offset[2] = {-0.107, 0};  //, offset_dist[2];
+  convertLocalToGlobal(zero_point_offset, omni->offset_dist, imu->yaw_angle_rad);
 
-  omni->odom_speed[0] = (omni->odom[0] - omni->pre_odom[0]) * MAIN_LOOP_CYCLE;
-  omni->odom_speed[1] = (omni->odom[1] - omni->pre_odom[1]) * MAIN_LOOP_CYCLE;
+  for (int i = 0; i < 2; i++) {
+    omni->global_raw_odom[i] += global_raw_odom_vel[i] / MAIN_LOOP_CYCLE;
 
-  convertLocalToGlobal(omni->odom_speed, omni->local_odom_speed, imu->yaw_angle_rad);
+    omni->pre_odom[i] = omni->odom[i];
 
-  omni->local_odom_speed[2] = (-omni->travel_distance[0] + omni->travel_distance[3]) * MAIN_LOOP_CYCLE * 0.5 * 0.5;
+    omni->odom[i] = omni->global_raw_odom[i] - omni->offset_dist[i];
+
+    omni->global_odom_speed[i] = (omni->odom[i] - omni->pre_odom[i]) * MAIN_LOOP_CYCLE;
+  }
+  //
+  convertLocalToGlobal(omni->global_odom_speed, omni->local_odom_speed, imu->yaw_angle_rad);
+
+  omni->local_odom_speed[2] = (omni->travel_distance[0] - omni->travel_distance[3]) * MAIN_LOOP_CYCLE * 0.5 * 0.5;
 
   for (int i = 0; i < 3; i++) {
     enqueue(omni->local_speed_log[i], omni->local_odom_speed[i]);
@@ -88,7 +99,7 @@ void inntegOdomUpdate(RobotCommandV2 * ai_cmd, omni_t * omni, integration_contro
 {
   float latency_cycle = ai_cmd->latency_time_ms / (1000 / MAIN_LOOP_CYCLE);
   for (int i = 0; i < 2; i++) {
-    enqueue(integ->odom_log[i], omni->odom_speed[i]);
+    enqueue(integ->odom_log[i], omni->global_odom_speed[i]);
     integ->global_odom_vision_diff[i] = sumNewestN(integ->odom_log[i], latency_cycle + connection->vision_update_cycle_cnt) / MAIN_LOOP_CYCLE;
     integ->vision_based_position[i] = ai_cmd->vision_global_pos[i] + integ->global_odom_vision_diff[i];
   }

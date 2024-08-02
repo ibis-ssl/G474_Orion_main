@@ -159,9 +159,11 @@ typedef struct
 {
   float travel_distance[4];
   float global_odom_diff[2], robot_pos_diff[2];
-  float odom[2], pre_odom[2], odom_raw[2];
-  float odom_speed[2];        // フィールド
-  float local_odom_speed[3];  // ローカル
+  float odom[2], pre_odom[2], local_raw_odom_vel[2];
+  float offset_dist[2];
+  float global_raw_odom[3];
+  float global_odom_speed[2];  // フィールド
+  float local_odom_speed[3];   // ローカル
   RingBuffer * local_speed_log[3];
   float local_odom_speed_mvf[3];
 } omni_t;
@@ -192,6 +194,7 @@ typedef struct
   float global_odom_speed[2];
   float current_speed_crd[2];
   float target_crd_acc[2];
+  float global_acc[2];
 } target_t;
 
 typedef struct
@@ -262,9 +265,9 @@ typedef union {
     int8_t motor_current[4];
     uint8_t ball_detection[4];  //28
 
-    float yaw_angle, diff_angle;   //36
-    float odom[2], odom_speed[2];  //
-    float voltage[2];              //
+    float yaw_angle, diff_angle;          //36
+    float odom[2], global_odom_speed[2];  //
+    float voltage[2];                     //
   } data;
 } tx_msg_t;
 

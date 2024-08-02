@@ -57,8 +57,8 @@ void sendRobotInfo(
   float_to_uchar4(&(buf[40]), can_raw->power_voltage[6]);
   float_to_uchar4(&(buf[44]), omni->odom[0]);
   float_to_uchar4(&(buf[48]), omni->odom[1]);
-  float_to_uchar4(&(buf[52]), omni->odom_speed[0]);
-  float_to_uchar4(&(buf[56]), omni->odom_speed[1]);
+  float_to_uchar4(&(buf[52]), omni->global_odom_speed[0]);
+  float_to_uchar4(&(buf[56]), omni->global_odom_speed[1]);
 
   buf[60] = con->check_ver;
   buf[61] = 0;

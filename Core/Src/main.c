@@ -262,7 +262,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 8;
+  debug.print_idx = 5;
 
   /* USER CODE END 2 */
 
@@ -393,6 +393,7 @@ int main(void)
 
           p("MOTOR ");
           p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+          //p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", omni.travel_distance[0], omni.travel_distance[1], omni.travel_distance[2], omni.travel_distance[3]);
           p("Pw v0=%5.1f v1=%5.1f v2=%5.1f v3=%5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
           p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
           p("Temp m0=%3.0f m1=%3.0f m2=%3.0f m3=%3.0f ", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
@@ -433,18 +434,26 @@ int main(void)
           //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("odomL X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
-          //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.odom_speed[0] * 1000, omni.odom_speed[1] * 1000);
+          //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
           //p("cnt %4d ", connection.vision_update_cycle_cnt);
-          //p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
-          //p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
+          p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
+          p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          /*           p("diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
-          p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
-          p("angle %+5.2f ", target.target_vel_angle);
+          //p("diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
+          //p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
+          //p("angle %+5.2f ", target.target_vel_angle);
+          //p("rawVel X %+8.3f, Y %+8.3f, ", omni.local_raw_odom_vel[0], omni.local_raw_odom_vel[1]);
+          //p("rawOdom X %+8.3f, Y %+8.3f, ", omni.global_raw_odom[0], omni.global_raw_odom[1]);
+          p("odom X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
+          //p("offset X %+8.3f, Y %+8.3f, ", omni.offset_dist[0], omni.offset_dist[1]);
+          //p("odomSpd X %+8.3f, Y %+8.3f, ", omni.global_odom_speed[0], omni.global_odom_speed[1]);
+
+          p("GlobalVel %+6.3f Y %+6.3f ", target.global_odom_speed[0], target.global_odom_speed[1]);
           p("CrSpdCrd %+5.2f,%+5.2f ", target.current_speed_crd[0], target.current_speed_crd[1]);
           p("accCrd X %+8.2f, Y %+8.2f, ", target.target_crd_acc[0], target.target_crd_acc[1]);
-          p("acc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
-          p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]); */
+          p("accGl X %+8.2f, Y %+8.2f, ", target.global_acc[0], target.global_acc[1]);
+          p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
+          p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
 
           //p("MsVel X %+8.4f Y %+8.4f ", mouse.global_vel[0], mouse.global_vel[1]);
           //p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
@@ -571,7 +580,7 @@ void resetOdomAtEncInitialized()
       omni.odom[i] = 0;
       omni.pre_odom[i] = 0;
       mouse.floor_odom[i] = 0;
-      omni.odom_raw[i] = 0;
+      omni.local_raw_odom_vel[i] = 0;
     }
     for (int i = 0; i < 4; i++) {
       motor.pre_enc_angle[i] = motor.enc_angle[i];

@@ -55,7 +55,7 @@ static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu
   // PID
   output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
   output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
-  //output->omega = 0;
+  output->omega = 0;
 }
 
 static void setOutZero(output_t * output)
@@ -94,8 +94,8 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   // 機体の向きによって制動力が変化するのを考慮したほうが良い｡
   float target_scalar_vel = pow(2 * (ACCEL_LIMIT / 2) * target_pos_dist_scalar, 0.5);
 
-  target_scalar_vel = clampSize(target_scalar_vel, ai_cmd->speed_limit);
-  //target_scalar_vel = clampSize(target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
+  //target_scalar_vel = clampSize(target_scalar_vel, ai_cmd->speed_limit);
+  target_scalar_vel = clampSize(target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
   // 0.2 : ほぼ誤差でなくて良い
   // 0.5 : ちょっとガバい
   // 目標地点付近での制御は純粋に位置にPでいい気がする
@@ -120,7 +120,8 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   }
   target->target_crd_acc[1] = clampSize(target->target_crd_acc[1], ACCEL_LIMIT * 2);  // 常に減速のため､2倍する
 
-  convertLocalToGlobal(target->target_crd_acc, output->accel, -imu->yaw_angle_rad + target->target_vel_angle);
+  convertLocalToGlobal(target->target_crd_acc, target->global_acc, target->target_vel_angle);
+  convertGlobalToLocal(target->global_acc, output->accel, imu->yaw_angle_rad);
 
   // バック方向だけ加速度制限
   if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
