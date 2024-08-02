@@ -85,7 +85,7 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
     omni->global_odom_speed[i] = (omni->odom[i] - omni->pre_odom[i]) * MAIN_LOOP_CYCLE;
   }
   //
-  convertLocalToGlobal(omni->global_odom_speed, omni->local_odom_speed, imu->yaw_angle_rad);
+  convertGlobalToLocal(omni->global_odom_speed, omni->local_odom_speed, imu->yaw_angle_rad);
 
   omni->local_odom_speed[2] = (omni->travel_distance[0] - omni->travel_distance[3]) * MAIN_LOOP_CYCLE * 0.5 * 0.5;
 
