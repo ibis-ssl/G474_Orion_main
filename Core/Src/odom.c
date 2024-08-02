@@ -95,9 +95,10 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
   }
 }
 
-void inntegOdomUpdate(RobotCommandV2 * ai_cmd, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu)
+void inntegOdomUpdate(RobotCommandV2 * ai_cmd, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu, system_t * sys)
 {
-  float latency_cycle = (ai_cmd->latency_time_ms + ai_cmd->elapsed_time_ms_since_last_vision) / (1000 / MAIN_LOOP_CYCLE);
+  int ai_cmd_delta_time = sys->system_time_ms - connection->latest_ai_cmd_update_time;
+  float latency_cycle = (ai_cmd->latency_time_ms + ai_cmd->elapsed_time_ms_since_last_vision + ai_cmd_delta_time) / (1000 / MAIN_LOOP_CYCLE);
   for (int i = 0; i < 2; i++) {
     enqueue(integ->odom_log[i], omni->global_odom_speed[i]);
     integ->global_odom_vision_diff[i] = sumNewestN(integ->odom_log[i], latency_cycle) / MAIN_LOOP_CYCLE;
