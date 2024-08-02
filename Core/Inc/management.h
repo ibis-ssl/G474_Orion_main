@@ -195,6 +195,7 @@ typedef struct
   float current_speed_crd[2];
   float target_crd_acc[2];
   float global_acc[2];
+  float target_scalar_vel, target_pos_dist_scalar;
 } target_t;
 
 typedef struct
@@ -219,7 +220,6 @@ typedef struct
   uint8_t check_pre;
   uint8_t check_ver;
   float cmd_rx_frq;
-  uint32_t vision_update_cycle_cnt;
   uint32_t latest_ai_cmd_update_time;
   uint32_t latest_cm4_cmd_update_time;
 } connection_t;

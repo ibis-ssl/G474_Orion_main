@@ -199,7 +199,7 @@ void maintaskRun(
   can_raw_t * can_raw, omega_target_t * omega_target)
 
 {
-  const float OMNI_OUTPUT_LIMIT = 5;
+  const float OMNI_OUTPUT_LIMIT = 40;
   // 上げると過電流エラーになりがち｡
   // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
@@ -207,7 +207,7 @@ void maintaskRun(
   robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output, omega_target);
 
   // いまのところvision lostしたら止める
-  if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available) {
+  if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available || ai_cmd->elapsed_time_ms_since_last_vision > 500 || sys->main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
     //resetLocalSpeedControl(&ai_cmd);
     omniStopAll(output);
   } else {

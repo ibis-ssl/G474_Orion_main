@@ -11,7 +11,7 @@
 
 // 加速度パラメーター
 #define ACCEL_LIMIT (3.0)       // m/ss
-#define ACCEL_LIMIT_BACK (2.0)  // m/ss
+#define ACCEL_LIMIT_BACK (3.0)  // m/ss
 
 #define ACCEL_TO_OUTPUT_GAIN (0.5)
 
@@ -35,7 +35,8 @@
 #define FF_ACC_OUTPUT_KP (0.2)
 
 // radに対するゲインなので値がデカい
-#define OMEGA_GAIN_KP (160.0)
+//#define OMEGA_GAIN_KP (160.0)
+#define OMEGA_GAIN_KP (0.0)
 #define OMEGA_GAIN_KD (4000.0)
 
 // ドライバ側は 50 rps 制限
@@ -49,13 +50,13 @@ static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu
 {
   const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
 
-  float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
+  /*float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
   target_diff_angle = clampSize(target_diff_angle, ai_cmd->omega_limit / MAIN_LOOP_CYCLE);
-  omega_target->current_target += target_diff_angle;
+  omega_target->current_target += target_diff_angle;*/
   // PID
-  output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
+  output->omega = (getAngleDiff(ai_cmd->target_global_theta, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
   output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
-  output->omega = 0;
+  //output->omega = 0;
 }
 
 static void setOutZero(output_t * output)
@@ -69,8 +70,8 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
 {
   for (int i = 0; i < 2; i++) {
     // 今はvision_availableがリアルタイムでないので､一旦visionの値をそのまま使う
-    //integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
-    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - ai_cmd->vision_global_pos[i];
+    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
+    //integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - ai_cmd->vision_global_pos[i];
 
     // + mouse->global_vel[i] * 1;
 
@@ -80,7 +81,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   clampScalarSize(target->global_vel, 9.9);  //表示上の都合
 
   //デバッグ用の一時実装
-  float target_pos_dist_scalar = calcScalar(integ->position_diff[0], integ->position_diff[1]);
+  target->target_pos_dist_scalar = calcScalar(integ->position_diff[0], integ->position_diff[1]);
 
   //convertGlobalToLocal(integ->position_diff, integ->local_target_diff, imu->yaw_angle_rad);
   // つかってない
@@ -92,15 +93,15 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   // 0^2 + v^2 = 2ax
   // v = √2ax
   // 機体の向きによって制動力が変化するのを考慮したほうが良い｡
-  float target_scalar_vel = pow(2 * (ACCEL_LIMIT / 2) * target_pos_dist_scalar, 0.5);
+  target->target_scalar_vel = pow(2 * (ACCEL_LIMIT)*target->target_pos_dist_scalar, 0.5);
 
-  //target_scalar_vel = clampSize(target_scalar_vel, ai_cmd->speed_limit);
-  target_scalar_vel = clampSize(target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
+  target->target_scalar_vel = clampSize(target->target_scalar_vel, ai_cmd->speed_limit);
+  //target->target_scalar_vel = clampSize(target->target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
   // 0.2 : ほぼ誤差でなくて良い
   // 0.5 : ちょっとガバい
-  // 目標地点付近での制御は純粋に位置にPでいい気がする
-  if (target_scalar_vel < 0.2) {
-    target_scalar_vel = 0;
+  // 目標地点付近での制御は別で用意していいかも
+  if (target->target_scalar_vel < 0.5) {
+    target->target_scalar_vel = 0;
   }
 
   target->target_vel_angle = atan2(target->global_vel[1], target->global_vel[0]);
@@ -110,8 +111,8 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
 
   // 関数名と違うけどターゲット速度座標系に変換
   convertGlobalToLocal(target->global_odom_speed, target->current_speed_crd, target->target_vel_angle);
-  target->target_crd_acc[0] = (target_scalar_vel - target->current_speed_crd[0]) * 10;
-  target->target_crd_acc[1] = -target->current_speed_crd[1] * 10;  //20だと発振
+  target->target_crd_acc[0] = (target->target_scalar_vel - target->current_speed_crd[0]) * 3.5;  //程々に下げたほうがいいがち
+  target->target_crd_acc[1] = -target->current_speed_crd[1] * 10;                                //20だと発振
 
   if (target->target_crd_acc[0] > ACCEL_LIMIT) {
     target->target_crd_acc[0] = ACCEL_LIMIT;
