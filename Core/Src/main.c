@@ -320,7 +320,7 @@ int main(void)
             p("\e[31m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
           }
 
-          if (cmd_v2.is_vision_available) {
+          if (cmd_v2.is_vision_available && cmd_v2.elapsed_time_ms_since_last_vision < 200) {
             // 32 : green
             p("\e[32m");
           } else if (!cmd_v2.stop_emergency) {
@@ -331,7 +331,7 @@ int main(void)
             p("\e[31m");
           }
           p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
-          p("theta %+4.1f ", cmd_v2.vision_global_theta * 180 / M_PI);
+          p("theta %+5.1f ", cmd_v2.vision_global_theta * 180 / M_PI);
           p("elt %4d ", cmd_v2.elapsed_time_ms_since_last_vision);
           p("\e[37m");
 
@@ -429,31 +429,53 @@ int main(void)
           break;
         case 5:
           p("ODOM ");
-          p("theta %+5.1f imu %+5.1f", cmd_v2.vision_global_theta * 180 / M_PI, imu.yaw_angle);
+
+          if (cmd_v2.is_vision_available && cmd_v2.elapsed_time_ms_since_last_vision < 200) {
+            // 32 : green
+            p("\e[32m");
+          } else if (!cmd_v2.stop_emergency) {
+            // 33 : yellow
+            p("\e[33m");
+          } else {
+            // 31 : red
+            p("\e[31m");
+          }
+          p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
+          p("theta %+5.1f ", cmd_v2.vision_global_theta * 180 / M_PI);
+          p("elt %4d ", cmd_v2.elapsed_time_ms_since_last_vision);
+          p("\e[37m");
+
+          p("imu %+5.1f ", imu.yaw_angle);
+          p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
+          p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
+          p("omni.gos X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
+          break;
+        case 6:
+          p("MTION ");
+          p("theta %+5.1f imu %+5.1f ", cmd_v2.vision_global_theta * 180 / M_PI, imu.yaw_angle);
 
           //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
           //p("odomL X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
           //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
-          //p("cnt %4d ", connection.vision_update_cycle_cnt);
           p("VisionX %+6.1f Y %+6.1f ", cmd_v2.vision_global_pos[0], cmd_v2.vision_global_pos[1]);
-          p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
+          //p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
-          //p("diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
+          p("diffG %+6.2f %+6.2f ", integ.position_diff[0], integ.position_diff[1]);
           //p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
           //p("angle %+5.2f ", target.target_vel_angle);
           //p("rawVel X %+8.3f, Y %+8.3f, ", omni.local_raw_odom_vel[0], omni.local_raw_odom_vel[1]);
           //p("rawOdom X %+8.3f, Y %+8.3f, ", omni.global_raw_odom[0], omni.global_raw_odom[1]);
-          p("odom X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
+          //p("odom X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
           //p("offset X %+8.3f, Y %+8.3f, ", omni.offset_dist[0], omni.offset_dist[1]);
           //p("odomSpd X %+8.3f, Y %+8.3f, ", omni.global_odom_speed[0], omni.global_odom_speed[1]);
 
           p("GlobalVel %+6.3f Y %+6.3f ", target.global_odom_speed[0], target.global_odom_speed[1]);
           p("CrSpdCrd %+5.2f,%+5.2f ", target.current_speed_crd[0], target.current_speed_crd[1]);
-          p("accCrd X %+8.2f, Y %+8.2f, ", target.target_crd_acc[0], target.target_crd_acc[1]);
-          p("accGl X %+8.2f, Y %+8.2f, ", target.global_acc[0], target.global_acc[1]);
-          p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
-          p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
+          p("accCrd X %+8.2f, Y %+8.2f ", target.target_crd_acc[0], target.target_crd_acc[1]);
+          //p("accGl X %+8.2f, Y %+8.2f, ", target.global_acc[0], target.global_acc[1]);
+          //p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
+          //p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
 
           //p("MsVel X %+8.4f Y %+8.4f ", mouse.global_vel[0], mouse.global_vel[1]);
           //p("AI X %+4.1f Y %+4.1f ", ai_cmd.local_target_speed[0], ai_cmd.local_target_speed[1]);
@@ -465,9 +487,9 @@ int main(void)
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
           //p("vcp-d X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
-          //p("out-vel %+5.1f, %+5.1f, ", output.velocity[0], output.velocity[1]);
+          p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
-          p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
+          //p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           //p("stop %+5.3f tarD %+5.3f", target.stop_distance_xy, target.tar_distance_xy);
 
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
@@ -475,27 +497,28 @@ int main(void)
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
 
           break;
-        case 6:
+        case 7:
           p("LATENCY ");
           p("setting : %3d / ", cmd_v2.latency_time_ms);
           p("EN %d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
-        case 7:
+        case 8:
           p("SYSTEM TIME ");
           for (int i = 0; i < 7; i++) {
             p("%4d ", debug.start_time[i]);
           }
-          p("EncRxTO: ");
-          for (int i = 0; i < BOARD_ID_MAX; i++) {
-            p("%6d ", can_raw.board_rx_timeout_cnt[i]);
-          }
+          p("PW %4d ", can_raw.board_rx_timeout_cnt[0]);
+          p("RD %4d ", can_raw.board_rx_timeout_cnt[1]);
+          p("LD %4d ", can_raw.board_rx_timeout_cnt[2]);
+          p("SB %4d ", can_raw.board_rx_timeout_cnt[3]);
           p("Motor: ");
           for (int i = 0; i < 4; i++) {
             p("%+6.3f ", output.motor_voltage[i]);
           }
           break;
-        case 8:
+        case 9:
+          p("UART RAW ");
           for (int i = 0; i < 64; i++) {
             printf("0x%02x ", data_from_cm4[i]);
           }
@@ -629,9 +652,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     //integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
     //integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
 
-    if (cmd_v2.is_vision_available && connection.connected_ai) {
-      connection.vision_update_cycle_cnt = 0;
-    }
   }
   commStateCheck(&connection, &sys, &cmd_v2);
 

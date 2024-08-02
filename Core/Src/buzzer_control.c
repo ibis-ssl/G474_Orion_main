@@ -25,7 +25,12 @@ inline static bool isVisionLost(system_t * sys, connection_t * con, RobotCommand
     return false;
   }
 
-  if (ai_cmd->is_vision_available) {
+  /*if (ai_cmd->is_vision_available) {
+    is_vision_available_once = true;
+    return false;
+  }*/
+
+  if (ai_cmd->elapsed_time_ms_since_last_vision < 500) {
     is_vision_available_once = true;
     return false;
   }
@@ -37,7 +42,8 @@ inline static bool isVisionLost(system_t * sys, connection_t * con, RobotCommand
   if (is_vision_available_once == false) {
     return false;
   }
-  
+
+
   return true;
 }
 

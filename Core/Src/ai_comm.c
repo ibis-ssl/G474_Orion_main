@@ -130,9 +130,6 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
 
-    if (connection->vision_update_cycle_cnt < MAIN_LOOP_CYCLE * 10) {
-      connection->vision_update_cycle_cnt++;
-    }
   } else {
     connection->connected_ai = false;
     connection->cmd_rx_frq = 0;
