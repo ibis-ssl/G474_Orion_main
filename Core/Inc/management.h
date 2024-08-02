@@ -222,6 +222,7 @@ typedef struct
   float cmd_rx_frq;
   uint32_t latest_ai_cmd_update_time;
   uint32_t latest_cm4_cmd_update_time;
+  int32_t ai_cmd_delta_time;
 } connection_t;
 
 typedef struct
