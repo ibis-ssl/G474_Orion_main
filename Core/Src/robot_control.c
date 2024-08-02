@@ -78,7 +78,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
     target->global_vel[i] = integ->position_diff[i] * 40;
     // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
   }
-  clampScalarSize(target->global_vel, 9.9);  //表示上の都合
+  clampScalarSize(target->global_vel, ai_cmd->speed_limit);  // ここの速度指定はほぼ意味ない
 
   //デバッグ用の一時実装
   target->target_pos_dist_scalar = calcScalar(integ->position_diff[0], integ->position_diff[1]);
@@ -93,14 +93,16 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   // 0^2 + v^2 = 2ax
   // v = √2ax
   // 機体の向きによって制動力が変化するのを考慮したほうが良い｡
-  target->target_scalar_vel = pow(2 * (ACCEL_LIMIT)*target->target_pos_dist_scalar, 0.5);
+  // aは減速なので DEC_BOOST_GAIN 倍する
+  // 指令値とイコールだと制御余裕がない
+  target->target_scalar_vel = pow(2 * (ACCEL_LIMIT * DEC_BOOST_GAIN * 0.75) * target->target_pos_dist_scalar, 0.5);
+
+  // v^2 = 2 * acc * 2 * 0.1
 
   target->target_scalar_vel = clampSize(target->target_scalar_vel, ai_cmd->speed_limit);
   //target->target_scalar_vel = clampSize(target->target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
-  // 0.2 : ほぼ誤差でなくて良い
-  // 0.5 : ちょっとガバい
   // 目標地点付近での制御は別で用意していいかも
-  if (target->target_scalar_vel < 0.5) {
+  if (target->target_pos_dist_scalar < 0.1) {
     target->target_scalar_vel = 0;
   }
 
@@ -111,26 +113,26 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
 
   // 関数名と違うけどターゲット速度座標系に変換
   convertGlobalToLocal(target->global_odom_speed, target->current_speed_crd, target->target_vel_angle);
-  target->target_crd_acc[0] = (target->target_scalar_vel - target->current_speed_crd[0]) * 3.5;  //程々に下げたほうがいいがち
-  target->target_crd_acc[1] = -target->current_speed_crd[1] * 10;                                //20だと発振
+  target->target_crd_acc[0] = (target->target_scalar_vel - target->current_speed_crd[0]) * 5;  //程々に下げたほうがいいがち
+  target->target_crd_acc[1] = -target->current_speed_crd[1] * 10;                              //20だと発振
 
   if (target->target_crd_acc[0] > ACCEL_LIMIT) {
     target->target_crd_acc[0] = ACCEL_LIMIT;
-  } else if (target->target_crd_acc[0] < -ACCEL_LIMIT * 2) {
-    target->target_crd_acc[0] = ACCEL_LIMIT * 2;  // 減速方向のみ2倍
+  } else if (target->target_crd_acc[0] < -ACCEL_LIMIT * DEC_BOOST_GAIN) {
+    target->target_crd_acc[0] = ACCEL_LIMIT * DEC_BOOST_GAIN;  // 減速方向のみ2倍
   }
-  target->target_crd_acc[1] = clampSize(target->target_crd_acc[1], ACCEL_LIMIT * 2);  // 常に減速のため､2倍する
+  target->target_crd_acc[1] = clampSize(target->target_crd_acc[1], ACCEL_LIMIT * DEC_BOOST_GAIN);  // 常に減速のため､2倍する
 
   convertLocalToGlobal(target->target_crd_acc, target->global_acc, target->target_vel_angle);
   convertGlobalToLocal(target->global_acc, output->accel, imu->yaw_angle_rad);
 
   // バック方向だけ加速度制限
-  if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
+  /*if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
     output->accel[0] = -(ACCEL_LIMIT_BACK);
-  }
+  }*/
 
   if (output->accel[0] > 0) {
-    //たぶん問題ないけど一旦コメントアウト
+    // 精度悪いのでまだ使えない
     //using_omni_speed[0] = omni->local_odom_speed_mvf[2];
   }
 
