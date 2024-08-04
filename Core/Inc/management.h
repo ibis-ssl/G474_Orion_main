@@ -82,7 +82,7 @@ enum {
 
 // logging time : 0.5s -> 2s : without vision mode
 #define SPEED_LOG_BUF_SIZE (MAIN_LOOP_CYCLE * 2)
-#define SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE (10)
+#define SPEED_MOVING_AVERAGE_FILTER_BUF_SIZE (3)
 
 #define AI_CMD_VEL_MAX_MPS (7.0)
 
@@ -166,6 +166,7 @@ typedef struct
   float local_odom_speed[3];   // ローカル
   RingBuffer * local_speed_log[3];
   float local_odom_speed_mvf[3];
+  float global_raw_odom_vel[2];
 } omni_t;
 
 typedef struct
@@ -178,6 +179,7 @@ typedef struct
   //float move_dist;                      // Visionとtargetが更新されてからの移動量
   //float target_dist_diff;               // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
+  int latency_cycle;
 } integration_control_t;
 
 typedef struct
@@ -196,6 +198,7 @@ typedef struct
   float target_crd_acc[2];
   float global_acc[2];
   float target_scalar_vel, target_pos_dist_scalar;
+  bool to_stop_mode_flag;
 } target_t;
 
 typedef struct

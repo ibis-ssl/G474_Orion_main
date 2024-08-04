@@ -16,7 +16,7 @@
 #define ACCEL_TO_OUTPUT_GAIN (0.5)
 
 // 減速方向は制動力を増強 1.5～2.0
-#define DEC_BOOST_GAIN (2.0)
+#define DEC_BOOST_GAIN (1.0)
 
 // 速度制御の位置に対するフィードバックゲイン
 // ~ m/s / m : -250 -> 4cm : 1m/s
@@ -36,8 +36,8 @@
 
 // radに対するゲインなので値がデカい
 //#define OMEGA_GAIN_KP (160.0)
-#define OMEGA_GAIN_KP (0.0)
-#define OMEGA_GAIN_KD (4000.0)
+#define OMEGA_GAIN_KP (40.0)
+#define OMEGA_GAIN_KD (2000.0)
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
@@ -50,11 +50,11 @@ static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu
 {
   const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
 
-  /*float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
+  float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
   target_diff_angle = clampSize(target_diff_angle, ai_cmd->omega_limit / MAIN_LOOP_CYCLE);
-  omega_target->current_target += target_diff_angle;*/
+  omega_target->current_target += target_diff_angle;
   // PID
-  output->omega = (getAngleDiff(ai_cmd->target_global_theta, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
+  output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
   output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
   //output->omega = 0;
 }
@@ -70,8 +70,8 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
 {
   for (int i = 0; i < 2; i++) {
     // 今はvision_availableがリアルタイムでないので､一旦visionの値をそのまま使う
-    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
-    //integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - ai_cmd->vision_global_pos[i];
+    //integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - integ->vision_based_position[i];
+    integ->position_diff[i] = ai_cmd->mode_args.position.target_global_pos[i] - ai_cmd->vision_global_pos[i];
 
     // + mouse->global_vel[i] * 1;
 
@@ -98,12 +98,20 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   target->target_scalar_vel = pow(2 * (ACCEL_LIMIT * DEC_BOOST_GAIN * 0.75) * target->target_pos_dist_scalar, 0.5);
 
   // v^2 = 2 * acc * 2 * 0.1
-
-  target->target_scalar_vel = clampSize(target->target_scalar_vel, ai_cmd->speed_limit);
-  //target->target_scalar_vel = clampSize(target->target_scalar_vel, 1);  // デバッグ用の1m/s｡本当はai_cmdの値を使う
+  // デバッグ用の1m/s｡本当はai_cmdの値を使う
+  float speed_limit = ai_cmd->speed_limit;
+  //float speed_limit = 1.5;
+  if (target->target_scalar_vel > speed_limit) {
+    target->to_stop_mode_flag = false;
+  } else {
+    target->to_stop_mode_flag = true;
+  }
+  bool stop_mode_flag = false;
+  target->target_scalar_vel = clampSize(target->target_scalar_vel, speed_limit);
   // 目標地点付近での制御は別で用意していいかも
   if (target->target_pos_dist_scalar < 0.1) {
     target->target_scalar_vel = 0;
+    stop_mode_flag = true;
   }
 
   target->target_vel_angle = atan2(target->global_vel[1], target->global_vel[0]);
@@ -119,17 +127,20 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   if (target->target_crd_acc[0] > ACCEL_LIMIT) {
     target->target_crd_acc[0] = ACCEL_LIMIT;
   } else if (target->target_crd_acc[0] < -ACCEL_LIMIT * DEC_BOOST_GAIN) {
-    target->target_crd_acc[0] = ACCEL_LIMIT * DEC_BOOST_GAIN;  // 減速方向のみ2倍
+    target->target_crd_acc[0] = -ACCEL_LIMIT * DEC_BOOST_GAIN;  // 減速方向のみ2倍
   }
-  target->target_crd_acc[1] = clampSize(target->target_crd_acc[1], ACCEL_LIMIT * DEC_BOOST_GAIN);  // 常に減速のため､2倍する
+  if (!target->to_stop_mode_flag && target->target_crd_acc[0] < 0) {  //速度制限への追従は控えめ
+    target->target_crd_acc[0] /= 10;
+  }
+  target->target_crd_acc[1] = clampSize(target->target_crd_acc[1], ACCEL_LIMIT * DEC_BOOST_GAIN);  // 常に減速のため､2倍
 
   convertLocalToGlobal(target->target_crd_acc, target->global_acc, target->target_vel_angle);
   convertGlobalToLocal(target->global_acc, output->accel, imu->yaw_angle_rad);
 
   // バック方向だけ加速度制限
-  /*if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
+  if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
     output->accel[0] = -(ACCEL_LIMIT_BACK);
-  }*/
+  }
 
   if (output->accel[0] > 0) {
     // 精度悪いのでまだ使えない

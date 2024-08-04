@@ -66,8 +66,7 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
   omni->local_raw_odom_vel[0] *= MAIN_LOOP_CYCLE / 2;
   omni->local_raw_odom_vel[1] *= MAIN_LOOP_CYCLE / 2;
 
-  float global_raw_odom_vel[2] = {0, 0};
-  convertLocalToGlobal(omni->local_raw_odom_vel, global_raw_odom_vel, imu->yaw_angle_rad);
+  convertLocalToGlobal(omni->local_raw_odom_vel, omni->global_raw_odom_vel, imu->yaw_angle_rad);
 
   // 後輪2輪によるodom
   // 基準座標の原点が後輪輪の推力線の交点になるので､機体中心位置までずらす
@@ -76,7 +75,7 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
   convertLocalToGlobal(zero_point_offset, omni->offset_dist, imu->yaw_angle_rad);
 
   for (int i = 0; i < 2; i++) {
-    omni->global_raw_odom[i] += global_raw_odom_vel[i] / MAIN_LOOP_CYCLE;
+    omni->global_raw_odom[i] += omni->global_raw_odom_vel[i] / MAIN_LOOP_CYCLE;
 
     omni->pre_odom[i] = omni->odom[i];
 
@@ -98,10 +97,10 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
 void inntegOdomUpdate(RobotCommandV2 * ai_cmd, omni_t * omni, integration_control_t * integ, connection_t * connection, imu_t * imu, system_t * sys)
 {
   connection->ai_cmd_delta_time = sys->system_time_ms - connection->latest_ai_cmd_update_time;
-  float latency_cycle = (ai_cmd->latency_time_ms + ai_cmd->elapsed_time_ms_since_last_vision + connection->ai_cmd_delta_time) / (1000 / MAIN_LOOP_CYCLE);
+  integ->latency_cycle = (ai_cmd->latency_time_ms + ai_cmd->elapsed_time_ms_since_last_vision + connection->ai_cmd_delta_time) / (1000 / MAIN_LOOP_CYCLE);
   for (int i = 0; i < 2; i++) {
     enqueue(integ->odom_log[i], omni->global_odom_speed[i]);
-    integ->global_odom_vision_diff[i] = sumNewestN(integ->odom_log[i], latency_cycle) / MAIN_LOOP_CYCLE;
+    integ->global_odom_vision_diff[i] = sumNewestN(integ->odom_log[i], integ->latency_cycle) / MAIN_LOOP_CYCLE;
     integ->vision_based_position[i] = ai_cmd->vision_global_pos[i] + integ->global_odom_vision_diff[i];
   }
 }
