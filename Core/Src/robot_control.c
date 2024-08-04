@@ -36,7 +36,7 @@
 
 // radに対するゲインなので値がデカい
 //#define OMEGA_GAIN_KP (160.0)
-#define OMEGA_GAIN_KP (40.0)
+#define OMEGA_GAIN_KP (30.0)
 #define OMEGA_GAIN_KD (2000.0)
 
 // ドライバ側は 50 rps 制限
