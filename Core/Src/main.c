@@ -206,7 +206,7 @@ int main(void)
 
   printf("orion main start %s %s\r\n", __DATE__, __TIME__);
 
-  HAL_ADC_Start_DMA(&hadc5, &sys.sw_data, 1);
+  HAL_ADC_Start_DMA(&hadc5, &sys.sw_adc_raw, 1);
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, 1);
@@ -276,6 +276,7 @@ int main(void)
     debug.main_loop_cnt++;
     if (debug.print_flag /* && fabs(omni.local_odom_speed_mvf[0]) > 0.01*/) {
       debug.print_flag = false;
+      
 
       // 文字列初期化
       printf_buffer[0] = 0;
@@ -311,13 +312,13 @@ int main(void)
           p("STP%d ", cmd_v2.stop_emergency);
 
           if (connection.connected_ai) {
-            p("\e[32m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
+            p("\e[32m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.ai_cmd_rx_frq);
           } else if (connection.connected_cm4) {
             // 33 : yellow
-            p("\e[33m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
+            p("\e[33m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.ai_cmd_rx_frq);
           } else {
             // 31 : red
-            p("\e[31m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.cmd_rx_frq);
+            p("\e[31m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.ai_cmd_rx_frq);
           }
 
           if (cmd_v2.is_vision_available && cmd_v2.elapsed_time_ms_since_last_vision < 200) {
@@ -648,7 +649,6 @@ void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan) { canTxEmptyInt
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
-  mouse.integral_loop_cnt++;
   // TIM interrupt is TIM7 only.
 
   debug.start_time[0] = htim7.Instance->CNT;  // パフォーマンス計測用
@@ -665,7 +665,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   commStateCheck(&connection, &sys, &cmd_v2);
 
   canRxTimeoutCntCycle(&can_raw);
-  
+
   sys.can_timeout = canRxTimeoutDetection(&can_raw);
   sys.enc_initialized = allEncInitialized(&can_raw);
 
@@ -739,10 +739,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   debug.start_time[5] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // interrupt : 500Hz
-  static uint16_t cnt_time_50Hz;
-  cnt_time_50Hz++;
-  if (cnt_time_50Hz >= 10) {
-    cnt_time_50Hz = 0;
+  static uint16_t print_cycle_cnt;
+  print_cycle_cnt++;
+  if (print_cycle_cnt >= (MAIN_LOOP_CYCLE / PRINT_LOOP_CYCLE)) {
+    print_cycle_cnt = 0;
 
     debug.print_flag = true;
 

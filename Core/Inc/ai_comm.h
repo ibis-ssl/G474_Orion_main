@@ -17,4 +17,5 @@ void sendRobotInfo(
 void commStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd);
 void resetLocalSpeedControl(RobotCommandV2 * ai_cmd);
 void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys);
+void calcAIcmdRxFrq(connection_t * connection);
 #endif /* INC_AI_COMM_H_ */

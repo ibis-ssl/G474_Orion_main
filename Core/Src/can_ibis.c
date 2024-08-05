@@ -279,8 +279,6 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       mouse->raw[0] = (int16_t)((rx_data[1] << 8) | rx_data[0]);
       mouse->raw[1] = (int16_t)((rx_data[3] << 8) | rx_data[2]);
       mouse->quality = (uint16_t)((rx_data[5] << 8) | rx_data[4]);
-      mouse->loop_cnt_debug = mouse->integral_loop_cnt;
-      mouse->integral_loop_cnt = 0;
       can_raw->mouse_rx_flag = true;
 
       // 持ち上げ･コート外検知

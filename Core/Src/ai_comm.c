@@ -8,6 +8,17 @@
 #define AI_CMD_TIMEOUT (0.5)
 #define CM4_CMD_TIMEOUT (AI_CMD_TIMEOUT + 0.5)
 
+#define TX_VALUE_ARRAY_SIZE (14)
+
+static void enqueueFloatArray(float array[], int * idx, float data)
+{
+  if (*idx >= TX_VALUE_ARRAY_SIZE) {
+    return;
+  }
+  array[*idx] = data;
+  *idx++;
+}
+
 void sendRobotInfo(
   can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integration_control_t * integ, output_t * out, target_t * target)
 {
@@ -60,39 +71,48 @@ void sendRobotInfo(
   float_to_uchar4(&(buf[52]), omni->global_odom_speed[0]);
   float_to_uchar4(&(buf[56]), omni->global_odom_speed[1]);
 
-  buf[60] = con->check_ver;
+  buf[60] = 0;
   buf[61] = 0;
   buf[62] = 0;
   buf[63] = 0;
 
   // 以下float array
+  float tx_value_array[TX_VALUE_ARRAY_SIZE] = {0};
+  int value_idx = 0;
 
-  float_to_uchar4(&(buf[64]), mouse->odom[0]);
-  float_to_uchar4(&(buf[68]), mouse->odom[1]);
-  float_to_uchar4(&(buf[72]), mouse->global_vel[0]);
-  float_to_uchar4(&(buf[76]), mouse->global_vel[1]);
+  enqueueFloatArray(tx_value_array, &value_idx, mouse->odom[0]);
+  enqueueFloatArray(tx_value_array, &value_idx, mouse->odom[1]);
 
-  float_to_uchar4(&(buf[80]), integ->vision_based_position[0]);
-  float_to_uchar4(&(buf[84]), integ->vision_based_position[1]);
-  float_to_uchar4(&(buf[88]), out->velocity[0]);
-  float_to_uchar4(&(buf[92]), out->velocity[1]);
+  enqueueFloatArray(tx_value_array, &value_idx, mouse->global_vel[0]);
+  enqueueFloatArray(tx_value_array, &value_idx, mouse->global_vel[1]);
 
-  float_to_uchar4(&(buf[96]), out->accel[0]);
-  float_to_uchar4(&(buf[100]), out->accel[1]);
+  enqueueFloatArray(tx_value_array, &value_idx, integ->vision_based_position[0]);
+  enqueueFloatArray(tx_value_array, &value_idx, integ->vision_based_position[1]);
 
-  float_to_uchar4(&(buf[104]), target->global_vel_now[0]);
-  float_to_uchar4(&(buf[108]), target->global_vel_now[1]);
-  float mouse_q = mouse->quality;
-  float_to_uchar4(&(buf[112]), mouse_q);
+  enqueueFloatArray(tx_value_array, &value_idx, out->velocity[0]);
+  enqueueFloatArray(tx_value_array, &value_idx, out->velocity[1]);
 
-  float_to_uchar4(&(buf[116]), omni->local_odom_speed_mvf[0]);
-  float_to_uchar4(&(buf[120]), omni->local_odom_speed_mvf[1]);
-  float_to_uchar4(&(buf[124]), omni->local_odom_speed_mvf[2]);
+  enqueueFloatArray(tx_value_array, &value_idx, target->global_vel_now[0]);
+  enqueueFloatArray(tx_value_array, &value_idx, target->global_vel_now[1]);
+
+  enqueueFloatArray(tx_value_array, &value_idx, omni->local_odom_speed_mvf[0]);
+  enqueueFloatArray(tx_value_array, &value_idx, omni->local_odom_speed_mvf[1]);
+  enqueueFloatArray(tx_value_array, &value_idx, omni->local_odom_speed_mvf[2]);
+
+  enqueueFloatArray(tx_value_array, &value_idx, mouse->quality);
+
+  for (int i = 0; i < TX_VALUE_ARRAY_SIZE; i++) {
+    float_to_uchar4(&(buf[64 + i * 4]), tx_value_array[i]);
+  }
 
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }
 
-static void updateAICmdTimeStamp(connection_t * connection, system_t * sys) { connection->latest_ai_cmd_update_time = sys->system_time_ms; }
+static void updateAICmdTimeStamp(connection_t * connection, system_t * sys)
+{
+  connection->ai_cmd_rx_cnt++;
+  connection->latest_ai_cmd_update_time = sys->system_time_ms;
+}
 void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys)
 {
   connection->updated_flag = true;
@@ -136,12 +156,18 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
 
   } else {
     connection->connected_ai = false;
-    connection->cmd_rx_frq = 0;
+    connection->ai_cmd_rx_frq = 0;
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
     resetAiCmdData(ai_cmd);
 
     requestStop(sys, 1.0);
   }
+}
+
+void calcAIcmdRxFrq(connection_t * connection)
+{
+  connection->ai_cmd_rx_frq = connection->ai_cmd_rx_cnt * (MAIN_LOOP_CYCLE / PRINT_LOOP_CYCLE);
+  connection->ai_cmd_rx_cnt = 0;
 }
 
 // "一度はAI側から接続があったあと"､CM4との通信が途切れたらリセット

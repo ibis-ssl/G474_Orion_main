@@ -11,31 +11,31 @@ void motorTest(system_t * sys, output_t * output, omni_t * omni)
   const float OUT_LIMIT_TEST = 40.0;
   const float OUT_MOVE_VEL = 2.0;
   const float OUT_SPIN_OMG = 20;
-  if (swForwardPushed(sys->sw_data)) {
+  if (swForwardPushed(sys->sw_adc_raw)) {
     output->velocity[0] = OUT_MOVE_VEL;
     output->velocity[1] = 0;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // fwd
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (swBackPushed(sys->sw_data)) {
+  } else if (swBackPushed(sys->sw_adc_raw)) {
     output->velocity[0] = -OUT_MOVE_VEL;
     output->velocity[1] = 0;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // back
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (swLeftPushed(sys->sw_data)) {
+  } else if (swLeftPushed(sys->sw_adc_raw)) {
     output->velocity[0] = 0;
     output->velocity[1] = OUT_MOVE_VEL;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // left
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (swRightPushed(sys->sw_data)) {
+  } else if (swRightPushed(sys->sw_adc_raw)) {
     output->velocity[0] = 0;
     output->velocity[1] = -OUT_MOVE_VEL;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // right
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
-  } else if (swCentorPushed(sys->sw_data)) {
+  } else if (swCentorPushed(sys->sw_adc_raw)) {
     output->velocity[0] = 0;
     output->velocity[1] = 0;
     output->omega = OUT_SPIN_OMG;
@@ -53,7 +53,7 @@ void motorTest(system_t * sys, output_t * output, omni_t * omni)
 
 void dribblerTest(system_t * sys, output_t * output, can_raw_t * can_raw)
 {
-  if (swCentorPushed(sys->sw_data)) {
+  if (swCentorPushed(sys->sw_adc_raw)) {
     if (can_raw->ball_detection[0]) {
       actuator_motor5(0.5);
 
@@ -82,15 +82,15 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     }
   }
 
-  if (dribbler_up == false && swRightPushed(sys->sw_data)) {
+  if (dribbler_up == false && swRightPushed(sys->sw_adc_raw)) {
     dribbler_up = true;
     actuator_dribbler_down();
-  } else if (dribbler_up == true && swLeftPushed(sys->sw_data)) {
+  } else if (dribbler_up == true && swLeftPushed(sys->sw_adc_raw)) {
     dribbler_up = false;
     actuator_dribbler_up();
   }
 
-  if (swCentorPushed(sys->sw_data)) {
+  if (swCentorPushed(sys->sw_adc_raw)) {
     if (!manual_mode) {
       actuator_motor5(0.5);
     }
@@ -103,7 +103,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
         sys->kick_state = 1;
       }
     }
-  } else if (swBackPushed(sys->sw_data)) {
+  } else if (swBackPushed(sys->sw_adc_raw)) {
     if (!manual_mode) {
       actuator_motor5(0.5);
     }
@@ -163,7 +163,7 @@ void latencyCheck(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd, outp
     omniStopAll(output);
   }
 
-  if (!swCentorPushed(sys->sw_data)) {
+  if (!swCentorPushed(sys->sw_adc_raw)) {
     debug->latency_check_seq_cnt = 0;
     return;
   }
@@ -179,12 +179,12 @@ void latencyCheck(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd, outp
 void motorCalibration(system_t * sys)
 {
   static uint32_t calib_start_cnt = 0;
-  if (swRightPushed(sys->sw_data)) {
+  if (swRightPushed(sys->sw_adc_raw)) {
     calib_start_cnt++;
     if (calib_start_cnt > 1000) {
       actuator_motor_calib(0);
     }
-  } else if (swLeftPushed(sys->sw_data)) {
+  } else if (swLeftPushed(sys->sw_adc_raw)) {
     calib_start_cnt++;
     if (calib_start_cnt > 1000) {
       actuator_motor_calib(1);

@@ -39,8 +39,6 @@ void mouseOdometryUpdate(mouse_t * mouse, imu_t * imu)
 
   mouse->global_vel[0] = mouse->odom[0] - mouse->pre_odom[0];
   mouse->global_vel[1] = mouse->odom[1] - mouse->pre_odom[1];
-
-  mouse->pre_yaw_angle_rad = imu->yaw_angle_rad;
 }
 
 void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)

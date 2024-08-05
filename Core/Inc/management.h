@@ -72,6 +72,7 @@ enum {
 #define LOW_VOLTAGE_LIMIT (22.0)
 
 #define MAIN_LOOP_CYCLE (500)
+#define PRINT_LOOP_CYCLE (50)
 
 #define CAN_RX_DATA_SIZE 8
 #define CAN_TX_DATA_SIZE 8
@@ -130,8 +131,8 @@ typedef struct
 
 typedef struct
 {
-  float enc_angle[5];
-  float pre_enc_angle[5];
+  float enc_angle[4];
+  float pre_enc_angle[4];
   float angle_diff[4];
 } motor_t;
 
@@ -151,8 +152,6 @@ typedef struct
   int16_t raw[2];
   float raw_diff[2];
   uint16_t quality;
-  int integral_loop_cnt, loop_cnt_debug;
-  float pre_yaw_angle_rad, diff_yaw_angle_rad;
 } mouse_t;
 
 typedef struct
@@ -163,9 +162,9 @@ typedef struct
   float offset_dist[2];
   float global_raw_odom[3];
   float global_odom_speed[2];  // フィールド
-  float local_odom_speed[3];   // ローカル
+  float local_odom_speed[3];   // ローカル､前輪2輪によるものもあるので3つ
   RingBuffer * local_speed_log[3];
-  float local_odom_speed_mvf[3];
+  float local_odom_speed_mvf[3];  // ローカル､移動平均｡前輪2輪によるものもあるので3つ
   float global_raw_odom_vel[2];
 } omni_t;
 
@@ -176,8 +175,6 @@ typedef struct
   float vision_based_position[2];       // Visionによって更新された自己位置(global系)
   float position_diff[2];               // ai_cmdとvision_based_positionの差分(global系)
   float pre_global_target_position[2];  // ai_cmdとvision_based_positionの差分(global系)
-  //float move_dist;                      // Visionとtargetが更新されてからの移動量
-  //float target_dist_diff;               // Visionが更新された時点での現在地とtargetの距離
   float local_target_diff[2];
   int latency_cycle;
 } integration_control_t;
@@ -204,6 +201,7 @@ typedef struct
 typedef struct
 {
   float current_target;
+  // float accel_limit;  //今の所実装なし
 } omega_target_t;
 
 typedef struct
@@ -220,9 +218,8 @@ typedef struct
   bool connected_cm4;
   bool already_connected_ai;
   bool updated_flag;
-  uint8_t check_pre;
-  uint8_t check_ver;
-  float cmd_rx_frq;
+  float ai_cmd_rx_frq;
+  int ai_cmd_rx_cnt;
   uint32_t latest_ai_cmd_update_time;
   uint32_t latest_cm4_cmd_update_time;
   int32_t ai_cmd_delta_time;
@@ -238,7 +235,7 @@ typedef struct
   uint32_t system_time_ms;
   uint32_t stop_flag_request_time;
   uint16_t kick_state;
-  uint32_t sw_data;
+  uint32_t sw_adc_raw;
 } system_t;
 typedef struct
 {
@@ -253,27 +250,6 @@ typedef struct
   volatile uint32_t uart_rx_itr_cnt;
   volatile uint32_t start_time[20], end_time[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
 } debug_t;
-
-typedef union {
-  uint8_t buf[TX_BUF_SIZE_CM4];
-
-  struct
-  {
-    uint8_t head[2];
-    uint8_t counter, return_counter;  //4
-
-    uint8_t kick_state;
-    uint8_t temperature[7];  //12
-
-    uint8_t error_info[8];  //20
-    int8_t motor_current[4];
-    uint8_t ball_detection[4];  //28
-
-    float yaw_angle, diff_angle;          //36
-    float odom[2], global_odom_speed[2];  //
-    float voltage[2];                     //
-  } data;
-} tx_msg_t;
 
 //extern float voltage[6];
 

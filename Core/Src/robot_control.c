@@ -106,12 +106,10 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   } else {
     target->to_stop_mode_flag = true;
   }
-  bool stop_mode_flag = false;
   target->target_scalar_vel = clampSize(target->target_scalar_vel, speed_limit);
   // 目標地点付近での制御は別で用意していいかも
   if (target->target_pos_dist_scalar < 0.1) {
     target->target_scalar_vel = 0;
-    stop_mode_flag = true;
   }
 
   target->target_vel_angle = atan2(target->global_vel[1], target->global_vel[0]);
