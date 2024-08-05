@@ -43,7 +43,6 @@ inline static bool isVisionLost(system_t * sys, connection_t * con, RobotCommand
     return false;
   }
 
-
   return true;
 }
 
@@ -54,23 +53,23 @@ inline void buzzerControl(can_raw_t * can_raw, system_t * sys, connection_t * co
   static float buzzer_frq_offset__gain = 1.0;
   // 電圧受信できてない時に低電圧エラー鳴るとウザいので消す
   buzzer_cnt++;
-  if (isLowVoltage(can_raw)) {  // 低電圧時
-    if (buzzer_cnt > 100) {
-      buzzer_cnt = 0;
-      if (buzzer_state == false) {
-        buzzer_state = true;
-        actuator_buzzer_frq_on(2000);
-      } else {
-        buzzer_state = false;
-        actuator_buzzer_off();
-      }
-    }
-  } else if (sys->error_flag) {  // エラー時
+  if (sys->error_flag) {  // エラー時
     if (buzzer_cnt > 20) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
         buzzer_state = true;
         actuator_buzzer_frq_on(2200);
+      } else {
+        buzzer_state = false;
+        actuator_buzzer_off();
+      }
+    }
+  } else if (isLowVoltage(can_raw)) {  // 低電圧時
+    if (buzzer_cnt > 100) {
+      buzzer_cnt = 0;
+      if (buzzer_state == false) {
+        buzzer_state = true;
+        actuator_buzzer_frq_on(2000);
       } else {
         buzzer_state = false;
         actuator_buzzer_off();

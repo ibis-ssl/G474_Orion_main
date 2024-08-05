@@ -233,7 +233,7 @@ bool swCentorPushed(uint16_t sw_raw_data) { return sw_raw_data <= 100; }
 bool swRightPushed(uint16_t sw_raw_data) { return sw_raw_data <= 500 && sw_raw_data > 100; }
 bool swLeftPushed(uint16_t sw_raw_data) { return sw_raw_data <= 2000 && sw_raw_data > 500; }
 bool swForwardPushed(uint16_t sw_raw_data) { return sw_raw_data <= 3000 && sw_raw_data > 2000; }
-bool swBackPushed(uint16_t sw_raw_data) { return sw_raw_data <= 4000 && sw_raw_data > 3000; }
+bool swBackPushed(uint16_t sw_raw_data) { return sw_raw_data <= 3900 && sw_raw_data > 3000; }
 
 float two_to_float(uint8_t data[2]) { return (float)((data[0] << 8 | data[1]) - 32767.0) / 32767.0; }
 float two_to_int(uint8_t data[2]) { return ((data[0] << 8 | data[1]) - 32767.0); }

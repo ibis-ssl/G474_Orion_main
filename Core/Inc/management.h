@@ -69,7 +69,7 @@ enum {
   BOOST_ERROR_FET_OVER_HEAT = 0x2000,
 };
 
-#define LOW_VOLTAGE_LIMIT (22.0)
+#define LOW_VOLTAGE_LIMIT (22.5)
 
 #define MAIN_LOOP_CYCLE (500)
 #define PRINT_LOOP_CYCLE (50)
