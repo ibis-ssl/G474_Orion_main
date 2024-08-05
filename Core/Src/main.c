@@ -107,6 +107,21 @@ UART_HandleTypeDef * huart_xprintf;
 #define printf_BUF_SIZE 500
 static char printf_buffer[printf_BUF_SIZE];
 
+enum {
+  PRINT_IDX_AI_CMD = 0,
+  PRINT_IDX_MOTOR,
+  PRINT_IDX_DRIBBLER,
+  PRINT_IDX_KICKER,
+  PRINT_IDX_MOUSE,
+  PRINT_IDX_ODOM,
+  PRINT_IDX_MOTION,
+  PRINT_IDX_VEL,
+  PRINT_IDX_LATENCY,
+  PRINT_IDX_SYSTEM,
+  PRINT_IDX_UART_RAW,
+  PRINT_IDX_MAX
+};
+
 struct
 {
   float spin_total[4];
@@ -121,7 +136,7 @@ struct
 // communication with CM4
 uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
 uint8_t tx_data_uart[TX_BUF_SIZE_CM4];
-uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_it_buffer = 0;
+uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_buf = 0;
 
 /* USER CODE END PFP */
 
@@ -202,7 +217,7 @@ int main(void)
   HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
 
   HAL_UART_Init(&hlpuart1);
-  HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_it_buffer, 1);
+  HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
 
   printf("orion main start %s %s\r\n", __DATE__, __TIME__);
 
@@ -262,7 +277,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = 6;
+  debug.print_idx = PRINT_IDX_MOTION;
 
   /* USER CODE END 2 */
 
@@ -276,10 +291,11 @@ int main(void)
     debug.main_loop_cnt++;
     if (debug.print_flag /* && fabs(omni.local_odom_speed_mvf[0]) > 0.01*/) {
       debug.print_flag = false;
-      
 
       // 文字列初期化
       printf_buffer[0] = 0;
+
+      p("rx0x%2x ", lpuart1_rx_buf);
 
       // 文字色メモ
       // 30:black 31:red 32:green 33:yellow 34:blue 35:magenta 36:cyan 37:white(default)
@@ -304,7 +320,7 @@ int main(void)
       }
 
       switch (debug.print_idx) {
-        case 0:
+        case PRINT_IDX_AI_CMD:
           // 通信接続状態表示
           //p("itr %4d %8d %8d ", debug.uart_rx_itr_cnt, connection.latest_cm4_cmd_update_time, connection.latest_ai_cmd_update_time);
 
@@ -390,7 +406,7 @@ int main(void)
           /*********************************************************************************************** */
 
           break;
-        case 1:  //Motor
+        case PRINT_IDX_MOTOR:  //Motor
 
           p("MOTOR ");
           p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
@@ -400,21 +416,21 @@ int main(void)
           p("Temp m0=%3.0f m1=%3.0f m2=%3.0f m3=%3.0f ", can_raw.temperature[0], can_raw.temperature[1], can_raw.temperature[2], can_raw.temperature[3]);
 
           break;
-        case 2:  // Dribblerテスト
+        case PRINT_IDX_DRIBBLER:  // Dribblerテスト
           p("DRIBBLER ");
           p("Batt(Sub) %3.1f / ", can_raw.power_voltage[4]);
           p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
           //p("local_vision x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
 
           break;
-        case 3:  // Kicker Test
+        case PRINT_IDX_KICKER:  // Kicker Test
           p("KICKER ");
           p("Batt(Pw) %3.1f Cap=%3.0f BattC %+6.1f Batt(Sub) %3.1f / ", can_raw.power_voltage[5], can_raw.power_voltage[6], can_raw.current[4], can_raw.power_voltage[4]);
           p("FET=%5.1f L1=%5.1f L2=%5.1f / ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
           p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
 
           break;
-        case 4:  // Mouse odom
+        case PRINT_IDX_MOUSE:  // Mouse odom
           p("MOUSE ");
           p("%d / %d %d %d %d", allEncInitialized(&can_raw), can_raw.enc_rx_flag[0], can_raw.enc_rx_flag[1], can_raw.enc_rx_flag[2], can_raw.enc_rx_flag[3]);
           //p("raw_odom X %+8.3f Y %+8.3f ", mouse.raw_odom[0] * 1000, mouse.raw_odom[1] * 1000);
@@ -428,7 +444,7 @@ int main(void)
           p("raw X %+4d Y %+4d Q %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
 
           break;
-        case 5:
+        case PRINT_IDX_ODOM:
           p("ODOM ");
 
           if (cmd_v2.is_vision_available && cmd_v2.elapsed_time_ms_since_last_vision < 200) {
@@ -454,7 +470,7 @@ int main(void)
           p("omgD %+6.3f ", getAngleDiff(imu.yaw_angle_rad, imu.pre_yaw_angle_rad) * 4000);
           p("omg %+6.2f ", output.omega);
           break;
-        case 6:
+        case PRINT_IDX_MOTION:
           p("MOTION ");
           p("theta %+6.1f ", imu.yaw_angle);
 
@@ -497,7 +513,7 @@ int main(void)
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
           break;
-        case 7:
+        case PRINT_IDX_VEL:
           p("VEL ");
           p("theta %+6.1f ", imu.yaw_angle);
           p("rawVel X %+8.3f, Y %+8.3f, ", omni.local_raw_odom_vel[0], omni.local_raw_odom_vel[1]);
@@ -511,13 +527,13 @@ int main(void)
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
 
           break;
-        case 8:
+        case PRINT_IDX_LATENCY:
           p("LATENCY ");
           p("setting : %3d / ", cmd_v2.latency_time_ms);
           p("EN %d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
           break;
-        case 9:
+        case PRINT_IDX_SYSTEM:
           p("SYSTEM TIME ");
           for (int i = 0; i < 7; i++) {
             p("%4d ", debug.start_time[i]);
@@ -531,7 +547,7 @@ int main(void)
             p("%+6.3f ", output.motor_voltage[i]);
           }
           break;
-        case 10:
+        case PRINT_IDX_UART_RAW:
           p("UART RAW ");
           for (int i = 0; i < 64; i++) {
             printf("0x%02x ", data_from_cm4[i]);
@@ -850,8 +866,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
   }
 
   if (huart->Instance == hlpuart1.Instance) {
-    debug.print_idx++;
-    HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_it_buffer, 1);
+    if (lpuart1_rx_buf == '\n' || lpuart1_rx_buf == '\r') {
+      debug.print_idx++;
+    } else {
+      debug.print_idx--;
+      if (debug.print_idx < 0) {
+        debug.print_idx = PRINT_IDX_MAX - 1;
+      }
+    }
+    HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
   }
 }
 

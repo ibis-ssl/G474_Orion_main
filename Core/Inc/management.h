@@ -239,7 +239,7 @@ typedef struct
 } system_t;
 typedef struct
 {
-  volatile uint32_t print_idx;
+  volatile int32_t print_idx;
   volatile uint32_t main_loop_cnt, true_cycle_cnt;
   volatile float out_total_spin, fb_total_spin, pre_yaw_angle;
   volatile float true_out_total_spi, true_fb_total_spin, true_yaw_speed, limited_output;
