@@ -661,15 +661,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (connection.updated_flag) {
     connection.updated_flag = false;
     memcpy(&cmd_v2, &cmd_v2_buf, sizeof(cmd_v2));
-    //memcpy(&ai_cmd, &ai_cmd_buf, sizeof(ai_cmd));
-    //integ.pre_global_target_position[0] = ai_cmd.global_target_position[0];
-    //integ.pre_global_target_position[1] = ai_cmd.global_target_position[1];
   }
   commStateCheck(&connection, &sys, &cmd_v2);
 
   canRxTimeoutCntCycle(&can_raw);
+  
+  sys.can_timeout = canRxTimeoutDetection(&can_raw);
+  sys.enc_initialized = allEncInitialized(&can_raw);
 
-  stopStateControl(&sys, sw_mode, canRxTimeoutDetection(&can_raw), allEncInitialized(&can_raw));
+  stopStateControl(&sys, sw_mode);
 
   // 以後sys.main_modeによる動作切り替え
 
@@ -845,7 +845,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
       cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
       updateCM4CmdTimeStamp(&connection, &sys);
-      connection.updated_flag = true;
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
     }
   }

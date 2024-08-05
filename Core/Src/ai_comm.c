@@ -93,7 +93,11 @@ void sendRobotInfo(
 }
 
 static void updateAICmdTimeStamp(connection_t * connection, system_t * sys) { connection->latest_ai_cmd_update_time = sys->system_time_ms; }
-void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys) { connection->latest_cm4_cmd_update_time = sys->system_time_ms; }
+void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys)
+{
+  connection->updated_flag = true;
+  connection->latest_cm4_cmd_update_time = sys->system_time_ms;
+}
 
 static void checkConnect2CM4(connection_t * connection, system_t * sys)
 {
@@ -140,6 +144,19 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
   }
 }
 
+// "一度はAI側から接続があったあと"､CM4との通信が途切れたらリセット
+// JO2024でたまに動作中にマイコンのUART受信が止まることがあったので､対策として導入
+static bool disconnedtedFromCM4(connection_t * connection, system_t * sys)
+{
+  if (sys->main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
+    return false;
+  }
+  if (!connection->connected_cm4 && connection->already_connected_ai) {
+    return true;
+  }
+  return false;
+}
+
 void commStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd)
 {
   checkConnect2CM4(connection, sys);
@@ -147,7 +164,7 @@ void commStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * 
 
   // AI通信切断時、3sでリセット
   static uint32_t self_timeout_reset_cnt = 0;
-  if (!connection->connected_cm4 && connection->already_connected_ai && sys->main_mode != MAIN_MODE_CMD_DEBUG_MODE) {
+  if (disconnedtedFromCM4(connection, sys)) {
     self_timeout_reset_cnt++;
     if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
       NVIC_SystemReset();

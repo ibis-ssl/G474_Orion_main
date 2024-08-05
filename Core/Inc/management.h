@@ -230,7 +230,7 @@ typedef struct
 
 typedef struct
 {
-  bool error_flag, stop_flag;
+  bool error_flag, stop_flag, can_timeout, enc_initialized;
   uint16_t error_id, error_info;
   float error_value;
   uint32_t error_resume_cnt;  // エラー時の自動復帰回数上限
