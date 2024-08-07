@@ -305,7 +305,7 @@ int main(void)
       printf_buffer[0] = 0;
 
       p("\e[0m");                                        //初期化
-      float battery_voltage = can_raw.power_voltage[4];  // sub board
+      float battery_voltage = can_raw.power_voltage[0];  // sub board
       if (battery_voltage < LOW_VOLTAGE_LIMIT) {
         setTextYellow();
       }

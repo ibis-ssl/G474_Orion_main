@@ -31,8 +31,8 @@ void sendRobotInfo(
 
   float_to_uchar4(&(buf[4]), imu->yaw_angle);
 
-  // battery(from sub)
-  float_to_uchar4(&(buf[8]), can_raw->power_voltage[4]);
+  // battery(BLDC right)
+  float_to_uchar4(&(buf[8]), can_raw->power_voltage[0]);
 
   buf[12] = can_raw->ball_detection[0];
   buf[13] = can_raw->ball_detection[1];
