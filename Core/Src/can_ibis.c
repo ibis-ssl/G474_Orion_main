@@ -165,7 +165,7 @@ inline void can2_send(int id, uint8_t senddata[])
   /* Request transmission */
   //if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 3) return;
   if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 0) {
-    if (canBufferStackable(&(can_buf[0]))) {
+    if (canBufferStackable(&(can_buf[1]))) {
       data.id = id;
       memcpy(data.data, senddata, 8);
       canBufferStack(&(can_buf[1]), &data);
