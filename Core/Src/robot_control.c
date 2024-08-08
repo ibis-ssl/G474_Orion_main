@@ -258,6 +258,35 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
   output->velocity[1] = omni->robot_pos_diff[1] * OUTPUT_GAIN_ODOM_DIFF_KP + target->local_vel_ff_factor[1] - target->local_vel_now[1] * OUTPUT_GAIN_ODOM_DIFF_KD;
 }
 
+void simpleSpeedControl(output_t * output, target_t * target, imu_t * imu, omni_t * omni)
+{
+  target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
+  target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_angle_rad) + (target->global_vel[1]) * cos(imu->yaw_angle_rad);
+
+  //convertGlobalToLocal(target->local_vel, target->global_vel, imu->yaw_angle_rad);
+
+  output->accel[0] = (target->local_vel[0] - omni->local_odom_speed[0]) * 5;
+  if (output->accel[0] > ACCEL_LIMIT * 2) {
+    output->accel[0] = ACCEL_LIMIT * 2;
+  } else if (output->accel[0] < -ACCEL_LIMIT * 1.5) {
+    output->accel[0] = -ACCEL_LIMIT * 1.5;
+  }
+
+  output->accel[1] = (target->local_vel[1] - omni->local_odom_speed[1]) * 5;
+  output->accel[1] = clampSize(output->accel[1], ACCEL_LIMIT * 1.5);
+
+  clampScalarSize(output->accel, ACCEL_LIMIT * 3);
+
+  // 原則強化
+  for (int i = 0; i < 2; i++) {
+    if (fabs(target->local_vel[i]) < fabs(omni->local_odom_speed_mvf[i])) {
+      output->accel[i] *= 1.5;
+    }
+  }
+  output->velocity[0] = omni->local_odom_speed[0] + output->accel[0] * 0.3;
+  output->velocity[1] = omni->local_odom_speed[1] + output->accel[1] * 0.6;  //左右が動き悪いので出力段で増やす
+}
+
 void robotControl(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
   omega_target_t * omega_target)
@@ -286,8 +315,9 @@ void robotControl(
     case SIMPLE_VELOCITY_TARGET_MODE:
       target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
       target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
-      accelControl(acc_vel, output, target, imu, omni);
-      speedControl(acc_vel, output, target, imu, omni);
+      simpleSpeedControl(output, target, imu, omni);
+      //accelControl(acc_vel, output, target, imu, omni);
+      //speedControl(acc_vel, output, target, imu, omni);
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
       thetaControl(ai_cmd, output, imu, omega_target);
       return;
