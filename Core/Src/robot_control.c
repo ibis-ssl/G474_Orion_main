@@ -10,8 +10,8 @@
 #include "util.h"
 
 // 加速度パラメーター
-#define ACCEL_LIMIT (3.0)       // m/ss
-#define ACCEL_LIMIT_BACK (3.0)  // m/ss
+#define ACCEL_LIMIT (4.5)       // m/ss
+#define ACCEL_LIMIT_BACK (4.5)  // m/ss
 
 #define ACCEL_TO_OUTPUT_GAIN (0.5)
 
@@ -108,7 +108,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   }
   target->target_scalar_vel = clampSize(target->target_scalar_vel, speed_limit);
   // 目標地点付近での制御は別で用意していいかも
-  if (target->target_pos_dist_scalar < 0.1) {
+  if (target->target_pos_dist_scalar < 0.05) {
     target->target_scalar_vel = 0;
   }
 
@@ -120,7 +120,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   // 関数名と違うけどターゲット速度座標系に変換
   convertGlobalToLocal(target->global_odom_speed, target->current_speed_crd, target->target_vel_angle);
   target->target_crd_acc[0] = (target->target_scalar_vel - target->current_speed_crd[0]) * 5;  //程々に下げたほうがいいがち
-  target->target_crd_acc[1] = -target->current_speed_crd[1] * 10;                              //20だと発振
+  target->target_crd_acc[1] = -target->current_speed_crd[1] * 7.5;                              //20だと発振
 
   if (target->target_crd_acc[0] > ACCEL_LIMIT) {
     target->target_crd_acc[0] = ACCEL_LIMIT;
@@ -145,9 +145,9 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
     //using_omni_speed[0] = omni->local_odom_speed_mvf[2];
   }
 
-  for (int i = 0; i < 2; i++) {
-    output->velocity[i] = using_omni_speed[i] + output->accel[i] * ACCEL_TO_OUTPUT_GAIN;
-  }
+  //output->velocity[0] = using_omni_speed[0] + output->accel[0] * ACCEL_TO_OUTPUT_GAIN;
+  output->velocity[0] = using_omni_speed[0] + output->accel[0] * 0.4;
+  output->velocity[1] = using_omni_speed[1] + output->accel[1] * 0.7;  //左右が動き悪いので出力段で増やす
 }
 
 static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
