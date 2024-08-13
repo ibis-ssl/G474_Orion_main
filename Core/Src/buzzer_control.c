@@ -75,7 +75,7 @@ inline void buzzerControl(can_raw_t * can_raw, system_t * sys, connection_t * co
         actuator_buzzer_off();
       }
     }
-  } else if (canRxTimeoutDetection(can_raw)) {  // 内部通信切断時
+  } else if (canRxTimeoutDetection(can_raw) && sys->main_mode <= MAIN_MODE_CMD_DEBUG_MODE) {  // 内部通信切断時
     if (buzzer_cnt > 200) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
