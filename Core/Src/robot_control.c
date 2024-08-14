@@ -108,7 +108,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   }
   target->target_scalar_vel = clampSize(target->target_scalar_vel, speed_limit);
   // 目標地点付近での制御は別で用意していいかも
-  if (target->target_pos_dist_scalar < 0.05) {
+  if (target->target_pos_dist_scalar < 0.03) {
     target->target_scalar_vel = 0;
   }
 
@@ -120,7 +120,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   // 関数名と違うけどターゲット速度座標系に変換
   convertGlobalToLocal(target->global_odom_speed, target->current_speed_crd, target->target_vel_angle);
   target->target_crd_acc[0] = (target->target_scalar_vel - target->current_speed_crd[0]) * 5;  //程々に下げたほうがいいがち
-  target->target_crd_acc[1] = -target->current_speed_crd[1] * 7.5;                              //20だと発振
+  target->target_crd_acc[1] = -target->current_speed_crd[1] * 7.5;                             //20だと発振
 
   if (target->target_crd_acc[0] > ACCEL_LIMIT) {
     target->target_crd_acc[0] = ACCEL_LIMIT;
@@ -283,6 +283,10 @@ void simpleSpeedControl(output_t * output, target_t * target, imu_t * imu, omni_
       output->accel[i] *= 1.5;
     }
   }
+}
+
+static void simpleAccelToOutput(omni_t * omni, output_t * output)
+{
   output->velocity[0] = omni->local_odom_speed[0] + output->accel[0] * 0.3;
   output->velocity[1] = omni->local_odom_speed[1] + output->accel[1] * 0.6;  //左右が動き悪いので出力段で増やす
 }
@@ -308,6 +312,11 @@ void robotControl(
 
     case POSITION_TARGET_MODE:
       localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
+      if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {  // 0
+        simpleAccelToOutput(omni, output);
+      } else {
+        speedControl(acc_vel, output, target, imu, omni);
+      }
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
       thetaControl(ai_cmd, output, imu, omega_target);
       break;
@@ -315,7 +324,13 @@ void robotControl(
     case SIMPLE_VELOCITY_TARGET_MODE:
       target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
       target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
-      simpleSpeedControl(output, target, imu, omni);
+      if (sys->main_mode == MAIN_MODE_SPEED_CONTROL_ONLY) {  // 0
+        accelControl(acc_vel, output, target, imu, omni);
+        speedControl(acc_vel, output, target, imu, omni);
+      } else {
+        simpleAccelToOutput(omni, output);
+      }
+      //simpleSpeedControl(output, target, imu, omni);
       //accelControl(acc_vel, output, target, imu, omni);
       //speedControl(acc_vel, output, target, imu, omni);
       clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
