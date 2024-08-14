@@ -66,8 +66,10 @@ void sendRobotInfo(
   float_to_uchar4(&(buf[36]), diff_angle);
   // capacitor boost
   float_to_uchar4(&(buf[40]), can_raw->power_voltage[6]);
-  float_to_uchar4(&(buf[44]), omni->odom[0]);
-  float_to_uchar4(&(buf[48]), omni->odom[1]);
+
+  float_to_uchar4(&(buf[44]), omni->global_odom_diff[0]);
+  float_to_uchar4(&(buf[48]), omni->global_odom_diff[1]);
+  
   float_to_uchar4(&(buf[52]), omni->global_odom_speed[0]);
   float_to_uchar4(&(buf[56]), omni->global_odom_speed[1]);
 
@@ -137,6 +139,9 @@ void resetAiCmdData(RobotCommandV2 * ai_cmd)
   ai_cmd->stop_emergency = true;
   ai_cmd->omega_limit = 0;
   ai_cmd->speed_limit = 0;
+  ai_cmd->kick_power = 0;
+  ai_cmd->enable_chip = false;
+  ai_cmd->dribble_power = 0;
 }
 
 static void checkConnect2AI(connection_t * connection, system_t * sys, RobotCommandV2 * ai_cmd)
