@@ -10,8 +10,8 @@
 #include "util.h"
 
 // 加速度パラメーター
-#define ACCEL_LIMIT (4.5)       // m/ss
-#define ACCEL_LIMIT_BACK (4.5)  // m/ss
+#define ACCEL_LIMIT (3.5)       // m/ss
+#define ACCEL_LIMIT_BACK (3.5)  // m/ss
 
 #define ACCEL_TO_OUTPUT_GAIN (0.5)
 
@@ -232,7 +232,7 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
     // pos = 1 odom = 0
     // 1 - 0 > 0.33
     // -> pos = 0 + 0.33
-    const float odom_diff_max = (float)OUTPUT_OUTPUTLIMIT_ODOM_DIFF / OUTPUT_GAIN_ODOM_DIFF_KP;
+    const float odom_diff_max = (float)OUTPUT_OUTPUTLIMIT_ODOM_DIFF / OUTPUT_GAIN_ODOM_DIFF_KP; //0.2
     if (target->global_pos[i] - omni->odom[i] > odom_diff_max) {
       target->global_pos[i] = omni->odom[i] + odom_diff_max;
     } else if (target->global_pos[i] - omni->odom[i] < -odom_diff_max) {
