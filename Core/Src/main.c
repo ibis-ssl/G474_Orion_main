@@ -421,10 +421,10 @@ int main(void)
         case PRINT_IDX_MOTOR:  //Motor
 
           p("MOTOR ");
-          p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+          p("Spd %+6.1f %+6.1f %+6.1f %+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
           //p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", omni.travel_distance[0], omni.travel_distance[1], omni.travel_distance[2], omni.travel_distance[3]);
-          p("Pw v0=%5.1f v1=%5.1f v2=%5.1f v3=%5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
-          p("Im i0=%+5.1f i1=%+5.1f i2=%+5.1f i3=%+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
+          p("PwV %5.1f %5.1f %5.1f %5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
+          p("Im %+5.1f %+5.1f %+5.1f %+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
           const int MOTOR_OVER_HEAT_WARN_THRESH = 60;
           p("Temp ");
           for (int i = 0; i < 4; i++) {
@@ -436,6 +436,10 @@ int main(void)
             p("M%d %3.0f ", i, can_raw.temperature[i]);
           }
           setTextNormal();
+          p("Rps ");
+          for (int i = 0; i < 4; i++) {
+            p("%4.2f ", can_raw.motor_rps[i]);
+          }
           break;
         case PRINT_IDX_DRIBBLER:  // Dribblerテスト
           p("DRIBBLER ");

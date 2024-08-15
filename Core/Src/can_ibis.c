@@ -291,6 +291,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x501:
     case 0x502:
     case 0x503:
+      can_raw->motor_rps[rx_can_id - 0x500] = uchar4_to_float(rx_data);
       break;
   }
 }
