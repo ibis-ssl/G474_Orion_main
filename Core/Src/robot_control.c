@@ -339,7 +339,7 @@ void robotControl(
     case SIMPLE_VELOCITY_TARGET_MODE:
       target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
       target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
-      if (sys->main_mode == MAIN_MODE_SPEED_CONTROL_ONLY) {  // 0
+      if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {  // 0
         accelControl(acc_vel, output, target, imu, omni);
         speedControl(acc_vel, output, target, imu, omni, ai_cmd);
       } else {
