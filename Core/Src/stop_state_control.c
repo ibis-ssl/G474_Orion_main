@@ -16,7 +16,7 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
       sys->error_resume_cnt++;
 
       // しばらくstopに落とす
-      requestStop(sys, 3.0);
+      requestStop(sys, 3000);
 
       // OFFコマンドでリセット
       actuatorPower_ONOFF(0);
@@ -28,7 +28,12 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
     sys->main_mode = main_mode_sw;
   }
 
-  if (isStopRequested(sys) || sys->can_timeout || !sys->enc_initialized) {
+  if (!sys->enc_initialized) {
+    requestStop(sys, 100);
+    // エンコーダ初期値を受け取った後、stopを挟むため
+  }
+
+  if (isStopRequested(sys) || sys->can_timeout) {
     //resetLocalSpeedControl(&ai_cmd);
     sys->stop_flag = true;
   } else {
@@ -36,9 +41,13 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
   }
 }
 
-void requestStop(system_t * sys, float time_sec)
+void requestStop(system_t * sys, uint32_t time_ms)
 {
-  sys->stop_flag_request_time = sys->system_time_ms + (uint32_t)(time_sec * MAIN_LOOP_CYCLE);  // 前回のタイムアウト時から1.0s間は動かさない
+  //より短い値で上書きしないためのブロック
+  if (sys->stop_flag_request_time > sys->system_time_ms + time_ms) { 
+    return;
+  }
+  sys->stop_flag_request_time = sys->system_time_ms + (uint32_t)(time_ms);
 }
 
 bool isStopRequested(system_t * sys) { return sys->system_time_ms < sys->stop_flag_request_time; }

@@ -3,7 +3,6 @@
 #include "robot_packet.h"
 #include "stop_state_control.h"
 #include "util.h"
-#define MAX_AI_CMD_SPEED_SCALAR_LIMIT (6.0)
 
 #define AI_CMD_TIMEOUT (0.5)
 #define CM4_CMD_TIMEOUT (AI_CMD_TIMEOUT + 0.5)
@@ -165,7 +164,7 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
     resetAiCmdData(ai_cmd);
 
-    requestStop(sys, 1.0);
+    requestStop(sys, 1000);
   }
 }
 
