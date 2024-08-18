@@ -164,7 +164,7 @@ void setTextNormal() { p("\e[37m"); }
 // たまにLPUARTの割り込みが停止するので自動復帰
 void checkAndRestartLPUART_IT(void)
 {
-  if (hlpuart1.Instance->CR1 & USART_CR1_RXNEIE == 0) {
+  if ((hlpuart1.Instance->CR1 & USART_CR1_RXNEIE) == 0) {
     HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
   }
 }
@@ -287,14 +287,14 @@ int main(void)
   actuatorPower_ONOFF(1);
 
   sys.system_time_ms = 1000;  //
-  requestStop(&sys, 1.0);     // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
+  requestStop(&sys, 1000);    // !!注意!! TIM7の割り込みがはじまってから1000ms間停止
   connection.already_connected_ai = false;
   HAL_Delay(100);
   HAL_TIM_Base_Start_IT(&htim7);
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_MOTION;
+  debug.print_idx = PRINT_IDX_VEL;
 
   /* USER CODE END 2 */
 
@@ -567,8 +567,6 @@ int main(void)
           //p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
-          //p("vcp-d X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
-          //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
@@ -579,16 +577,24 @@ int main(void)
           break;
         case PRINT_IDX_VEL:
           p("VEL ");
-          p("theta %+6.1f ", imu.yaw_angle);
-          p("rawVel X %+8.3f, Y %+8.3f, ", omni.local_raw_odom_vel[0], omni.local_raw_odom_vel[1]);
-          p("rawGbVel X %+8.3f, Y %+8.3f ", omni.global_raw_odom_vel[0], omni.global_raw_odom_vel[1]);
-          p("rawGbOdom X %+8.3f, Y %+8.3f, ", omni.global_raw_odom[0], omni.global_raw_odom[1]);
-          p("odom X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
-          p("offset X %+8.3f, Y %+8.3f, ", omni.offset_dist[0], omni.offset_dist[1]);
-          p("odomSpd X %+8.3f, Y %+8.3f, ", omni.global_odom_speed[0], omni.global_odom_speed[1]);
+          //p("theta %+6.1f ", imu.yaw_angle);
+          //p("rawVel X %+8.3f, Y %+8.3f, ", omni.local_raw_odom_vel[0], omni.local_raw_odom_vel[1]);
+          //p("rawGbVel X %+8.3f, Y %+8.3f ", omni.global_raw_odom_vel[0], omni.global_raw_odom_vel[1]);
+          //p("rawGbOdom X %+8.3f, Y %+8.3f, ", omni.global_raw_odom[0], omni.global_raw_odom[1]);
+          //p("odom X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
+          //p("tar X %+8.3f, Y %+8.3f, ", target.global_pos[0], target.global_pos[1]);
+          //p("offset X %+8.3f, Y %+8.3f, ", omni.offset_dist[0], omni.offset_dist[1]);
+          //p("odomSpd X %+8.3f, Y %+8.3f, ", omni.global_odom_speed[0], omni.global_odom_speed[1]);
           //p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           //p("out-vel X %+5.1f, Y %+5.1f W %+5.1f ", output.velocity[0], output.velocity[1], output.omega);
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
+          p("Err X%+5.2f Y%+5.2f Sc%+5.2f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
+          p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
+          //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
+          p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
+          p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
+          p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
+          p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
 
           break;
         case PRINT_IDX_LATENCY:
@@ -935,15 +941,47 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
   }
 
   if (huart->Instance == hlpuart1.Instance) {
-    if (lpuart1_rx_buf == 0x7f) {
-      debug.print_idx = 0;
-    } else if (lpuart1_rx_buf == '\n' || lpuart1_rx_buf == '\r') {
-      debug.print_idx++;
-    } else {
-      debug.print_idx--;
-      if (debug.print_idx < 0) {
-        debug.print_idx = PRINT_IDX_MAX - 1;
-      }
+    switch (lpuart1_rx_buf) {
+      case 'v':
+        debug.print_idx = PRINT_IDX_VEL;
+        break;
+      case 'w':
+        debug.print_idx = PRINT_IDX_MOTOR;
+        break;
+      case 'm':
+        debug.print_idx = PRINT_IDX_MOUSE;
+        break;
+      case 'p':
+        debug.print_idx = PRINT_IDX_MOTION;
+        break;
+      case 's':
+        debug.print_idx = PRINT_IDX_SYSTEM;
+        break;
+      case 'd':
+        debug.print_idx = PRINT_IDX_DRIBBLER;
+        break;
+      case 'o':
+        debug.print_idx = PRINT_IDX_ODOM;
+        break;
+      case 'l':
+        debug.print_idx = PRINT_IDX_LATENCY;
+        break;
+      case 'u':
+        debug.print_idx = PRINT_IDX_UART_RAW;
+        break;
+      case 0x7f:
+        debug.print_idx = 0;
+        break;
+      case '\n':
+      case '\r':
+        debug.print_idx++;
+        break;
+      default:
+        debug.print_idx--;
+        break;
+    }
+    if (debug.print_idx < 0) {
+      debug.print_idx = PRINT_IDX_MAX - 1;
     }
     HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
   }
