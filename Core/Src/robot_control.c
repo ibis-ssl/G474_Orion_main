@@ -9,6 +9,9 @@
 #include "robot_packet.h"
 #include "util.h"
 
+// スカラ速度制限(速度制御モード)
+#define SPEED_SCALAR_LIMIT (7.0)
+
 // 加速度パラメーター
 #define ACCEL_LIMIT (3.5)       // m/ss
 #define ACCEL_LIMIT_BACK (3.5)  // m/ss
@@ -20,30 +23,29 @@
 
 // 速度制御の位置に対するフィードバックゲイン
 // ~ m/s / m : -250 -> 4cm : 1m/s
-#define OUTPUT_GAIN_ODOM_DIFF_KP (150)
-#define OUTPUT_GAIN_ODOM_DIFF_KD (2)
-// 5でもちょっと遅いかも
-// 10にすると立ち上がりが遅くなる
+#define OUTPUT_GAIN_KP_ODOM_DIFF (150)
+// 上記の出力制限、速度に追従できていれば小さいほうが良い
+#define OUTPUT_LIMIT_ODOM_DIFF (2)
 
-// 上記の出力制限
-#define OUTPUT_OUTPUTLIMIT_ODOM_DIFF (250)
-// 30 ->
+// モーター側でパラメーター併せてあるので1.0で良いはず(念の為調整用)
+#define OUTPUT_GAIN_TAR_TO_VEL (1)
 
+// 指令速度と内部目標速度の差が大きい時に、加速の立ち上がりを良くするためだけのパラメーター
+// 上限がついているので、大きくはならない。
+// 加速終了時を滑らかにするために比例項としている。
 // 0.3はややデカいかも、0.2は割といい感じ
-// 比例値であり、最大値
 // output = ACCEL_LIMIT x FF_ACC_OUTPUT_KP
 //#define FF_ACC_OUTPUT_KP (0.3)
 #define FF_ACC_OUTPUT_KP (0.2)
 
-// radに対するゲインなので値がデカい
 //#define OMEGA_GAIN_KP (160.0)
 #define OMEGA_GAIN_KP (30.0)
-#define OMEGA_GAIN_KD (2000.0)
+#define OMEGA_GAIN_KD (4.0 * MAIN_LOOP_CYCLE)
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
-#define OUTPUT_XY_LIMIT (4.0)  //
-//#define OUTPUT_XY_LIMIT (40.0)  //
+#define OUTPUT_SCALAR_LIMIT (8.0)  //
+//#define OUTPUT_SCALAR_LIMIT (40.0)  //
 
 // omegaぶんの制限
 
@@ -156,14 +158,17 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
   }*/
 }
 
+inline static void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu)
+{
+  target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
+  target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
+  clampScalarSize(target->global_vel, SPEED_SCALAR_LIMIT);
+
+  convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
+}
+
 static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
-  // グローバル座標指令
-
-  //convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
-  target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
-  target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_angle_rad) + (target->global_vel[1]) * cos(imu->yaw_angle_rad);
-
   // XY -> rad/scalarに変換
   // 座標次元でのみフィードバックを行う。速度次元ではフィードバックを行わない。
   // ここでは目標加速度のみ決定するため、内部の目標速度のみを使用する。
@@ -203,6 +208,7 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
   // 目標速度と差が小さい場合は目標速度をそのまま代入する
   // 目標速度が連続的に変化する場合に適切でないかも
   if (acc_vel->vel_error_scalar <= ACCEL_LIMIT / MAIN_LOOP_CYCLE && ai_cmd->control_mode == SIMPLE_VELOCITY_TARGET_MODE) {
+    //convertLocalToGlobal(target->local_vel, target->global_vel_now, imu->yaw_angle_rad);
     target->global_vel_now[0] = (target->local_vel[0]) * cos(imu->yaw_angle_rad) - (target->local_vel[1]) * sin(imu->yaw_angle_rad);
     target->global_vel_now[1] = (target->local_vel[0]) * sin(imu->yaw_angle_rad) + (target->local_vel[1]) * cos(imu->yaw_angle_rad);
 
@@ -213,18 +219,13 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
   // ローカル→グローバル座標系
   // ロボットが回転しても、慣性はグローバル座標系に乗るので、加速度はグローバル座標系に変換してから加算
   // accel
-  // static float global_vel_diff[2];
-  // convertLocalToGlobal(output->accel, global_vel_diff, imu->yaw_angle_rad);
-  // target->global_vel_now[0] += global_vel_diff[0];
-  // target->global_vel_now[1] += global_vel_diff[1];
-
-  target->global_vel_now[0] += ((output->accel[0]) * cos(imu->yaw_angle_rad) - (output->accel[1]) * sin(imu->yaw_angle_rad)) / MAIN_LOOP_CYCLE;
-  target->global_vel_now[1] += ((output->accel[0]) * sin(imu->yaw_angle_rad) + (output->accel[1]) * cos(imu->yaw_angle_rad)) / MAIN_LOOP_CYCLE;
+  static float global_vel_diff[2] = {0};
+  convertLocalToGlobal(output->accel, global_vel_diff, imu->yaw_angle_rad);
+  target->global_vel_now[0] += global_vel_diff[0] / MAIN_LOOP_CYCLE;
+  target->global_vel_now[1] += global_vel_diff[1] / MAIN_LOOP_CYCLE;
 
   // 次回の計算のためにローカル座標系での速度も更新
-  //convertGlobalToLocal(target->global_vel_now, target->local_vel_now, imu->yaw_angle_rad);
-  target->local_vel_now[0] = target->global_vel_now[0] * cos(-imu->yaw_angle_rad) - target->global_vel_now[1] * sin(-imu->yaw_angle_rad);
-  target->local_vel_now[1] = target->global_vel_now[0] * sin(-imu->yaw_angle_rad) + target->global_vel_now[1] * cos(-imu->yaw_angle_rad);
+  convertGlobalToLocal(target->global_vel_now, target->local_vel_now, imu->yaw_angle_rad);
 
   // 目標座標に変換
   target->global_pos[0] += target->global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
@@ -233,7 +234,7 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
   // ここから位置制御
   for (int i = 0; i < 2; i++) {
     // 目標速度との乖離が大きい時に応答性を稼ぐためのFF項目
-    float local_vel_diff_abs = fabs(target->local_vel[i] - target->local_vel_now[i]) / 0.5;  // 0.5がmax
+    float local_vel_diff_abs = fabs(target->local_vel[i] - target->local_vel_now[i]) / 0.5;  // 速度差 0.5 [m/s] で最大
     if (local_vel_diff_abs > 1) {
       local_vel_diff_abs = 1;
     }
@@ -245,7 +246,7 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
     // pos = 1 odom = 0
     // 1 - 0 > 0.33
     // -> pos = 0 + 0.33
-    const float odom_diff_max = (float)OUTPUT_OUTPUTLIMIT_ODOM_DIFF / (float)OUTPUT_GAIN_ODOM_DIFF_KP;  //0.2
+    const float odom_diff_max = (float)OUTPUT_LIMIT_ODOM_DIFF / (float)OUTPUT_GAIN_KP_ODOM_DIFF;  //0.2
     float odom_diff = target->global_pos[i] - omni->odom[i];
     if (odom_diff > odom_diff_max) {
       target->global_pos[i] = omni->odom[i] + odom_diff_max;
@@ -258,10 +259,9 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
   }
 
   // グローバル→ローカル座標系
-  //convertGlobalToLocal(omni->robot_pos_diff, omni->global_odom_diff, imu->yaw_angle_rad);
-  omni->robot_pos_diff[0] = omni->global_odom_diff[0] * cos(-imu->yaw_angle_rad) - omni->global_odom_diff[1] * sin(-imu->yaw_angle_rad);
-  omni->robot_pos_diff[1] = omni->global_odom_diff[0] * sin(-imu->yaw_angle_rad) + omni->global_odom_diff[1] * cos(-imu->yaw_angle_rad);
+  convertGlobalToLocal(omni->global_odom_diff, omni->robot_pos_diff, imu->yaw_angle_rad);
 
+  // 加速方向を切り替えた時、位置フィードバック項目の遅れが出るので、差分を打ち消す必要がある。未確認
   /*for (int i = 0; i < 2; i++) {
     if ((-omni->robot_pos_diff[i]) * output->accel[i] < 0) {
       omni->robot_pos_diff[i] = 0;
@@ -269,8 +269,8 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
   }*/
 
   // 加速度と同じぐらいのoutput->velocityを出したい
-  output->velocity[0] = omni->robot_pos_diff[0] * OUTPUT_GAIN_ODOM_DIFF_KP + target->local_vel_ff_factor[0] - target->local_vel_now[0] * OUTPUT_GAIN_ODOM_DIFF_KD;
-  output->velocity[1] = omni->robot_pos_diff[1] * OUTPUT_GAIN_ODOM_DIFF_KP + target->local_vel_ff_factor[1] - target->local_vel_now[1] * OUTPUT_GAIN_ODOM_DIFF_KD;
+  output->velocity[0] = omni->robot_pos_diff[0] * OUTPUT_GAIN_KP_ODOM_DIFF + target->local_vel_ff_factor[0] + target->local_vel_now[0] * OUTPUT_GAIN_TAR_TO_VEL;
+  output->velocity[1] = omni->robot_pos_diff[1] * OUTPUT_GAIN_KP_ODOM_DIFF + target->local_vel_ff_factor[1] + target->local_vel_now[1] * OUTPUT_GAIN_TAR_TO_VEL;
 }
 
 void simpleSpeedControl(output_t * output, target_t * target, imu_t * imu, omni_t * omni)
@@ -306,6 +306,18 @@ static void simpleAccelToOutput(omni_t * omni, output_t * output)
   output->velocity[1] = omni->local_odom_speed[1] + output->accel[1] * 0.6;  //左右が動き悪いので出力段で増やす
 }
 
+inline static void clearSpeedContrlValue(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni, RobotCommandV2 * ai_cmd)
+{
+  acc_vel->vel_error_rad = 0;
+  acc_vel->vel_error_scalar = 0;
+  for (int i = 0; i < 2; i++) {
+    acc_vel->vel_error_xy[i] = 0;  //毎回更新するので多分いらない
+    //target->local_vel_now[i] = omni->local_odom_speed_mvf[i];
+    target->global_pos[i] = omni->odom[i];
+  }
+  convertLocalToGlobal(omni->local_odom_speed_mvf, target->global_vel_now, imu->yaw_angle_rad);
+}
+
 void robotControl(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
   omega_target_t * omega_target)
@@ -316,6 +328,10 @@ void robotControl(
     output->velocity[1] = 0;
     output->omega = 0;
     return;
+  }
+
+  if (sys->stop_flag) {
+    clearSpeedContrlValue(acc_vel, output, target, imu, omni, ai_cmd);
   }
 
   switch (ai_cmd->control_mode) {
@@ -332,13 +348,12 @@ void robotControl(
       } else {
         speedControl(acc_vel, output, target, imu, omni, ai_cmd);
       }
-      clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
+      clampScalarSize(output->velocity, OUTPUT_SCALAR_LIMIT);
       thetaControl(ai_cmd, output, imu, omega_target);
       break;
 
     case SIMPLE_VELOCITY_TARGET_MODE:
-      target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
-      target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
+      setLocalTargetSpeed(ai_cmd, target, imu);
       if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {  // 0
         accelControl(acc_vel, output, target, imu, omni);
         speedControl(acc_vel, output, target, imu, omni, ai_cmd);
@@ -348,7 +363,7 @@ void robotControl(
       //simpleSpeedControl(output, target, imu, omni);
       //accelControl(acc_vel, output, target, imu, omni);
       //speedControl(acc_vel, output, target, imu, omni);
-      clampScalarSize(output->velocity, OUTPUT_XY_LIMIT);
+      clampScalarSize(output->velocity, OUTPUT_SCALAR_LIMIT);
       thetaControl(ai_cmd, output, imu, omega_target);
       return;
 
