@@ -161,6 +161,14 @@ void setTextMagenta() { p("\e[35m"); }
 void setTextCyan() { p("\e[36m"); }
 void setTextNormal() { p("\e[37m"); }
 
+// たまにLPUARTの割り込みが停止するので自動復帰
+void checkAndRestartLPUART_IT(void)
+{
+  if (hlpuart1.Instance->CR1 & USART_CR1_RXNEIE == 0) {
+    HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
+  }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -598,9 +606,9 @@ int main(void)
           p("RD %4d ", can_raw.board_rx_timeout_cnt[1]);
           p("LD %4d ", can_raw.board_rx_timeout_cnt[2]);
           p("SB %4d ", can_raw.board_rx_timeout_cnt[3]);
-          p("Motor: ");
+          p("MotorV ");
           for (int i = 0; i < 4; i++) {
-            p("%+6.3f ", output.motor_voltage[i]);
+            p("%+6.2f ", output.motor_voltage[i]);
           }
           p("SW ADC %4d ", sys.sw_adc_raw);
           break;
@@ -632,6 +640,9 @@ int main(void)
       debug.true_fb_total_spin = 0;
       debug.true_out_total_spi = 0;
       debug.uart_rx_itr_cnt = 0;
+
+      // whileで毎回呼ぶ必要はないのでprintに併せて呼ぶ
+      checkAndRestartLPUART_IT();
     }
   }
   /* USER CODE END 3 */
@@ -924,7 +935,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
   }
 
   if (huart->Instance == hlpuart1.Instance) {
-    if (lpuart1_rx_buf == '\n' || lpuart1_rx_buf == '\r') {
+    if (lpuart1_rx_buf == 0x7f) {
+      debug.print_idx = 0;
+    } else if (lpuart1_rx_buf == '\n' || lpuart1_rx_buf == '\r') {
       debug.print_idx++;
     } else {
       debug.print_idx--;
