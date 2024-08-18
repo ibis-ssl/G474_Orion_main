@@ -6,3 +6,4 @@
 *.list
 *.map
 *.elf
+.vscode/c_cpp_properties.json
