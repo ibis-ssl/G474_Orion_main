@@ -99,6 +99,7 @@ integration_control_t integ;
 accel_vector_t acc_vel;
 debug_t debug;
 omega_target_t omega_target;
+camera_t camera;
 
 RobotCommandV2 cmd_v2, cmd_v2_buf;
 
@@ -602,6 +603,10 @@ int main(void)
           p("setting : %3d / ", cmd_v2.latency_time_ms);
           p("EN %d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
+
+          p("CAM ");
+          p("x %+4d y%+4d rad %4d fps %3d", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
+
           break;
         case PRINT_IDX_SYSTEM:
           p("SYSTEM TIME ");
@@ -943,6 +948,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
       cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
       updateCM4CmdTimeStamp(&connection, &sys);
+      camera = parseCameraPacket(&(data_from_cm4[64]));
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
       rx_check_cnt_all = 0;
       // 最終byteがcheckcntなので除外する

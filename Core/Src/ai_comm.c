@@ -68,7 +68,7 @@ void sendRobotInfo(
 
   float_to_uchar4(&(buf[44]), omni->global_odom_diff[0]);
   float_to_uchar4(&(buf[48]), omni->global_odom_diff[1]);
-  
+
   float_to_uchar4(&(buf[52]), omni->global_odom_speed[0]);
   float_to_uchar4(&(buf[56]), omni->global_odom_speed[1]);
 
@@ -202,4 +202,15 @@ void commStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * 
   } else {
     self_timeout_reset_cnt = 0;
   }
+}
+
+camera_t parseCameraPacket(uint8_t * data)
+{
+  camera_t camera;
+  // x = [x_high, x_low, y_high, y_low, radius_high, radius_low, FPS_send]
+  camera.pos_xy[0] = (data[0] << 8) + data[1];
+  camera.pos_xy[1] = (data[2] << 8) + data[3];
+  camera.radius = (data[4] << 8) + data[5];
+  camera.fps = data[6];
+  return camera;
 }

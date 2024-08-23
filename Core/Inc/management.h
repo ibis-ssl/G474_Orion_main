@@ -254,6 +254,12 @@ typedef struct
   volatile uint32_t start_time[20], end_time[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
 } debug_t;
 
+typedef struct
+{
+  int16_t pos_xy[2], radius;
+  uint8_t fps;
+} camera_t;
+
 //extern float voltage[6];
 
 #endif /* MANAGEMENT_H_ */
