@@ -629,7 +629,7 @@ int main(void)
             p("0x%02x ", data_from_cm4[i]);
           }
           setTextMagenta();
-          p(" ck 0x%2x ", connection.check_cnt);
+          p(" ck 0x%2x , error %4d", connection.check_cnt, connection.check_sum_error_cnt);
           break;
         default:
           debug.print_idx = 0;
@@ -950,6 +950,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         rx_check_cnt_all += data_from_cm4[i];
       }
       connection.check_cnt = rx_check_cnt_all & 0xFF;
+      if (connection.check_cnt != data_from_cm4[RX_BUF_SIZE_CM4 - 1]) {
+        connection.check_sum_error_cnt++;
+      }
     }
   }
 

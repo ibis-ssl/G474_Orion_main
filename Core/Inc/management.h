@@ -225,6 +225,7 @@ typedef struct
   uint32_t latest_cm4_cmd_update_time;
   int32_t ai_cmd_delta_time;
   uint8_t check_cnt;
+  uint32_t check_sum_error_cnt;
 } connection_t;
 
 typedef struct
