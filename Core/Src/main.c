@@ -622,8 +622,14 @@ int main(void)
           p("UART RAW ");
           setTextNormal();
           for (int i = 0; i < 64; i++) {
-            printf("0x%02x ", data_from_cm4[i]);
+            p("0x%02x ", data_from_cm4[i]);
           }
+          setTextCyan();
+          for (int i = 64; i < 64 + 8; i++) {
+            p("0x%02x ", data_from_cm4[i]);
+          }
+          setTextMagenta();
+          p(" ck 0x%2x ", connection.check_cnt);
           break;
         default:
           debug.print_idx = 0;
@@ -907,6 +913,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   static int32_t uart_rx_cmd_idx = -1;
   uint8_t rx_data_tmp;
+  uint32_t rx_check_cnt_all = 0;
   RobotCommandSerializedV2 cmd_data_v2;
 
   debug.uart_rx_itr_cnt++;
@@ -937,6 +944,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
       updateCM4CmdTimeStamp(&connection, &sys);
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
+      rx_check_cnt_all = 0;
+      // 最終byteがcheckcntなので除外する
+      for (int i = 0; i < RX_BUF_SIZE_CM4 - 1; i++) {
+        rx_check_cnt_all += data_from_cm4[i];
+      }
+      connection.check_cnt = rx_check_cnt_all & 0xFF;
     }
   }
 

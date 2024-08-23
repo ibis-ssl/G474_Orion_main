@@ -78,7 +78,7 @@ enum {
 #define CAN_TX_DATA_SIZE 8
 #define OMNI_DIAMETER 0.056
 #define ROBOT_RADIUS 0.080
-#define RX_BUF_SIZE_CM4 (64 + 7)
+#define RX_BUF_SIZE_CM4 (64 + 8)
 #define TX_BUF_SIZE_CM4 128
 
 // logging time : 0.5s -> 2s : without vision mode
@@ -224,6 +224,7 @@ typedef struct
   uint32_t latest_ai_cmd_update_time;
   uint32_t latest_cm4_cmd_update_time;
   int32_t ai_cmd_delta_time;
+  uint8_t check_cnt;
 } connection_t;
 
 typedef struct
