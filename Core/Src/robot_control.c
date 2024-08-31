@@ -13,8 +13,8 @@
 #define SPEED_SCALAR_LIMIT (7.0)
 
 // 加速度パラメーター
-#define ACCEL_LIMIT (3.5)       // m/ss
-#define ACCEL_LIMIT_BACK (3.5)  // m/ss
+#define ACCEL_LIMIT (8)       // m/ss
+#define ACCEL_LIMIT_BACK (4)  // m/ss
 
 #define ACCEL_TO_OUTPUT_GAIN (0.5)
 
