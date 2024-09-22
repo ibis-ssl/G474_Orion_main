@@ -848,9 +848,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     debug.print_flag = true;
 
-    actuatorPower_ONOFF(1);
-
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+
+    if (sys.main_mode == MAIN_MODE_ERROR) {
+      actuatorPower_ONOFF(0);
+    } else {
+      actuatorPower_ONOFF(1);
+    }
   }
   debug.start_time[6] = htim7.Instance->CNT;  // パフォーマンス計測用
   debug.timer_itr_exit_cnt = htim7.Instance->CNT;

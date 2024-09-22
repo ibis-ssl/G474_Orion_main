@@ -17,13 +17,9 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
 
       // しばらくstopに落とす
       requestStop(sys, 3000);
-
-      // OFFコマンドでリセット
-      actuatorPower_ONOFF(0);
-    } else {
-      sys->main_mode = MAIN_MODE_ERROR;
-      //resetLocalSpeedControl(&ai_cmd);
     }
+    sys->main_mode = MAIN_MODE_ERROR;
+    //resetLocalSpeedControl(&ai_cmd);
   } else {
     sys->main_mode = main_mode_sw;
   }
