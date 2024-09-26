@@ -136,8 +136,8 @@ void resetAiCmdData(RobotCommandV2 * ai_cmd)
   ai_cmd->dribble_power = 0;
   ai_cmd->is_vision_available = false;
   ai_cmd->stop_emergency = true;
-  ai_cmd->omega_limit = 0;
-  ai_cmd->speed_limit = 0;
+  ai_cmd->angular_velocity_limit = 0;
+  ai_cmd->linear_velocity_limit = 0;
   ai_cmd->kick_power = 0;
   ai_cmd->enable_chip = false;
   ai_cmd->dribble_power = 0;
@@ -213,4 +213,27 @@ camera_t parseCameraPacket(uint8_t * data)
   camera.radius = (data[4] << 8) + data[5];
   camera.fps = data[6];
   return camera;
+}
+
+static uint8_t calcCheckSum(uint8_t data[])
+{
+  uint32_t rx_check_cnt_all = 0;
+
+  // 最終byteがcheckcntなので除外する
+  for (int i = 0; i < RX_BUF_SIZE_CM4 - 1; i++) {
+    rx_check_cnt_all += data[i];
+  }
+
+  return rx_check_cnt_all & 0xFF;
+}
+
+bool checkCM4CmdCheckSun(connection_t * connection, uint8_t data[])
+{
+  connection->check_cnt = calcCheckSum(data);
+  if (connection->check_cnt != data[RX_BUF_SIZE_CM4 - 1]) {
+    connection->check_sum_error_cnt++;
+    return false;
+  } else {
+    return true;
+  }
 }

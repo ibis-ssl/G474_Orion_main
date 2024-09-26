@@ -19,5 +19,6 @@ void resetLocalSpeedControl(RobotCommandV2 * ai_cmd);
 void updateCM4CmdTimeStamp(connection_t * connection, system_t * sys);
 void calcAIcmdRxFrq(connection_t * connection);
 camera_t parseCameraPacket(uint8_t data[]);
+bool checkCM4CmdCheckSun(connection_t * connection, uint8_t data[]);
 
 #endif /* INC_AI_COMM_H_ */

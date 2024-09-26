@@ -99,7 +99,7 @@ integration_control_t integ;
 accel_vector_t acc_vel;
 debug_t debug;
 omega_target_t omega_target;
-camera_t camera;
+camera_t camera, camera_buf;
 
 RobotCommandV2 cmd_v2, cmd_v2_buf;
 
@@ -368,7 +368,7 @@ int main(void)
           p("Ltcy %3d ", cmd_v2.latency_time_ms);
 
           p("TarTheta %+6.2f ", cmd_v2.target_global_theta);
-          p("SpdLmt %4.2f OmgLmt %4.1f ", cmd_v2.speed_limit, cmd_v2.omega_limit);
+          p("SpdLmt %4.2f OmgLmt %4.1f ", cmd_v2.linear_velocity_limit, cmd_v2.angular_velocity_limit);
 
           p("dri %+4.2f ", cmd_v2.dribble_power);
           if (cmd_v2.lift_dribbler) {
@@ -762,7 +762,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 関数化したほうがええかも
   if (connection.updated_flag) {
     connection.updated_flag = false;
-    memcpy(&cmd_v2, &cmd_v2_buf, sizeof(cmd_v2));
+    memcpy(&cmd_v2, &cmd_v2_buf, sizeof(RobotCommandV2));
+    memcpy(&camera, &camera_buf, sizeof(camera_t));
   }
   commStateCheck(&connection, &sys, &cmd_v2);
 
@@ -922,7 +923,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   static int32_t uart_rx_cmd_idx = -1;
   uint8_t rx_data_tmp;
-  uint32_t rx_check_cnt_all = 0;
   RobotCommandSerializedV2 cmd_data_v2;
 
   debug.uart_rx_itr_cnt++;
@@ -948,20 +948,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
+      // UARTバスを送受信で同時に使えないので、受信完了してから送信開始
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
+
       uart_rx_cmd_idx = -1;
       memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
       cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
-      updateCM4CmdTimeStamp(&connection, &sys);
-      camera = parseCameraPacket(&(data_from_cm4[64]));
-      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
-      rx_check_cnt_all = 0;
-      // 最終byteがcheckcntなので除外する
-      for (int i = 0; i < RX_BUF_SIZE_CM4 - 1; i++) {
-        rx_check_cnt_all += data_from_cm4[i];
-      }
-      connection.check_cnt = rx_check_cnt_all & 0xFF;
-      if (connection.check_cnt != data_from_cm4[RX_BUF_SIZE_CM4 - 1]) {
-        connection.check_sum_error_cnt++;
+      camera_buf = parseCameraPacket(&(data_from_cm4[64]));
+      if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
+        updateCM4CmdTimeStamp(&connection, &sys);
       }
     }
   }
