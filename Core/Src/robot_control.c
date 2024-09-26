@@ -54,7 +54,7 @@ static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu
   const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
 
   float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
-  target_diff_angle = clampSize(target_diff_angle, ai_cmd->omega_limit / MAIN_LOOP_CYCLE);
+  target_diff_angle = clampSize(target_diff_angle, ai_cmd->angular_velocity_limit / MAIN_LOOP_CYCLE);
   omega_target->current_target += target_diff_angle;
   // PID
   output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
@@ -81,7 +81,7 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
     target->global_vel[i] = integ->position_diff[i] * 40;
     // 計算上の都合で､速度の向きをthetaではなくxyで与える｡そのため値なのでゲインの意味は少ない
   }
-  clampScalarSize(target->global_vel, ai_cmd->speed_limit);  // ここの速度指定はほぼ意味ない
+  clampScalarSize(target->global_vel, ai_cmd->linear_velocity_limit);  // ここの速度指定はほぼ意味ない
 
   //デバッグ用の一時実装
   target->target_pos_dist_scalar = calcScalar(integ->position_diff[0], integ->position_diff[1]);
@@ -102,14 +102,14 @@ static void localPositionFeedback(integration_control_t * integ, imu_t * imu, ta
 
   // v^2 = 2 * acc * 2 * 0.1
   // デバッグ用の1m/s｡本当はai_cmdの値を使う
-  float speed_limit = ai_cmd->speed_limit;
-  //float speed_limit = 1.5;
-  if (target->target_scalar_vel > speed_limit) {
+  float linear_velocity_limit = ai_cmd->linear_velocity_limit;
+  //float linear_velocity_limit = 1.5;
+  if (target->target_scalar_vel > linear_velocity_limit) {
     target->to_stop_mode_flag = false;
   } else {
     target->to_stop_mode_flag = true;
   }
-  target->target_scalar_vel = clampSize(target->target_scalar_vel, speed_limit);
+  target->target_scalar_vel = clampSize(target->target_scalar_vel, linear_velocity_limit);
   // 目標地点付近での制御は別で用意していいかも
   if (target->target_pos_dist_scalar < 0.03) {
     target->target_scalar_vel = 0;
