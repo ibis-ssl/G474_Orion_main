@@ -49,6 +49,7 @@
 #include "state_func.h"
 #include "stop_state_control.h"
 #include "util.h"
+#include "errno.h"
 
 /* USER CODE END Includes */
 
@@ -368,7 +369,7 @@ int main(void)
           p("Ltcy %3d ", cmd_v2.latency_time_ms);
 
           p("TarTheta %+6.2f ", cmd_v2.target_global_theta);
-          p("SpdLmt %4.2f OmgLmt %4.1f ", cmd_v2.linear_velocity_limit, cmd_v2.angular_velocity_limit);
+          p("Lmt: Spd %4.2f Omg %4.1f Acc %4.2f / ", cmd_v2.linear_velocity_limit, cmd_v2.angular_velocity_limit, cmd_v2.acceleration_limit);
 
           p("dri %+4.2f ", cmd_v2.dribble_power);
           if (cmd_v2.lift_dribbler) {
