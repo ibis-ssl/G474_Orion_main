@@ -8,12 +8,12 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
 {
   if (sys->error_flag) {
     // 一定回数はリセットを許容する
-    if (isOverCurrentError(sys->error_id, sys->error_info) && sys->error_resume_cnt < 10) {
+    if (isOverCurrentError(sys->current_error.id, sys->current_error.info) && sys->current_error.resume_cnt < 10) {
       sys->error_flag = false;
-      sys->error_info = 0;
-      sys->error_value = 0;
+      sys->current_error.id = 0;
+      sys->current_error.info = 0;
 
-      sys->error_resume_cnt++;
+      sys->current_error.resume_cnt++;
 
       // しばらくstopに落とす
       requestStop(sys, 3000);
@@ -40,7 +40,7 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
 void requestStop(system_t * sys, uint32_t time_ms)
 {
   //より短い値で上書きしないためのブロック
-  if (sys->stop_flag_request_time > sys->system_time_ms + time_ms) { 
+  if (sys->stop_flag_request_time > sys->system_time_ms + time_ms) {
     return;
   }
   sys->stop_flag_request_time = sys->system_time_ms + (uint32_t)(time_ms);

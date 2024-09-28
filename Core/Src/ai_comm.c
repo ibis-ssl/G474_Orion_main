@@ -38,12 +38,12 @@ void sendRobotInfo(
   buf[14] = can_raw->ball_detection[2];
   buf[15] = sys->kick_state / 10;
 
-  buf[16] = (uint8_t)(sys->error_id & 0xFF);
-  buf[17] = (uint8_t)((sys->error_id >> 8) & 0xFF);
-  buf[18] = (uint8_t)(sys->error_info & 0xFF);
-  buf[19] = (uint8_t)((sys->error_info >> 8) & 0xFF);
+  buf[16] = (uint8_t)(sys->current_error.id & 0xFF);
+  buf[17] = (uint8_t)((sys->current_error.id >> 8) & 0xFF);
+  buf[18] = (uint8_t)(sys->current_error.info & 0xFF);
+  buf[19] = (uint8_t)((sys->current_error.info >> 8) & 0xFF);
 
-  float_to_uchar4(&(buf[20]), sys->error_value);
+  float_to_uchar4(&(buf[20]), sys->current_error.value);
 
   buf[24] = (uint8_t)(can_raw->current[0] * 10);
   buf[25] = (uint8_t)(can_raw->current[1] * 10);

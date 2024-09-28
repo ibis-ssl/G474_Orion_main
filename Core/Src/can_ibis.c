@@ -201,9 +201,12 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       can_raw->error_no[1] = rx_data[1];
       can_raw->error_no[2] = rx_data[2];
       can_raw->error_no[3] = rx_data[3];
-      sys->error_id = (uint16_t)((rx_data[1] << 8) | rx_data[0]);
-      sys->error_info = (uint16_t)((rx_data[3] << 8) | rx_data[2]);
-      sys->error_value = uchar4_to_float(&rx_data[4]);
+      sys->current_error.id = (uint16_t)((rx_data[1] << 8) | rx_data[0]);
+      sys->current_error.info = (uint16_t)((rx_data[3] << 8) | rx_data[2]);
+      sys->current_error.value = uchar4_to_float(&rx_data[4]);
+      sys->latest_error.id = sys->current_error.id;
+      sys->latest_error.info = sys->current_error.info;
+      sys->latest_error.value = sys->current_error.value;
       sys->error_flag = true;
       break;
 

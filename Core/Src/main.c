@@ -330,9 +330,9 @@ int main(void)
       if (sys.main_mode == MAIN_MODE_ERROR) {
         // 赤
         setTextRed();
-        //p(" error : ID %5d / Info %5d / Value %+8.3f ", sys.error_id, sys.error_info, sys.error_value);
-        convertErrorDataToStr(sys.error_id, sys.error_info, error_str);
-        p("Err %s %+5.2f ", error_str, sys.error_value);
+        //p(" error : ID %5d / Info %5d / Value %+8.3f ", sys.current_error.id, sys.current_error.info, sys.current_error.value);
+        convertErrorDataToStr(sys.current_error.id, sys.current_error.info, error_str);
+        p("Err %s %+5.2f ", error_str, sys.current_error.value);
         setTextNormal();
       }
       if (isStopRequested(&sys)) {
@@ -626,6 +626,8 @@ int main(void)
             p("%+6.2f ", output.motor_voltage[i]);
           }
           p("SW ADC %4d ", sys.sw_adc_raw);
+          convertErrorDataToStr(sys.latest_error.id, sys.latest_error.info, error_str);
+          p("ErrLatest %s %+5.2f Resume %2d", error_str, sys.latest_error.value, sys.current_error.resume_cnt);
           break;
         case PRINT_IDX_UART_RAW:
           p("UART RAW ");

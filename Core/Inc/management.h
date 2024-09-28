@@ -230,10 +230,15 @@ typedef struct
 
 typedef struct
 {
+  uint16_t id, info;
+  float value;
+  uint32_t resume_cnt;  // エラー時の自動復帰回数上限
+} error_t;
+
+typedef struct
+{
   bool error_flag, stop_flag, can_timeout, enc_initialized;
-  uint16_t error_id, error_info;
-  float error_value;
-  uint32_t error_resume_cnt;  // エラー時の自動復帰回数上限
+  error_t current_error, latest_error;
   uint8_t main_mode;
   uint32_t system_time_ms;
   uint32_t stop_flag_request_time;
