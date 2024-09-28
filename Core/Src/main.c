@@ -41,6 +41,7 @@
 #include "ai_comm.h"
 #include "buzzer_control.h"
 #include "can_ibis.h"
+#include "error.h"
 #include "icm20602_spi.h"
 #include "odom.h"
 #include "omni_wheel.h"
@@ -49,7 +50,6 @@
 #include "state_func.h"
 #include "stop_state_control.h"
 #include "util.h"
-#include "errno.h"
 
 /* USER CODE END Includes */
 
@@ -297,6 +297,7 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = PRINT_IDX_VEL;
+  uint8_t error_str[100];
 
   /* USER CODE END 2 */
 
@@ -329,7 +330,9 @@ int main(void)
       if (sys.main_mode == MAIN_MODE_ERROR) {
         // 赤
         setTextRed();
-        p(" error : ID %5d / Info %5d / Value %+8.3f ", sys.error_id, sys.error_info, sys.error_value);
+        //p(" error : ID %5d / Info %5d / Value %+8.3f ", sys.error_id, sys.error_info, sys.error_value);
+        convertErrorDataToStr(sys.error_id, sys.error_info, error_str);
+        p("Err: %s %+5.2f ", error_str, sys.error_info);
         setTextNormal();
       }
       if (isStopRequested(&sys)) {
