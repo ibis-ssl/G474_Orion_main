@@ -31,7 +31,7 @@ enum {
   BLDC_OVER_VOLTAGE = 0x0020,
 };
 
-void convertErrorDataToStr(uint8_t id, uint16_t info, uint8_t str_buf[])
+void convertErrorDataToStr(uint8_t id, uint16_t info, unsigned char * str_buf)
 {
   int offset = 0;
   if (id == 100) {
@@ -83,13 +83,21 @@ void convertErrorDataToStr(uint8_t id, uint16_t info, uint8_t str_buf[])
         sprintf(str_buf + offset, "FET_OVER_HEAT");
         break;
       default:
+        sprintf(str_buf + offset, "unknown info %d ", info);
         break;
     }
   } else {
-    if (id < 2) {
-      offset = sprintf(str_buf, "BLDC-R : ");
+    if (id == 0) {
+      offset = sprintf(str_buf, "BLDC-RF : ");
+    } else if (id == 1) {
+      offset = sprintf(str_buf, "BLDC-RB : ");
+    } else if (id == 2) {
+      offset = sprintf(str_buf, "BLDC-LB : ");
+    } else if (id == 3) {
+      offset = sprintf(str_buf, "BLDC-LF : ");
     } else {
-      offset = sprintf(str_buf, "BLDC-L : ");
+      sprintf(str_buf, "unknown id : %d info : %d ", id, info);
+      return;
     }
     switch (info) {
       case BLDC_NONE:
@@ -114,6 +122,7 @@ void convertErrorDataToStr(uint8_t id, uint16_t info, uint8_t str_buf[])
         sprintf(str_buf + offset, "OVER_VOLTAGE");
         break;
       default:
+        sprintf(str_buf + offset, "unknown info %d ", info);
         break;
     }
   }

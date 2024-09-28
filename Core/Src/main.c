@@ -297,7 +297,7 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = PRINT_IDX_VEL;
-  uint8_t error_str[100];
+  unsigned char error_str[100];
 
   /* USER CODE END 2 */
 
@@ -332,7 +332,7 @@ int main(void)
         setTextRed();
         //p(" error : ID %5d / Info %5d / Value %+8.3f ", sys.error_id, sys.error_info, sys.error_value);
         convertErrorDataToStr(sys.error_id, sys.error_info, error_str);
-        p("Err: %s %+5.2f ", error_str, sys.error_info);
+        p("Err %s %+5.2f ", error_str, sys.error_value);
         setTextNormal();
       }
       if (isStopRequested(&sys)) {
