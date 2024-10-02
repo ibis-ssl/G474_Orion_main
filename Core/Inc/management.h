@@ -141,6 +141,7 @@ typedef struct
 {
   float vel_error_xy[2];
   float vel_error_scalar, vel_error_rad;
+  float accel_target;
   //float vel_error_real_scalar, vel_error_real_rad;
 } accel_vector_t;
 

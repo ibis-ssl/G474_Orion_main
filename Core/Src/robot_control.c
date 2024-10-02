@@ -12,6 +12,8 @@
 // スカラ速度制限(速度制御モード)
 #define SPEED_SCALAR_LIMIT (7.0)
 
+/* 位置フィードバック制御用パラメーター */
+
 // 加速度パラメーター
 #define ACCEL_LIMIT (6)       // m/ss
 #define ACCEL_LIMIT_BACK (4)  // m/ss
@@ -20,6 +22,14 @@
 
 // 減速方向は制動力を増強 1.5～2.0
 #define DEC_BOOST_GAIN (1.0)
+
+/*  速度制御用パラメーター  */
+
+// 減速時の加速度の倍率
+#define ACCEL_DECCEL_MULTI (1.8)
+
+// 後方へ加速(減速)するときの倍率
+#define ACCEL_BACK_SIDE_MULTI (0.7)
 
 // 速度制御の位置に対するフィードバックゲイン
 // ~ m/s / m : -250 -> 4cm : 1m/s
@@ -167,6 +177,17 @@ inline static void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * targe
   convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
 }
 
+static void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
+{
+  //acc_vel->accel_target = 7.0;
+  //return;
+  if (ai_cmd->acceleration_limit < 3.0 || ai_cmd->acceleration_limit > 20) {
+    acc_vel->accel_target = 5.0;
+  } else {
+    acc_vel->accel_target = ai_cmd->acceleration_limit;
+  }
+}
+
 static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
   // XY -> rad/scalarに変換
@@ -181,17 +202,19 @@ static void accelControl(accel_vector_t * acc_vel, output_t * output, target_t *
   }
 
   // スカラは使わず、常に最大加速度
-  output->accel[0] = cos(acc_vel->vel_error_rad) * ACCEL_LIMIT;
-  output->accel[1] = sin(acc_vel->vel_error_rad) * ACCEL_LIMIT;
+  output->accel[0] = cos(acc_vel->vel_error_rad) * acc_vel->accel_target;
+  output->accel[1] = sin(acc_vel->vel_error_rad) * acc_vel->accel_target;
 
   // バック方向だけ加速度制限
-  if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {
-    output->accel[0] = -(ACCEL_LIMIT_BACK);
+  if (output->accel[0] < -(acc_vel->accel_target * ACCEL_BACK_SIDE_MULTI)) {
+    output->accel[0] = -(acc_vel->accel_target * ACCEL_BACK_SIDE_MULTI);
   }
 
+  // 減速時に1.8倍
+  // いずれ指令値側で増やすので、消す
   for (int i = 0; i < 2; i++) {
     if (target->local_vel_now[i] * output->accel[i] <= 0) {
-      output->accel[i] *= 1.8;
+      output->accel[i] *= ACCEL_DECCEL_MULTI;
     }
 
     // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
@@ -273,7 +296,7 @@ static void speedControl(accel_vector_t * acc_vel, output_t * output, target_t *
   output->velocity[1] = omni->robot_pos_diff[1] * OUTPUT_GAIN_KP_ODOM_DIFF + target->local_vel_ff_factor[1] + target->local_vel_now[1] * OUTPUT_GAIN_TAR_TO_VEL;
 }
 
-void simpleSpeedControl(output_t * output, target_t * target, imu_t * imu, omni_t * omni)
+static void simpleSpeedControl(output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
   target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
   target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_angle_rad) + (target->global_vel[1]) * cos(imu->yaw_angle_rad);
@@ -354,6 +377,7 @@ void robotControl(
 
     case SIMPLE_VELOCITY_TARGET_MODE:
       setLocalTargetSpeed(ai_cmd, target, imu);
+      setTargetAccel(ai_cmd, acc_vel);
       if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {  // 0
         accelControl(acc_vel, output, target, imu, omni);
         speedControl(acc_vel, output, target, imu, omni, ai_cmd);
