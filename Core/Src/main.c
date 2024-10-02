@@ -267,7 +267,7 @@ int main(void)
   actuator_motor4(0.0);
   actuator_motor5(0.0);
 
-  actuator_kicker(1, 1);
+  actuator_kicker_charge_start();
   actuator_kicker_voltage(0.0);
   actuator_power_param(1, 15.0);  // min voltage
   actuator_power_param(2, 35.0);  // max voltage

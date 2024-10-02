@@ -97,9 +97,8 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
-        actuator_kicker(2, 0);  // straight
-        actuator_kicker(3, 50);
-        //actuator_kicker(3, 100);
+        actuator_kicker_straight();
+        actuator_kicker_kick(0.2);
         sys->kick_state = 1;
       }
     }
@@ -110,16 +109,15 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
-        actuator_kicker(2, 1);  // chip
-        actuator_kicker(3, 100);
-        //actuator_kicker(3, 255);
+        actuator_kicker_chip();
+        actuator_kicker_kick(0.5);
         sys->kick_state = 1;
       }
     }
   } else {
     actuator_motor5(0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-    actuator_kicker(1, 1);  // charge enable
+    actuator_kicker_charge_start();
     actuator_kicker_voltage(400.0);
   }
   omniStopAll(output);

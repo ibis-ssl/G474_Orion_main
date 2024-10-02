@@ -43,7 +43,8 @@ void actuator_kicker_voltage(float voltage)
 
 void actuator_kicker(uint8_t id, uint8_t param)
 {
-  /* id 1: 0=>standby   1=>charge
+  /* id 0: charge voltage [4-7]
+   * id 1: 0=>standby   1=>charge
 	 * id 2: 0=>straight  1=>chip
 	 * id 3: kick strength 0~255
 	 * */
@@ -53,6 +54,15 @@ void actuator_kicker(uint8_t id, uint8_t param)
   senddata_kick[2] = 100;
   can1_send(0x110, senddata_kick);
   can2_send(0x110, senddata_kick);
+}
+void actuator_kicker_straight(void) { actuator_kicker(2, 0); }
+void actuator_kicker_chip(void) { actuator_kicker(2, 1); }
+void actuator_kicker_charge_start(void) { actuator_kicker(1, 1); }
+void actuator_kicker_chaege_stop(void) { actuator_kicker(1, 0); }
+void actuator_kicker_kick(float kick_power)
+{
+  uint8_t kick_power_param = (float)kick_power * 255.0;
+  actuator_kicker(3, (uint8_t)kick_power_param);
 }
 
 void actuatorPower_ONOFF(uint8_t power_on)
