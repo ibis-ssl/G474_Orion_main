@@ -315,12 +315,11 @@ int main(void)
       // 文字列初期化
       printf_buffer[0] = 0;
 
-      p("\e[0m");                                        //初期化
-      float battery_voltage = can_raw.power_voltage[0];  // sub board
-      if (battery_voltage < LOW_VOLTAGE_LIMIT) {
+      p("\e[0m");  //初期化
+      if (isLowVoltage(&can_raw)) {
         setTextYellow();
       }
-      p("Batt=%3.1f ", battery_voltage);
+      p("Batt=%3.1f ", getBatteryRemain(&can_raw));
       setTextNormal();
 
       debug.out_total_spin = output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];

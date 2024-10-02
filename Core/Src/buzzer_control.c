@@ -7,18 +7,26 @@
 #include "stdbool.h"
 #include "stdint.h"
 
-inline static bool isLowVoltage(can_raw_t * can_raw)
+float getBatteryRemain(can_raw_t * can_raw)
 {
   // 4 : SubBoard
-  if (can_raw->power_voltage[0] != 0.0) {
-    if (can_raw->power_voltage[0] < LOW_VOLTAGE_LIMIT) {
+  const float ALPHA = 0.99;
+  static float battery_remain = 20;
+  battery_remain = ALPHA * battery_remain + (1 - ALPHA) * can_raw->power_voltage[0];
+  return battery_remain;
+}
+
+bool isLowVoltage(can_raw_t * can_raw)
+{
+  if (getBatteryRemain(can_raw) != 0.0) {
+    if (getBatteryRemain(can_raw) < LOW_VOLTAGE_LIMIT) {
       return true;
     }
   }
   return false;
 }
 
-inline static bool isVisionLost(system_t * sys, connection_t * con, RobotCommandV2 * ai_cmd)
+bool isVisionLost(system_t * sys, connection_t * con, RobotCommandV2 * ai_cmd)
 {
   static bool is_vision_available_once = false;
   if (!con->connected_ai) {
