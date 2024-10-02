@@ -4,6 +4,7 @@
 "./Core/Src/buzzer_control.o"
 "./Core/Src/can_ibis.o"
 "./Core/Src/dma.o"
+"./Core/Src/error.o"
 "./Core/Src/fdcan.o"
 "./Core/Src/gpio.o"
 "./Core/Src/icm20602_spi.o"
