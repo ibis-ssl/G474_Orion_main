@@ -8,15 +8,12 @@
 
 #include "control_pos.h"
 #include "control_speed.h"
+#include "control_theta.h"
 #include "robot_packet.h"
 #include "util.h"
 
 // スカラ速度制限(速度制御モード)
 #define SPEED_SCALAR_LIMIT (7.0)
-
-//#define OMEGA_GAIN_KP (160.0)
-#define OMEGA_GAIN_KP (30.0)
-#define OMEGA_GAIN_KD (4.0 * MAIN_LOOP_CYCLE)
 
 // ドライバ側は 50 rps 制限
 // omegaぶんは考慮しない
@@ -25,20 +22,7 @@
 
 // omegaぶんの制限
 
-static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu, omega_target_t * omega_target)
-{
-  const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
-
-  float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
-  target_diff_angle = clampSize(target_diff_angle, ai_cmd->angular_velocity_limit / MAIN_LOOP_CYCLE);
-  omega_target->current_target += target_diff_angle;
-  // PID
-  output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_rad, imu->pre_yaw_rad) * OMEGA_GAIN_KD);
-  output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
-  //output->omega = 0;
-}
-
-inline void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu)
+inline static void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu)
 {
   target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
   target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];

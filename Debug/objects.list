@@ -5,6 +5,7 @@
 "./Core/Src/can_ibis.o"
 "./Core/Src/control_pos.o"
 "./Core/Src/control_speed.o"
+"./Core/Src/control_theta.o"
 "./Core/Src/dma.o"
 "./Core/Src/error.o"
 "./Core/Src/fdcan.o"
