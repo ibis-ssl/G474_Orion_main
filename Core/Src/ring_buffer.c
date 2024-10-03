@@ -1,11 +1,9 @@
 #include "ring_buffer.h"
 
-
-
 // リングバッファの初期化
-RingBuffer * initRingBuffer(int size)
+ring_buffer_t * initRingBuffer(int size)
 {
-  RingBuffer * rb = (RingBuffer *)malloc(sizeof(RingBuffer));
+  ring_buffer_t * rb = (ring_buffer_t *)malloc(sizeof(ring_buffer_t));
   rb->buffer = (float *)malloc(size * sizeof(float));
   rb->size = size;
   rb->front = 0;
@@ -15,7 +13,7 @@ RingBuffer * initRingBuffer(int size)
 }
 
 // リングバッファに要素を追加
-void enqueue(RingBuffer * rb, float data)
+void enqueue(ring_buffer_t * rb, float data)
 {
   if (rb->count < rb->size) {
     rb->rear = (rb->rear + 1) % rb->size;
@@ -30,7 +28,7 @@ void enqueue(RingBuffer * rb, float data)
 }
 
 // リングバッファから要素を取得
-float dequeue(RingBuffer * rb)
+float dequeue(ring_buffer_t * rb)
 {
   if (rb->count > 0) {
     float data = rb->buffer[rb->front];
@@ -44,7 +42,7 @@ float dequeue(RingBuffer * rb)
 }
 
 // リングバッファ上のデータを新しい順にn個加算した結果を取得
-float sumNewestN(RingBuffer * rb, int n)
+float sumNewestN(ring_buffer_t * rb, int n)
 {
   if (n <= 0 || n > rb->count) {
     // 無効なnの値の場合はエラーとして0.0を返す
@@ -61,7 +59,7 @@ float sumNewestN(RingBuffer * rb, int n)
 }
 
 // リングバッファの解放
-void freeRingBuffer(RingBuffer * rb)
+void freeRingBuffer(ring_buffer_t * rb)
 {
   free(rb->buffer);
   free(rb);

@@ -108,7 +108,7 @@ typedef struct
   int front;       // データの先頭位置
   int rear;        // データの末尾位置
   int count;       // データの数
-} RingBuffer;
+} ring_buffer_t;
 
 typedef struct
 {
@@ -165,14 +165,14 @@ typedef struct
   float global_raw_odom[3];
   float global_odom_speed[2];  // フィールド
   float local_odom_speed[3];   // ローカル､前輪2輪によるものもあるので3つ
-  RingBuffer * local_speed_log[3];
+  ring_buffer_t * local_speed_log[3];
   float local_odom_speed_mvf[3];  // ローカル､移動平均｡前輪2輪によるものもあるので3つ
   float global_raw_odom_vel[2];
 } omni_t;
 
 typedef struct
 {
-  RingBuffer * odom_log[2];
+  ring_buffer_t * odom_log[2];
   float global_odom_vision_diff[2];     // vision座標を基準にした移動距離(global系)
   float vision_based_position[2];       // Visionによって更新された自己位置(global系)
   float position_diff[2];               // ai_cmdとvision_based_positionの差分(global系)
@@ -257,7 +257,7 @@ typedef struct
   volatile int latency_check_seq_cnt;
   volatile float rotation_target_theta;
   volatile uint32_t uart_rx_itr_cnt;
-  volatile uint32_t start_time[20], end_time[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
+  volatile uint32_t mnt_tim_cnt_now[20], mnt_tim_cnt_max[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
 } debug_t;
 
 typedef struct

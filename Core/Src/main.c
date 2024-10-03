@@ -297,7 +297,7 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = PRINT_IDX_VEL;
-  unsigned char error_str[100];
+  unsigned char error_str[100] = {0};
 
   /* USER CODE END 2 */
 
@@ -614,12 +614,15 @@ int main(void)
         case PRINT_IDX_SYSTEM:
           p("SYSTEM TIME ");
           for (int i = 0; i < 7; i++) {
-            p("%4d ", debug.start_time[i]);
+            if (debug.mnt_tim_cnt_max[i] < debug.mnt_tim_cnt_now[i]) {
+              debug.mnt_tim_cnt_max[i] = debug.mnt_tim_cnt_now[i];
+            }
+            p("%4d %4d / ", debug.mnt_tim_cnt_now[i], debug.mnt_tim_cnt_max[i]);
           }
-          p("PW %4d ", can_raw.board_rx_timeout_cnt[0]);
-          p("RD %4d ", can_raw.board_rx_timeout_cnt[1]);
-          p("LD %4d ", can_raw.board_rx_timeout_cnt[2]);
-          p("SB %4d ", can_raw.board_rx_timeout_cnt[3]);
+          p("PW%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_POWER]);
+          p("RD%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_MOTOR_RIGHT]);
+          p("LD%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_MOTOR_LEFT]);
+          p("SB%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_SUB]);
           p("MotorV ");
           for (int i = 0; i < 4; i++) {
             p("%+6.2f ", output.motor_voltage[i]);
@@ -758,7 +761,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
   // TIM interrupt is TIM7 only.
 
-  debug.start_time[0] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.mnt_tim_cnt_now[0] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // sys.main_mode設定
   static uint8_t sw_mode;
@@ -781,7 +784,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   // 以後sys.main_modeによる動作切り替え
 
-  debug.start_time[1] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.mnt_tim_cnt_now[1] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   yawFilter();
   omniOdometryUpdate(&motor, &omni, &imu);  // 250us
@@ -789,13 +792,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   resetOdomAtEncInitialized();
 
-  debug.start_time[2] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.mnt_tim_cnt_now[2] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
   debug.true_fb_total_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
   debug.true_cycle_cnt++;
 
-  debug.start_time[3] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.mnt_tim_cnt_now[3] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
@@ -841,10 +844,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
   }
 
-  debug.start_time[4] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.mnt_tim_cnt_now[4] = htim7.Instance->CNT;  // パフォーマンス計測用
   buzzerControl(&can_raw, &sys, &connection, &cmd_v2);
 
-  debug.start_time[5] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.mnt_tim_cnt_now[5] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // interrupt : 500Hz
   static uint16_t print_cycle_cnt;
@@ -862,7 +865,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuatorPower_ONOFF(1);
     }
   }
-  debug.start_time[6] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.mnt_tim_cnt_now[6] = htim7.Instance->CNT;  // パフォーマンス計測用
   debug.timer_itr_exit_cnt = htim7.Instance->CNT;
 }
 

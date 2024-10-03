@@ -6,9 +6,9 @@
 
 #include "management.h"
 
-RingBuffer * initRingBuffer(int size);
-void enqueue(RingBuffer * rb, float data);
-float dequeue(RingBuffer * rb);
-void freeRingBuffer(RingBuffer * rb);
-float sumNewestN(RingBuffer * rb, int n);
+ring_buffer_t * initRingBuffer(int size);
+void enqueue(ring_buffer_t * rb, float data);
+float dequeue(ring_buffer_t * rb);
+void freeRingBuffer(ring_buffer_t * rb);
+float sumNewestN(ring_buffer_t * rb, int n);
 #endif
