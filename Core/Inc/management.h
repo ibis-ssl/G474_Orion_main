@@ -168,7 +168,7 @@ typedef struct
   float offset_dist[2];
   float global_raw_odom[3];
   float global_odom_speed[2];  // フィールド
-  float local_odom_speed[3];   // ローカル､前輪2輪によるものもあるので3つ
+  float local_odom_speed[3];            // ローカル､前輪2輪によるものもあるので3つ
   ring_buffer_t * local_speed_log[3];
   float local_odom_speed_mvf[3];  // ローカル､移動平均｡前輪2輪によるものもあるので3つ
   float global_raw_odom_vel[2];
@@ -195,13 +195,16 @@ typedef struct
   float global_pos[2];           // 上記で移動するX,Y座標
   float stop_distance_xy, tar_distance_xy;
 
-  float target_vel_angle;
-  float global_odom_speed[2];
-  float current_speed_crd[2];
-  float target_crd_acc[2];
-  float global_acc[2];
-  float target_scalar_vel, target_pos_dist_scalar;
-  bool to_stop_mode_flag;
+  struct
+  {
+    float target_vel_angle;
+    float global_odom_speed[2];
+    float current_speed_crd[2];
+    float target_crd_acc[2];
+    float global_acc[2];
+    float target_scalar_vel, target_pos_dist_scalar;
+    bool to_stop_mode_flag;
+  } pos_ctrl;
 } target_t;
 
 typedef struct

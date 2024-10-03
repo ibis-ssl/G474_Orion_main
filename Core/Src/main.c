@@ -545,22 +545,22 @@ int main(void)
           //p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
           p("diffG %+6.3f %+6.3f ", integ.position_diff[0], integ.position_diff[1]);
-          p("dist %+6.3f ", target.target_pos_dist_scalar);
+          p("dist %+6.3f ", target.pos_ctrl.target_pos_dist_scalar);
           //p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
-          //p("angle %+5.2f ", target.target_vel_angle);
+          //p("angle %+5.2f ", target.pos_ctrl.target_vel_angle);
 
-          //p("GlobalVel %+6.3f Y %+6.3f ", target.global_odom_speed[0], target.global_odom_speed[1]);
-          p("tarScV %+5.2f ", target.target_scalar_vel);
-          if (target.target_scalar_vel > target.current_speed_crd[0]) {
+          //p("GlobalVel %+6.3f Y %+6.3f ", target.pos_ctrl.global_odom_speed[0], target.pos_ctrl.global_odom_speed[1]);
+          p("tarScV %+5.2f ", target.pos_ctrl.target_scalar_vel);
+          if (target.pos_ctrl.target_scalar_vel > target.pos_ctrl.current_speed_crd[0]) {
             setTextCyan();
           } else {
             setTextMagenta();
           }
-          p("CrSpdCrd %+5.2f,%+5.2f ", target.current_speed_crd[0], target.current_speed_crd[1]);
+          p("CrSpdCrd %+5.2f,%+5.2f ", target.pos_ctrl.current_speed_crd[0], target.pos_ctrl.current_speed_crd[1]);
           setTextNormal();
-          p("accCrd X %+6.2f, Y %+6.2f ", target.target_crd_acc[0], target.target_crd_acc[1]);
-          p("accGl X %+6.2f, Y %+6.2f ", target.global_acc[0], target.global_acc[1]);
-          p("%d ", target.to_stop_mode_flag);
+          p("accCrd X %+6.2f, Y %+6.2f ", target.pos_ctrl.target_crd_acc[0], target.pos_ctrl.target_crd_acc[1]);
+          p("accGl X %+6.2f, Y %+6.2f ", target.pos_ctrl.global_acc[0], target.pos_ctrl.global_acc[1]);
+          p("%d ", target.pos_ctrl.to_stop_mode_flag);
           //p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           //p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
 
