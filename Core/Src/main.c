@@ -484,10 +484,11 @@ int main(void)
           break;
         case PRINT_IDX_MOUSE:  // Mouse odom
           p("MOUSE ");
-          p("%d / %d %d %d %d", allEncInitialized(&can_raw), can_raw.enc_rx_flag[0], can_raw.enc_rx_flag[1], can_raw.enc_rx_flag[2], can_raw.enc_rx_flag[3]);
+          p("%d / enc all%d %d %d %d %d / ", can_raw.rx_stat.mouse_flag, allEncInitialized(&can_raw), can_raw.rx_stat.enc_flag[0], can_raw.rx_stat.enc_flag[1], can_raw.rx_stat.enc_flag[2],
+            can_raw.rx_stat.enc_flag[3]);
           //p("raw_odom X %+8.3f Y %+8.3f ", mouse.raw_odom[0] * 1000, mouse.raw_odom[1] * 1000);
           //p("mouse floor X %+8.3f Y %+8.3f ", mouse.floor_odom[0] * 1000, mouse.floor_odom[1] * 1000);
-          p("omni-odom X %+8.1f ,Y %+8.1f. ", omni.odom[0] * 1000, omni.odom[1] * 1000);
+          p("omni-odom X %+8.1f ,Y %+8.1f ", omni.odom[0] * 1000, omni.odom[1] * 1000);
           p("mouse X %+8.2f Y %+8.2f ", mouse.odom[0] * 1000, mouse.odom[1] * 1000);
           p("Error X %+8.2f Y %+8.2f ", (mouse.odom[0] - omni.odom[0]) * 1000, (mouse.odom[1] - omni.odom[1]) * 1000);
           p("diff X %+8.2f Y %+8.2f ", mouse.raw_diff[0] * 1000, mouse.raw_diff[1] * 1000);
@@ -500,7 +501,7 @@ int main(void)
           } else {
             setTextGreen();
           }
-          p("raw X %+4d Y %+4d Q %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
+          p("/ raw X %+4d Y %+4d Q %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
 
           break;
         case PRINT_IDX_ODOM:
@@ -604,11 +605,11 @@ int main(void)
         case PRINT_IDX_LATENCY:
           p("LATENCY ");
           p("setting : %3d / ", cmd_v2.latency_time_ms);
-          p("EN %d cnt %4d target %+5.2f diff %+5.2f", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
+          p("EN %d cnt %4d target %+5.2f diff %+5.2f / ", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
             getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
 
           p("CAM ");
-          p("x %+4d y%+4d rad %4d fps %3d", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
+          p("x %+4d y%+4d rad %4d fps %3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
 
           break;
         case PRINT_IDX_SYSTEM:
@@ -619,10 +620,10 @@ int main(void)
             }
             p("%4d %4d / ", debug.mnt_tim_cnt_now[i], debug.mnt_tim_cnt_max[i]);
           }
-          p("PW%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_POWER]);
-          p("RD%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_MOTOR_RIGHT]);
-          p("LD%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_MOTOR_LEFT]);
-          p("SB%4d ", can_raw.board_rx_timeout_cnt[BOARD_ID_SUB]);
+          p("PW%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_POWER]);
+          p("RD%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_MOTOR_RIGHT]);
+          p("LD%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_MOTOR_LEFT]);
+          p("SB%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_SUB]);
           p("MotorV ");
           for (int i = 0; i < 4; i++) {
             p("%+6.2f ", output.motor_voltage[i]);

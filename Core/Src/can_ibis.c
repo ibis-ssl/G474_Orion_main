@@ -220,11 +220,11 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       can_raw->motor_feedback[enc_id] = uchar4_to_float(rx_data);
       can_raw->motor_feedback_velocity[enc_id] = uchar4_to_float(rx_data) * OMNI_DIAMETER * M_PI;
       if (rx_can_id == 0x200 || rx_can_id == 0x201) {
-        can_raw->board_rx_timeout_cnt[BOARD_ID_MOTOR_RIGHT] = 0;
+        can_raw->rx_stat.timeout_cnt[BOARD_ID_MOTOR_RIGHT] = 0;
       } else if (rx_can_id == 0x202 || rx_can_id == 0x203) {
-        can_raw->board_rx_timeout_cnt[BOARD_ID_MOTOR_LEFT] = 0;
+        can_raw->rx_stat.timeout_cnt[BOARD_ID_MOTOR_LEFT] = 0;
       }
-      can_raw->enc_rx_flag[enc_id] = true;
+      can_raw->rx_stat.enc_flag[enc_id] = true;
       break;
     case 0x204:
       can_raw->motor_feedback_velocity[4] = uchar4_to_float(rx_data);
@@ -240,9 +240,9 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x216:  // power capacitor
       can_raw->power_voltage[rx_can_id - 0x210] = uchar4_to_float(rx_data);
       if (rx_can_id == 0x215) {
-        can_raw->board_rx_timeout_cnt[BOARD_ID_POWER] = 0;
+        can_raw->rx_stat.timeout_cnt[BOARD_ID_POWER] = 0;
       } else if (rx_can_id == 0x214) {
-        can_raw->board_rx_timeout_cnt[BOARD_ID_SUB] = 0;
+        can_raw->rx_stat.timeout_cnt[BOARD_ID_SUB] = 0;
       }
       break;
 
@@ -282,7 +282,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       mouse->raw[0] = (int16_t)((rx_data[1] << 8) | rx_data[0]);
       mouse->raw[1] = (int16_t)((rx_data[3] << 8) | rx_data[2]);
       mouse->quality = (uint16_t)((rx_data[5] << 8) | rx_data[4]);
-      can_raw->mouse_rx_flag = true;
+      can_raw->rx_stat.mouse_flag = true;
 
       // 持ち上げ･コート外検知
       /*if (mouse->quality < 30 && sys->system_time_ms > 1000) {
@@ -309,7 +309,6 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
         } else {
           actuator_kicker_straight();
         }
-
 
         //resetLocalSpeedControl(ai_cmd);
         sys->kick_state = 1;
@@ -384,7 +383,7 @@ const int CAN_ENC_TIMEOUT_CYCLE_CNT = 100;
 bool canRxTimeoutDetection(can_raw_t * can_raw)
 {
   for (int i = 0; i < BOARD_ID_MAX; i++) {
-    if (can_raw->board_rx_timeout_cnt[i] > CAN_ENC_TIMEOUT_CYCLE_CNT) {
+    if (can_raw->rx_stat.timeout_cnt[i] > CAN_ENC_TIMEOUT_CYCLE_CNT) {
       return true;
     }
   }
@@ -394,11 +393,14 @@ bool canRxTimeoutDetection(can_raw_t * can_raw)
 void canRxTimeoutCntCycle(can_raw_t * can_raw)
 {
   for (int i = 0; i < BOARD_ID_MAX; i++) {
-    if (can_raw->board_rx_timeout_cnt[i] < CAN_ENC_TIMEOUT_CYCLE_CNT * 10) {
-      can_raw->board_rx_timeout_cnt[i]++;
+    if (can_raw->rx_stat.timeout_cnt[i] < CAN_ENC_TIMEOUT_CYCLE_CNT * 10) {
+      can_raw->rx_stat.timeout_cnt[i]++;
     }
   }
 }
 
 // エンコーダ&オムニ角度取得済みかどうか
-bool allEncInitialized(can_raw_t * can_raw) { return can_raw->mouse_rx_flag & can_raw->enc_rx_flag[0] & can_raw->enc_rx_flag[1] & can_raw->enc_rx_flag[2] & can_raw->enc_rx_flag[3]; }
+bool allEncInitialized(can_raw_t * can_raw)
+{
+  return can_raw->rx_stat.mouse_flag & can_raw->rx_stat.enc_flag[0] & can_raw->rx_stat.enc_flag[1] & can_raw->rx_stat.enc_flag[2] & can_raw->rx_stat.enc_flag[3];
+}

@@ -125,9 +125,13 @@ typedef struct
   float temperature[7];
   float current[5];
   uint8_t ball_detection[4];
-  uint32_t board_rx_timeout_cnt[4];
-  bool enc_rx_flag[4], mouse_rx_flag;
   float motor_rps[4];
+  struct
+  {
+    uint32_t timeout_cnt[4];
+    bool enc_flag[4], mouse_flag;
+  } rx_stat;
+
 } can_raw_t;
 
 typedef struct
