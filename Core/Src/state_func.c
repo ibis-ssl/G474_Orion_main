@@ -125,20 +125,20 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
 
 static float getTargetThetaInLatencyCheckMode(debug_t * debug, RobotCommandV2 * ai_cmd)
 {
-  if (!debug->latency_check_enabled) {
+  if (!debug->latency_check.enabled) {
     return ai_cmd->target_global_theta;  // そもそも呼ばれないようにするべきだが、安全なのはこれ
   }
 
-  if (debug->latency_check_seq_cnt > 0) {
-    debug->latency_check_seq_cnt--;
+  if (debug->latency_check.seq_cnt > 0) {
+    debug->latency_check.seq_cnt--;
   } else {
     // 終わった瞬間吹っ飛ぶので、指令値近くなったときに停止
-    if (getAngleDiff(ai_cmd->target_global_theta, debug->rotation_target_theta) < 0.1) {
-      debug->latency_check_enabled = false;
+    if (getAngleDiff(ai_cmd->target_global_theta, debug->latency_check.rotation_target_theta) < 0.1) {
+      debug->latency_check.enabled = false;
     }
     // complete!!
   }
-  return debug->rotation_target_theta + (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
+  return debug->latency_check.rotation_target_theta + (float)1 / MAIN_LOOP_CYCLE;  // 1 rad/s
 }
 
 void latencyCheck(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu)
@@ -147,9 +147,9 @@ void latencyCheck(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd, outp
   const float OMEGA_GAIN_KD = 4000.0;
   const float OUTPUT_OMEGA_LIMIT = 10.0;  // ~ rad/s
 
-  if (debug->latency_check_enabled) {
-    debug->rotation_target_theta = getTargetThetaInLatencyCheckMode(debug, ai_cmd);
-    output->omega = (getAngleDiff(debug->rotation_target_theta, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
+  if (debug->latency_check.enabled) {
+    debug->latency_check.rotation_target_theta = getTargetThetaInLatencyCheckMode(debug, ai_cmd);
+    output->omega = (getAngleDiff(debug->latency_check.rotation_target_theta, imu->yaw_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_rad, imu->pre_yaw_rad) * OMEGA_GAIN_KD);
 
     output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
     output->velocity[0] = 0;
@@ -162,15 +162,15 @@ void latencyCheck(system_t * sys, debug_t * debug, RobotCommandV2 * ai_cmd, outp
   }
 
   if (!swCentorPushed(sys->sw_adc_raw)) {
-    debug->latency_check_seq_cnt = 0;
+    debug->latency_check.seq_cnt = 0;
     return;
   }
 
-  debug->latency_check_seq_cnt++;
-  if (debug->latency_check_seq_cnt > MAIN_LOOP_CYCLE) {
-    debug->latency_check_enabled = true;
-    debug->latency_check_seq_cnt = MAIN_LOOP_CYCLE * 10;
-    debug->rotation_target_theta = ai_cmd->target_global_theta;
+  debug->latency_check.seq_cnt++;
+  if (debug->latency_check.seq_cnt > MAIN_LOOP_CYCLE) {
+    debug->latency_check.enabled = true;
+    debug->latency_check.seq_cnt = MAIN_LOOP_CYCLE * 10;
+    debug->latency_check.rotation_target_theta = ai_cmd->target_global_theta;
   }
 }
 
@@ -193,7 +193,7 @@ void motorCalibration(system_t * sys)
 }
 
 void maintaskRun(
-  system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
+  system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
   can_raw_t * can_raw, omega_target_t * omega_target)
 
 {

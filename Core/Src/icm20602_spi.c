@@ -3,7 +3,7 @@
 
 float pitch_angle, roll_angle;
 
-float yaw_angle;
+float yaw_deg;
 
 float weight[2] = {0.5f, 0.5f};
 
@@ -242,14 +242,14 @@ void ICM20602_clearAngle(void)
 {
   pitch_angle = 0.0f;
   roll_angle = 0.0f;
-  yaw_angle = 0.0f;
+  yaw_deg = 0.0f;
 }
 
 void ICM20602_setAngle(float pitch, float roll, float yaw)
 {
   pitch_angle = pitch;
   roll_angle = roll;
-  yaw_angle = yaw;
+  yaw_deg = yaw;
 }
 
 float ICM20602_normAngle(float deg)
@@ -267,12 +267,12 @@ float ICM20602_complementaryWeight(float first, float second)
   weight[0] = first * weights_ratio;
   weight[1] = second * weights_ratio;
 
-  return yaw_angle;
+  return yaw_deg;
 }
 
 float ICM20602_complementaryFilter(float val)
 {
-  float yaw_temp = yaw_angle;
+  float yaw_temp = yaw_deg;
 
   if (yaw_temp - val >= 180.0f)
     val += 360.0f;
@@ -281,9 +281,9 @@ float ICM20602_complementaryFilter(float val)
 
   yaw_temp = val * weight[0] + yaw_temp * weight[1];
 
-  yaw_angle = ICM20602_normAngle(yaw_temp);
+  yaw_deg = ICM20602_normAngle(yaw_temp);
 
-  return yaw_angle;
+  return yaw_deg;
 }
 
 // filter length : 3-only

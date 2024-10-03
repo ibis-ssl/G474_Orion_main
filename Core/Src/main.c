@@ -96,7 +96,7 @@ output_t output;
 motor_t motor;
 connection_t connection;
 system_t sys;
-integration_control_t integ;
+integ_control_t integ;
 accel_vector_t acc_vel;
 debug_t debug;
 omega_target_t omega_target;
@@ -308,7 +308,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    debug.main_loop_cnt++;
+    debug.sys_mnt.main_loop_cnt++;
     if (debug.print_flag /* && fabs(omni.local_odom_speed_mvf[0]) > 0.01*/) {
       debug.print_flag = false;
 
@@ -321,10 +321,6 @@ int main(void)
       }
       p("Batt=%3.1f ", getBatteryRemain(&can_raw));
       setTextNormal();
-
-      debug.out_total_spin = output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
-      debug.fb_total_spin = (can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3]) / 1.5;
-      debug.true_yaw_speed = imu.yaw_angle - debug.pre_yaw_angle;
 
       if (sys.main_mode == MAIN_MODE_ERROR) {
         // 赤
@@ -342,7 +338,7 @@ int main(void)
       switch (debug.print_idx) {
         case PRINT_IDX_AI_CMD:
           // 通信接続状態表示
-          //p("itr %4d %8d %8d ", debug.uart_rx_itr_cnt, connection.latest_cm4_cmd_update_time, connection.latest_ai_cmd_update_time);
+          //p("itr %4d %8d %8d ", debug.sys_mnt.uart_rx_itr_cnt, connection.latest_cm4_cmd_update_time, connection.latest_ai_cmd_update_time);
 
           p("CMD ");
           p("STP%d ", cmd_v2.stop_emergency);
@@ -520,17 +516,17 @@ int main(void)
           p("elt %4d ", cmd_v2.elapsed_time_ms_since_last_vision);
           setTextNormal();
 
-          p("imu %+5.1f ", imu.yaw_angle);
+          p("imu %+5.1f ", imu.yaw_deg);
           p("Dt %4d LtCy %4d ", connection.ai_cmd_delta_time, integ.latency_cycle);
           p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
           p("omni.gos X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
-          p("omgD %+6.3f ", getAngleDiff(imu.yaw_angle_rad, imu.pre_yaw_angle_rad) * 4000);
+          p("omgD %+6.3f ", getAngleDiff(imu.yaw_rad, imu.pre_yaw_rad) * 4000);
           p("omg %+6.2f ", output.omega);
           break;
         case PRINT_IDX_MOTION:
           p("MOTION ");
-          p("theta %+6.1f ", imu.yaw_angle);
+          p("theta %+6.1f ", imu.yaw_deg);
 
           //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
           //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
@@ -575,14 +571,13 @@ int main(void)
           p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
-          //p("stop %+5.3f tarD %+5.3f", target.stop_distance_xy, target.tar_distance_xy);
 
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
           break;
         case PRINT_IDX_VEL:
           p("VEL ");
-          //p("theta %+6.1f ", imu.yaw_angle);
+          //p("theta %+6.1f ", imu.yaw_deg);
           //p("rawVel X %+8.3f, Y %+8.3f, ", omni.local_raw_odom_vel[0], omni.local_raw_odom_vel[1]);
           //p("rawGbVel X %+8.3f, Y %+8.3f ", omni.global_raw_odom_vel[0], omni.global_raw_odom_vel[1]);
           //p("rawGbOdom X %+8.3f, Y %+8.3f, ", omni.global_raw_odom[0], omni.global_raw_odom[1]);
@@ -605,8 +600,8 @@ int main(void)
         case PRINT_IDX_LATENCY:
           p("LATENCY ");
           p("setting : %3d / ", cmd_v2.latency_time_ms);
-          p("EN %d cnt %4d target %+5.2f diff %+5.2f / ", debug.latency_check_enabled, debug.latency_check_seq_cnt, debug.rotation_target_theta,
-            getAngleDiff(debug.rotation_target_theta, imu.yaw_angle_rad));
+          p("EN %d cnt %4d target %+5.2f diff %+5.2f / ", debug.latency_check.enabled, debug.latency_check.seq_cnt, debug.latency_check.rotation_target_theta,
+            getAngleDiff(debug.latency_check.rotation_target_theta, imu.yaw_rad));
 
           p("CAM ");
           p("x %+4d y%+4d rad %4d fps %3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
@@ -615,10 +610,10 @@ int main(void)
         case PRINT_IDX_SYSTEM:
           p("SYSTEM TIME ");
           for (int i = 0; i < 7; i++) {
-            if (debug.mnt_tim_cnt_max[i] < debug.mnt_tim_cnt_now[i]) {
-              debug.mnt_tim_cnt_max[i] = debug.mnt_tim_cnt_now[i];
+            if (debug.sys_mnt.tim_cnt_max[i] < debug.sys_mnt.tim_cnt_now[i]) {
+              debug.sys_mnt.tim_cnt_max[i] = debug.sys_mnt.tim_cnt_now[i];
             }
-            p("%4d %4d / ", debug.mnt_tim_cnt_now[i], debug.mnt_tim_cnt_max[i]);
+            p("%4d %4d / ", debug.sys_mnt.tim_cnt_now[i], debug.sys_mnt.tim_cnt_max[i]);
           }
           p("PW%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_POWER]);
           p("RD%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_MOTOR_RIGHT]);
@@ -650,22 +645,17 @@ int main(void)
           break;
       }
 
-      if (debug.main_loop_cnt < 100000) {
-        p("loop %6d", debug.main_loop_cnt / 10);
+      if (debug.sys_mnt.main_loop_cnt < 100000) {
+        p("loop %6d", debug.sys_mnt.main_loop_cnt / 10);
       }
-      if (debug.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
-        p("cnt %4d", debug.timer_itr_exit_cnt);
+      if (debug.sys_mnt.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
+        p("cnt %4d", debug.sys_mnt.timer_itr_exit_cnt);
       }
       p("\n");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
 
-      debug.main_loop_cnt = 0;
-      debug.pre_yaw_angle = imu.yaw_angle;
-
-      debug.true_cycle_cnt = 0;
-      debug.true_fb_total_spin = 0;
-      debug.true_out_total_spi = 0;
-      debug.uart_rx_itr_cnt = 0;
+      debug.sys_mnt.main_loop_cnt = 0;
+      debug.sys_mnt.uart_rx_itr_cnt = 0;
 
       // whileで毎回呼ぶ必要はないのでprintに併せて呼ぶ
       checkAndRestartLPUART_IT();
@@ -762,7 +752,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
   // TIM interrupt is TIM7 only.
 
-  debug.mnt_tim_cnt_now[0] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.sys_mnt.tim_cnt_now[0] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // sys.main_mode設定
   static uint8_t sw_mode;
@@ -785,7 +775,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   // 以後sys.main_modeによる動作切り替え
 
-  debug.mnt_tim_cnt_now[1] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.sys_mnt.tim_cnt_now[1] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   yawFilter();
   omniOdometryUpdate(&motor, &omni, &imu);  // 250us
@@ -793,13 +783,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   resetOdomAtEncInitialized();
 
-  debug.mnt_tim_cnt_now[2] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.sys_mnt.tim_cnt_now[2] = htim7.Instance->CNT;  // パフォーマンス計測用
 
-  debug.true_out_total_spi += output.motor_voltage[0] + output.motor_voltage[1] + output.motor_voltage[2] + output.motor_voltage[3];
-  debug.true_fb_total_spin += can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
-  debug.true_cycle_cnt++;
-
-  debug.mnt_tim_cnt_now[3] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.sys_mnt.tim_cnt_now[3] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   switch (sys.main_mode) {
     case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
@@ -845,10 +831,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
   }
 
-  debug.mnt_tim_cnt_now[4] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.sys_mnt.tim_cnt_now[4] = htim7.Instance->CNT;  // パフォーマンス計測用
   buzzerControl(&can_raw, &sys, &connection, &cmd_v2);
 
-  debug.mnt_tim_cnt_now[5] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.sys_mnt.tim_cnt_now[5] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // interrupt : 500Hz
   static uint16_t print_cycle_cnt;
@@ -866,8 +852,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuatorPower_ONOFF(1);
     }
   }
-  debug.mnt_tim_cnt_now[6] = htim7.Instance->CNT;  // パフォーマンス計測用
-  debug.timer_itr_exit_cnt = htim7.Instance->CNT;
+  debug.sys_mnt.tim_cnt_now[6] = htim7.Instance->CNT;  // パフォーマンス計測用
+  debug.sys_mnt.timer_itr_exit_cnt = htim7.Instance->CNT;
 }
 
 uint8_t getModeSwitch()
@@ -878,54 +864,54 @@ uint8_t getModeSwitch()
 void yawFilter()
 {
   // 静止中に一気にvision角度を合わせるやつ
-  static uint32_t yaw_angle_update_cnt = 0;
-  imu.yaw_angle_diff_integral += fabs(imu.pre_yaw_angle - imu.yaw_angle);
-  yaw_angle_update_cnt++;
-  if (yaw_angle_update_cnt > MAIN_LOOP_CYCLE / 2) {  // 2Hz
-    yaw_angle_update_cnt = 0;
-    if (imu.yaw_angle_diff_integral < 1) {
+  static uint32_t yaw_update_cnt = 0;
+  imu.yaw_deg_diff_integral += fabs(imu.pre_yaw_deg - imu.yaw_deg);
+  yaw_update_cnt++;
+  if (yaw_update_cnt > MAIN_LOOP_CYCLE / 2) {  // 2Hz
+    yaw_update_cnt = 0;
+    if (imu.yaw_deg_diff_integral < 1) {
       // 機体が旋回していないとき
-      debug.theta_override_flag = true;
+      imu.theta_override_flag = true;
 
       // visionとの角度差があるときにアプデ
-      if (connection.connected_ai && cmd_v2.is_vision_available && getAngleDiff(imu.yaw_angle, cmd_v2.vision_global_theta) > 10 * M_PI / 180) {
-        //imu.yaw_angle = cmd_v2.vision_global_theta * 180 / M_PI;
+      if (connection.connected_ai && cmd_v2.is_vision_available && getAngleDiff(imu.yaw_deg, cmd_v2.vision_global_theta) > 10 * M_PI / 180) {
+        //imu.yaw_deg = cmd_v2.vision_global_theta * 180 / M_PI;
       }
     } else {
-      debug.theta_override_flag = false;
+      imu.theta_override_flag = false;
     }
-    imu.yaw_angle_diff_integral = 0;
+    imu.yaw_deg_diff_integral = 0;
   }
 
-  imu.pre_yaw_angle = imu.yaw_angle;
+  imu.pre_yaw_deg = imu.yaw_deg;
 
   static int vision_lost_cycle_cnt = 0;
   // vision NG -> ONになったときに強制更新するやつ
   if (cmd_v2.is_vision_available) {
     if (vision_lost_cycle_cnt >= MAIN_LOOP_CYCLE) {
-      //imu.yaw_angle = cmd_v2.vision_global_theta * 180 / M_PI;
+      //imu.yaw_deg = cmd_v2.vision_global_theta * 180 / M_PI;
     }
     vision_lost_cycle_cnt = 0;
   } else if (vision_lost_cycle_cnt <= MAIN_LOOP_CYCLE) {
     vision_lost_cycle_cnt++;
   }
 
-  ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_angle));
+  ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_deg));
 
   if (sys.main_mode == MAIN_MODE_CMD_DEBUG_MODE && !cmd_v2.is_vision_available) {
     // デバッグ用、visionないときはtargetへ補正する
-    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * M_PI / 180.0, cmd_v2.target_global_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
+    imu.yaw_deg = imu.yaw_deg - (getAngleDiff(imu.yaw_deg * M_PI / 180.0, cmd_v2.target_global_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
 
-  } else if (!cmd_v2.is_vision_available || debug.latency_check_enabled) {
+  } else if (!cmd_v2.is_vision_available || debug.latency_check.enabled) {
     // VisionLost時は補正しない
     // レイテンシチェック中(一定速度での旋回中)は相補フィルタ切る
 
   } else {
-    imu.yaw_angle = imu.yaw_angle - (getAngleDiff(imu.yaw_angle * M_PI / 180.0, cmd_v2.vision_global_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
+    imu.yaw_deg = imu.yaw_deg - (getAngleDiff(imu.yaw_deg * M_PI / 180.0, cmd_v2.vision_global_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
   }
 
-  imu.pre_yaw_angle_rad = imu.yaw_angle_rad;
-  imu.yaw_angle_rad = imu.yaw_angle * M_PI / 180;
+  imu.pre_yaw_rad = imu.yaw_rad;
+  imu.yaw_rad = imu.yaw_deg * M_PI / 180;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
@@ -934,7 +920,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
   uint8_t rx_data_tmp;
   RobotCommandSerializedV2 cmd_data_v2;
 
-  debug.uart_rx_itr_cnt++;
+  debug.sys_mnt.uart_rx_itr_cnt++;
 
   if (huart->Instance == USART2) {
     rx_data_tmp = uart2_rx_it_buffer;

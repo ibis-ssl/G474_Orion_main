@@ -19,7 +19,7 @@ static void enqueueFloatArray(float array[], int * idx, float data)
 }
 
 void sendRobotInfo(
-  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integration_control_t * integ, output_t * out, target_t * target)
+  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integ_control_t * integ, output_t * out, target_t * target)
 {
   static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
 
@@ -28,7 +28,7 @@ void sendRobotInfo(
   buf[2] = 10;
   buf[3] = ai_cmd->check_counter;
 
-  float_to_uchar4(&(buf[4]), imu->yaw_angle);
+  float_to_uchar4(&(buf[4]), imu->yaw_deg);
 
   // battery(BLDC right)
   float_to_uchar4(&(buf[8]), can_raw->power_voltage[0]);
@@ -60,7 +60,7 @@ void sendRobotInfo(
   buf[34] = (uint8_t)can_raw->temperature[5];
   buf[35] = (uint8_t)can_raw->temperature[6];
 
-  float diff_angle = imu->yaw_angle - ai_cmd->vision_global_theta;
+  float diff_angle = imu->yaw_deg - ai_cmd->vision_global_theta;
 
   float_to_uchar4(&(buf[36]), diff_angle);
   // capacitor boost

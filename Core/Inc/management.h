@@ -112,9 +112,10 @@ typedef struct
 
 typedef struct
 {
-  float yaw_angle, pre_yaw_angle;
-  float yaw_angle_rad, pre_yaw_angle_rad;
-  float yaw_angle_diff_integral;
+  float yaw_deg, pre_yaw_deg;
+  float yaw_rad, pre_yaw_rad;
+  float yaw_deg_diff_integral;
+  bool theta_override_flag;
 } imu_t;
 typedef struct
 {
@@ -131,7 +132,6 @@ typedef struct
     uint32_t timeout_cnt[4];
     bool enc_flag[4], mouse_flag;
   } rx_stat;
-
 } can_raw_t;
 
 typedef struct
@@ -146,7 +146,6 @@ typedef struct
   float vel_error_xy[2];
   float vel_error_scalar, vel_error_rad;
   float accel_target;
-  //float vel_error_real_scalar, vel_error_real_rad;
 } accel_vector_t;
 
 typedef struct
@@ -168,7 +167,7 @@ typedef struct
   float offset_dist[2];
   float global_raw_odom[3];
   float global_odom_speed[2];  // フィールド
-  float local_odom_speed[3];            // ローカル､前輪2輪によるものもあるので3つ
+  float local_odom_speed[3];   // ローカル､前輪2輪によるものもあるので3つ
   ring_buffer_t * local_speed_log[3];
   float local_odom_speed_mvf[3];  // ローカル､移動平均｡前輪2輪によるものもあるので3つ
   float global_raw_odom_vel[2];
@@ -183,7 +182,7 @@ typedef struct
   float pre_global_target_position[2];  // ai_cmdとvision_based_positionの差分(global系)
   float local_target_diff[2];
   int latency_cycle;
-} integration_control_t;
+} integ_control_t;
 
 typedef struct
 {
@@ -193,7 +192,6 @@ typedef struct
   float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
   float global_vel_now[2];       // ターゲットグローバル速度
   float global_pos[2];           // 上記で移動するX,Y座標
-  float stop_distance_xy, tar_distance_xy;
 
   struct
   {
@@ -243,6 +241,7 @@ typedef struct
   uint32_t resume_cnt;  // エラー時の自動復帰回数上限
 } error_t;
 
+// 機体の挙動に影響するもの
 typedef struct
 {
   bool error_flag, stop_flag, can_timeout, enc_initialized;
@@ -253,18 +252,27 @@ typedef struct
   uint16_t kick_state;
   uint32_t sw_adc_raw;
 } system_t;
+
+// 機体の挙動に関係ないもの
 typedef struct
 {
   volatile int32_t print_idx;
-  volatile uint32_t main_loop_cnt, true_cycle_cnt;
-  volatile float out_total_spin, fb_total_spin, pre_yaw_angle;
-  volatile float true_out_total_spi, true_fb_total_spin, true_yaw_speed, limited_output;
-  volatile bool print_flag, theta_override_flag;
-  volatile bool latency_check_enabled;
-  volatile int latency_check_seq_cnt;
-  volatile float rotation_target_theta;
-  volatile uint32_t uart_rx_itr_cnt;
-  volatile uint32_t mnt_tim_cnt_now[20], mnt_tim_cnt_max[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
+  volatile bool print_flag;
+
+  struct
+  {
+    volatile bool enabled;
+    volatile int seq_cnt;
+    volatile float rotation_target_theta;
+  } latency_check;
+
+  struct
+  {
+    volatile uint32_t tim_cnt_now[20], tim_cnt_max[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
+    volatile uint32_t main_loop_cnt;
+    volatile uint32_t uart_rx_itr_cnt;
+  } sys_mnt;
+
 } debug_t;
 
 typedef struct

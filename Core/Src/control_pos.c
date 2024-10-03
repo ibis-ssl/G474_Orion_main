@@ -11,7 +11,7 @@
 // 減速方向は制動力を増強 1.5～2.0
 #define DEC_BOOST_GAIN (1.0)
 
-void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse, accel_vector_t * acc_vel, output_t * output)
+void localPositionFeedback(integ_control_t * integ, imu_t * imu, target_t * target, RobotCommandV2 * ai_cmd, omni_t * omni, mouse_t * mouse, accel_vector_t * acc_vel, output_t * output)
 {
   for (int i = 0; i < 2; i++) {
     // 今はvision_availableがリアルタイムでないので､一旦visionの値をそのまま使う
@@ -28,7 +28,7 @@ void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t 
   //デバッグ用の一時実装
   target->pos_ctrl.target_pos_dist_scalar = calcScalar(integ->position_diff[0], integ->position_diff[1]);
 
-  //convertGlobalToLocal(integ->position_diff, integ->local_target_diff, imu->yaw_angle_rad);
+  //convertGlobalToLocal(integ->position_diff, integ->local_target_diff, imu->yaw_rad);
   // つかってない
 
   float using_omni_speed[2];
@@ -59,8 +59,8 @@ void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t 
 
   target->pos_ctrl.target_vel_angle = atan2(target->global_vel[1], target->global_vel[0]);
   //float dummy_speed[2] = {1, 0};
-  //convertLocalToGlobal(dummy_speed, target->pos_ctrl.global_odom_speed, imu->yaw_angle_rad);
-  convertLocalToGlobal(using_omni_speed, target->pos_ctrl.global_odom_speed, imu->yaw_angle_rad);
+  //convertLocalToGlobal(dummy_speed, target->pos_ctrl.global_odom_speed, imu->yaw_rad);
+  convertLocalToGlobal(using_omni_speed, target->pos_ctrl.global_odom_speed, imu->yaw_rad);
 
   // 関数名と違うけどターゲット速度座標系に変換
   convertGlobalToLocal(target->pos_ctrl.global_odom_speed, target->pos_ctrl.current_speed_crd, target->pos_ctrl.target_vel_angle);
@@ -78,7 +78,7 @@ void localPositionFeedback(integration_control_t * integ, imu_t * imu, target_t 
   target->pos_ctrl.target_crd_acc[1] = clampSize(target->pos_ctrl.target_crd_acc[1], ACCEL_LIMIT * DEC_BOOST_GAIN);  // 常に減速のため､2倍
 
   convertLocalToGlobal(target->pos_ctrl.target_crd_acc, target->pos_ctrl.global_acc, target->pos_ctrl.target_vel_angle);
-  convertGlobalToLocal(target->pos_ctrl.global_acc, output->accel, imu->yaw_angle_rad);
+  convertGlobalToLocal(target->pos_ctrl.global_acc, output->accel, imu->yaw_rad);
 
   // バック方向だけ加速度制限
   if (output->accel[0] < -(ACCEL_LIMIT_BACK)) {

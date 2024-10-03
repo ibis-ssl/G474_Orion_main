@@ -28,7 +28,6 @@
 //#define FF_ACC_OUTPUT_KP (0.3)
 #define FF_ACC_OUTPUT_KP (0.2)
 
-
 void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
 {
   //acc_vel->accel_target = 7.0;
@@ -83,9 +82,9 @@ void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target
   // 目標速度と差が小さい場合は目標速度をそのまま代入する
   // 目標速度が連続的に変化する場合に適切でないかも
   if (acc_vel->vel_error_scalar <= acc_vel->accel_target / MAIN_LOOP_CYCLE && ai_cmd->control_mode == SIMPLE_VELOCITY_TARGET_MODE) {
-    //convertLocalToGlobal(target->local_vel, target->global_vel_now, imu->yaw_angle_rad);
-    target->global_vel_now[0] = (target->local_vel[0]) * cos(imu->yaw_angle_rad) - (target->local_vel[1]) * sin(imu->yaw_angle_rad);
-    target->global_vel_now[1] = (target->local_vel[0]) * sin(imu->yaw_angle_rad) + (target->local_vel[1]) * cos(imu->yaw_angle_rad);
+    //convertLocalToGlobal(target->local_vel, target->global_vel_now, imu->yaw_rad);
+    target->global_vel_now[0] = (target->local_vel[0]) * cos(imu->yaw_rad) - (target->local_vel[1]) * sin(imu->yaw_rad);
+    target->global_vel_now[1] = (target->local_vel[0]) * sin(imu->yaw_rad) + (target->local_vel[1]) * cos(imu->yaw_rad);
 
     output->accel[0] = 0;
     output->accel[1] = 0;
@@ -95,12 +94,12 @@ void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target
   // ロボットが回転しても、慣性はグローバル座標系に乗るので、加速度はグローバル座標系に変換してから加算
   // accel
   static float global_vel_diff[2] = {0};
-  convertLocalToGlobal(output->accel, global_vel_diff, imu->yaw_angle_rad);
+  convertLocalToGlobal(output->accel, global_vel_diff, imu->yaw_rad);
   target->global_vel_now[0] += global_vel_diff[0] / MAIN_LOOP_CYCLE;
   target->global_vel_now[1] += global_vel_diff[1] / MAIN_LOOP_CYCLE;
 
   // 次回の計算のためにローカル座標系での速度も更新
-  convertGlobalToLocal(target->global_vel_now, target->local_vel_now, imu->yaw_angle_rad);
+  convertGlobalToLocal(target->global_vel_now, target->local_vel_now, imu->yaw_rad);
 
   // 目標座標に変換
   target->global_pos[0] += target->global_vel_now[0] / MAIN_LOOP_CYCLE;  // speed to position
@@ -134,7 +133,7 @@ void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target
   }
 
   // グローバル→ローカル座標系
-  convertGlobalToLocal(omni->global_odom_diff, omni->robot_pos_diff, imu->yaw_angle_rad);
+  convertGlobalToLocal(omni->global_odom_diff, omni->robot_pos_diff, imu->yaw_rad);
 
   // 加速方向を切り替えた時、位置フィードバック項目の遅れが出るので、差分を打ち消す必要がある。未確認
   /*for (int i = 0; i < 2; i++) {

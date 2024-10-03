@@ -33,7 +33,7 @@ static void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu
   target_diff_angle = clampSize(target_diff_angle, ai_cmd->angular_velocity_limit / MAIN_LOOP_CYCLE);
   omega_target->current_target += target_diff_angle;
   // PID
-  output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_angle_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_angle_rad, imu->pre_yaw_angle_rad) * OMEGA_GAIN_KD);
+  output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_rad, imu->pre_yaw_rad) * OMEGA_GAIN_KD);
   output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
   //output->omega = 0;
 }
@@ -44,7 +44,7 @@ inline void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_
   target->global_vel[1] = ai_cmd->mode_args.simple_velocity.target_global_vel[1];
   clampScalarSize(target->global_vel, SPEED_SCALAR_LIMIT);
 
-  convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_angle_rad);
+  convertGlobalToLocal(target->global_vel, target->local_vel, imu->yaw_rad);
 }
 
 static void setOutZero(output_t * output)
@@ -57,10 +57,10 @@ static void setOutZero(output_t * output)
 /*void simpleSpeedControl(output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
   const float SIMPLE_SPEED_CONTROL_ACCEL = 5.0;
-  target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_angle_rad) - (target->global_vel[1]) * sin(imu->yaw_angle_rad);
-  target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_angle_rad) + (target->global_vel[1]) * cos(imu->yaw_angle_rad);
+  target->local_vel[0] = (target->global_vel[0]) * cos(imu->yaw_rad) - (target->global_vel[1]) * sin(imu->yaw_rad);
+  target->local_vel[1] = (target->global_vel[0]) * sin(imu->yaw_rad) + (target->global_vel[1]) * cos(imu->yaw_rad);
 
-  //convertGlobalToLocal(target->local_vel, target->global_vel, imu->yaw_angle_rad);
+  //convertGlobalToLocal(target->local_vel, target->global_vel, imu->yaw_rad);
 
   output->accel[0] = (target->local_vel[0] - omni->local_odom_speed[0]) * 5;
   if (output->accel[0] > SIMPLE_SPEED_CONTROL_ACCEL * 2) {
@@ -97,11 +97,11 @@ inline static void clearSpeedContrlValue(accel_vector_t * acc_vel, output_t * ou
     //target->local_vel_now[i] = omni->local_odom_speed_mvf[i];
     target->global_pos[i] = omni->odom[i];
   }
-  convertLocalToGlobal(omni->local_odom_speed_mvf, target->global_vel_now, imu->yaw_angle_rad);
+  convertLocalToGlobal(omni->local_odom_speed_mvf, target->global_vel_now, imu->yaw_rad);
 }
 
 void robotControl(
-  system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integration_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
+  system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
   omega_target_t * omega_target)
 {
   // 出力しない
