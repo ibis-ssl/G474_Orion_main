@@ -77,6 +77,13 @@ void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target
   }
 }
 
+void clearPosDiffSpeedControl(target_t * target, omni_t * omni)
+{
+  for (int i = 0; i < 2; i++) {
+    target->global_pos[i] = omni->odom[i];
+  }
+}
+
 void speedControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni, RobotCommandV2 * ai_cmd)
 {
   // 目標速度と差が小さい場合は目標速度をそのまま代入する

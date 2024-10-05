@@ -31,7 +31,7 @@ void actuator_motor5(float duty) { motor_cmd_can1(0x104, duty); }
 void actuator_dribbler_up() { motor_cmd_can1(0x105, 0.8); }
 void actuator_dribbler_down() { motor_cmd_can1(0x105, 0); }
 
-void actuator_kicker_voltage(float voltage)
+void actuator_kicker_cmd_voltage(float voltage)
 {
   uint8_t senddata_kick[8];
   float_to_uchar4(&senddata_kick[4], voltage);
@@ -41,7 +41,7 @@ void actuator_kicker_voltage(float voltage)
   can2_send(0x110, senddata_kick);
 }
 
-void actuator_kicker(uint8_t id, uint8_t param)
+void actuator_kicker_cmd(uint8_t id, uint8_t param)
 {
   /* id 0: charge voltage [4-7]
    * id 1: 0=>standby   1=>charge
@@ -55,14 +55,15 @@ void actuator_kicker(uint8_t id, uint8_t param)
   can1_send(0x110, senddata_kick);
   can2_send(0x110, senddata_kick);
 }
-void actuator_kicker_straight(void) { actuator_kicker(2, 0); }
-void actuator_kicker_chip(void) { actuator_kicker(2, 1); }
-void actuator_kicker_charge_start(void) { actuator_kicker(1, 1); }
-void actuator_kicker_chaege_stop(void) { actuator_kicker(1, 0); }
-void actuator_kicker_kick(float kick_power)
+
+void kicker_select_straight(void) { actuator_kicker_cmd(2, 0); }
+void kicker_select_chip(void) { actuator_kicker_cmd(2, 1); }
+void kicker_charge_start(void) { actuator_kicker_cmd(1, 1); }
+void kicker_chaege_stop(void) { actuator_kicker_cmd(1, 0); }
+void kicker_kick_start(float kick_power)
 {
   uint8_t kick_power_param = (float)kick_power * 255.0;
-  actuator_kicker(3, (uint8_t)kick_power_param);
+  actuator_kicker_cmd(3, (uint8_t)kick_power_param);
 }
 
 void actuatorPower_ONOFF(uint8_t power_on)

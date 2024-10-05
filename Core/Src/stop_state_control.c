@@ -19,7 +19,6 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
       requestStop(sys, 3000);
     }
     sys->main_mode = MAIN_MODE_ERROR;
-    //resetLocalSpeedControl(&ai_cmd);
   } else {
     sys->main_mode = main_mode_sw;
   }
@@ -30,7 +29,6 @@ void stopStateControl(system_t * sys, uint8_t main_mode_sw)
   }
 
   if (isStopRequested(sys) || sys->can_timeout) {
-    //resetLocalSpeedControl(&ai_cmd);
     sys->stop_flag = true;
   } else {
     sys->stop_flag = false;

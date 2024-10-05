@@ -2,6 +2,7 @@
 
 #include "actuator.h"
 #include "can_ibis.h"
+#include "control_speed.h"
 #include "omni_wheel.h"
 #include "robot_control.h"
 #include "util.h"
@@ -97,8 +98,8 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
-        actuator_kicker_straight();
-        actuator_kicker_kick(0.2);
+        kicker_select_straight();
+        kicker_kick_start(0.2);
         sys->kick_state = 1;
       }
     }
@@ -109,16 +110,16 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
-        actuator_kicker_chip();
-        actuator_kicker_kick(0.5);
+        kicker_select_chip();
+        kicker_kick_start(0.5);
         sys->kick_state = 1;
       }
     }
   } else {
     actuator_motor5(0.0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-    actuator_kicker_charge_start();
-    actuator_kicker_voltage(400.0);
+    kicker_charge_start();
+    actuator_kicker_cmd_voltage(400.0);
   }
   omniStopAll(output);
 }
@@ -205,9 +206,14 @@ void maintaskRun(
   robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output, omega_target);
 
   // いまのところvision lostしたら止める
-  if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available || ai_cmd->elapsed_time_ms_since_last_vision > 500 || sys->main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
+  if (sys->main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
+    omniStopAll(output);
+    //clearPosDiffSpeedControl();
+    //デバッグ用に出力しないだけなのでクリアはしない
+  } else if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available || ai_cmd->elapsed_time_ms_since_last_vision > 500) {
     //resetLocalSpeedControl(&ai_cmd);
     omniStopAll(output);
+    clearPosDiffSpeedControl(target, omni);
   } else {
     omniMove(output, OMNI_OUTPUT_LIMIT);
   }

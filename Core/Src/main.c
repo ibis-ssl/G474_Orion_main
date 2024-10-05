@@ -267,8 +267,8 @@ int main(void)
   actuator_motor4(0.0);
   actuator_motor5(0.0);
 
-  actuator_kicker_charge_start();
-  actuator_kicker_voltage(0.0);
+  kicker_charge_start();
+  actuator_kicker_cmd_voltage(0.0);
   actuator_power_param(1, 15.0);  // min voltage
   actuator_power_param(2, 35.0);  // max voltage
   actuator_power_param(3, 50.0);  // max can_raw.current
@@ -458,6 +458,7 @@ int main(void)
           break;
         case PRINT_IDX_KICKER:  // Kicker Test
           p("KICKER ");
+          p("Cnt %3d ", sys.kick_state);
           p("Batt(Pw) %3.1f ", can_raw.power_voltage[5]);
           if (can_raw.power_voltage[6] > 100) {
             setTextYellow();

@@ -123,14 +123,10 @@ void robotControl(
     case SIMPLE_VELOCITY_TARGET_MODE:
       setLocalTargetSpeed(ai_cmd, target, imu);
       setTargetAccel(ai_cmd, acc_vel);
-      if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {  // 0
-        accelControl(acc_vel, output, target, imu, omni);
-        speedControl(acc_vel, output, target, imu, omni, ai_cmd);
-      } else {
-        // 位置フィードバックの速度指令部分だけデバッグ用
-        accelControl(acc_vel, output, target, imu, omni);
-        simpleAccelToOutput(omni, output);
-      }
+
+      accelControl(acc_vel, output, target, imu, omni);
+      speedControl(acc_vel, output, target, imu, omni, ai_cmd);
+      
       clampScalarSize(output->velocity, OUTPUT_SCALAR_LIMIT);
       thetaControl(ai_cmd, output, imu, omega_target);
       return;

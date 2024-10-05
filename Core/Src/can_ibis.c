@@ -299,40 +299,59 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
   }
 }
 
-void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * can_raw)
+static void sendKickCmd(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * can_raw)
 {
-  if (ai_cmd->kick_power > 0) {
-    if (sys->kick_state == 0) {
-      if (can_raw->ball_detection[0] == 1) {
-        if (ai_cmd->enable_chip == true) {
-          actuator_kicker_chip();
-        } else {
-          actuator_kicker_straight();
-        }
-
-        //resetLocalSpeedControl(ai_cmd);
-        sys->kick_state = 1;
-      }
-    } else {
-      if (sys->kick_state > MAIN_LOOP_CYCLE / 2) {
-        if (can_raw->ball_detection[0] == 0) {
-          sys->kick_state = 0;
-        }
-      } else {
-        sys->kick_state++;
-      }
-    }
+  if (ai_cmd->kick_power <= 0) {
+    return;
   }
 
-  static uint8_t can_sending_index = 0;
+  if (sys->kick_state == 0) {
+    if (can_raw->ball_detection[0] == 0) {
+      return;
+    }
+
+    //start kick
+
+    kicker_kick_start(ai_cmd->kick_power);
+
+    sys->kick_state = 1;
+
+  } else {
+    // 0.5s以上待ち、ボールセンサーがクリアされるまでキックできないようにする
+    if (sys->kick_state > 0.5 * MAIN_LOOP_CYCLE) {
+      // end kick
+      if (can_raw->ball_detection[0] == 0) {
+        sys->kick_state = 0;
+      }
+    } else {
+      sys->kick_state++;
+    }
+  }
+}
+
+static float getDribblerPower(RobotCommandV2 * ai_cmd, can_raw_t * can_raw)
+{
   float dribbler_power = ai_cmd->dribble_power;
   if (!can_raw->ball_detection[0]) {
     dribbler_power /= 2;
   }
+  return dribbler_power;
+}
+
+void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * can_raw)
+{
+  sendKickCmd(ai_cmd, sys, can_raw);
+
+  static uint8_t can_sending_index = 0;
+
   can_sending_index++;
   switch (can_sending_index) {
     case 1:
-
+      if (ai_cmd->enable_chip == true) {
+        kicker_select_chip();
+      } else {
+        kicker_select_straight();
+      }
       break;
 
     case 2:
@@ -344,15 +363,15 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
       break;
 
     case 3:
-      actuator_kicker_charge_start();
+      kicker_charge_start();
       break;
 
     case 4:
-      actuator_kicker_voltage(400.0);
+      actuator_kicker_cmd_voltage(400.0);
       break;
 
     case 5:
-      actuator_motor5(dribbler_power);
+      actuator_motor5(getDribblerPower(ai_cmd, can_raw));
       break;
 
     default:
@@ -364,8 +383,9 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
 void sendActuatorCanCmdStop()
 {
   actuator_motor5(0.0);
-  actuator_kicker_chaege_stop();
-  actuator_kicker_voltage(0.0);
+
+  kicker_chaege_stop();
+  actuator_kicker_cmd_voltage(0.0);
   actuator_dribbler_down();
 }
 
