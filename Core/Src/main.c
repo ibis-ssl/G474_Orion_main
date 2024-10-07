@@ -937,7 +937,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       case 'u':
         debug.print_idx = PRINT_IDX_UART_RAW;
         break;
-      case 0x7f:
+      case 0x7f:  // del
         debug.print_idx = 0;
         break;
       case '\n':
