@@ -156,12 +156,11 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
     connection->connected_ai = true;
     connection->already_connected_ai = true;
 
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
-
+    setHighUartRxLED();
   } else {
     connection->connected_ai = false;
     connection->ai_cmd_rx_frq = 0;
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+    setLowUartRxLED();
     resetAiCmdData(ai_cmd);
 
     requestStop(sys, 1000);

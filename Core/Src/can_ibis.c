@@ -394,8 +394,7 @@ void sendCanError()
   uint8_t senddata_error[8] = {0};
   can1_send(0x000, senddata_error);
   can2_send(0x000, senddata_error);
-
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+  setHighEventLED();
 }
 
 void resetPowerBoard()

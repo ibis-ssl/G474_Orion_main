@@ -40,10 +40,19 @@ void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
+void setHighInterruptLED(void);
+void setLowInterruptLED(void);
+void toggleInterruptLED(void);
+
+void setHighEventLED(void);
+void setLowEventLED(void);
+
+void setHighUartRxLED(void);
+void setLowUartRxLED(void);
+
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
 }
 #endif
 #endif /*__ GPIO_H__ */
-

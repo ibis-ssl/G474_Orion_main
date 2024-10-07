@@ -3,7 +3,7 @@
 #include "util.h"
 
 //#define OMEGA_GAIN_KP (160.0)
-#define OMEGA_GAIN_KP (30.0)
+#define OMEGA_GAIN_KP (60.0)
 #define OMEGA_GAIN_KD (4.0 * MAIN_LOOP_CYCLE)
 
 void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu, omega_target_t * omega_target)

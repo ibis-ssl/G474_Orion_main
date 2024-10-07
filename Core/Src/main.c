@@ -242,8 +242,9 @@ int main(void)
 
   HAL_ADC_Start_DMA(&hadc5, &sys.sw_adc_raw, 1);
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, 1);
+  setHighUartRxLED();
+  setHighInterruptLED();
+  setHighEventLED();
   ICM20602_init();
   ICM20602_init();
   ICM20602_IMU_calibration2();
@@ -275,8 +276,9 @@ int main(void)
   actuator_power_param(4, 90.0);  // max temp(fet)
   actuator_power_param(5, 90.0);  // max temp(solenoid)
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-
+  setLowUartRxLED();
+  setLowEventLED();
+  setLowInterruptLED();
   actuatorPower_ONOFF(1);
 
   actuator_buzzer_frq(1046, 50);  //C5
@@ -846,13 +848,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     debug.print_flag = true;
 
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-
     if (sys.main_mode == MAIN_MODE_ERROR) {
       actuatorPower_ONOFF(0);
     } else {
       actuatorPower_ONOFF(1);
     }
+
+    toggleInterruptLED();
   }
   debug.sys_mnt.tim_cnt_now[6] = htim7.Instance->CNT;  // パフォーマンス計測用
   debug.sys_mnt.timer_itr_exit_cnt = htim7.Instance->CNT;
@@ -860,7 +862,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
 uint8_t getModeSwitch()
 {
-  return 15 - (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) + (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) << 1) + (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) << 3) + (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_2) << 2));
+  return 15 - (HAL_GPIO_ReadPin(DIP_0_GPIO_Port, DIP_0_Pin) + (HAL_GPIO_ReadPin(DIP_1_GPIO_Port, DIP_1_Pin) << 1) + (HAL_GPIO_ReadPin(DIP_2_GPIO_Port, DIP_2_Pin) << 3) +
+               (HAL_GPIO_ReadPin(DIP_3_GPIO_Port, DIP_3_Pin) << 2));
 }
 
 void yawFilter()
@@ -1016,7 +1019,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   while (1) {
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+    setHighEventLED();
     actuator_buzzer(200, 200);
     // NVIC_sysReset();
   }

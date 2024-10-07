@@ -34,7 +34,7 @@ void ICM20602_writeByte(uint8_t reg, uint8_t data)
   uint8_t send_data[1];
   uint8_t RxBuffer[1];
 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+  HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, 0);
 
   send_data[0] = reg & 0x7F;
   HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)send_data, (uint8_t *)RxBuffer, 1, 2000);
@@ -42,7 +42,7 @@ void ICM20602_writeByte(uint8_t reg, uint8_t data)
   send_data[0] = data;
   HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)send_data, (uint8_t *)RxBuffer, 1, 2000);
 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+  HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, 1);
 }
 
 uint8_t ICM20602_readByte(uint8_t reg)
@@ -51,7 +51,7 @@ uint8_t ICM20602_readByte(uint8_t reg)
   uint8_t send_data[1];
   uint8_t RxBuffer[1];
 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+  HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, 0);
 
   send_data[0] = reg | 0x80;
   HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)send_data, (uint8_t *)RxBuffer, 1, 2000);
@@ -60,7 +60,7 @@ uint8_t ICM20602_readByte(uint8_t reg)
   HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)send_data, (uint8_t *)RxBuffer, 1, 2000);
   val = RxBuffer[0];
 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+  HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, 1);
 
   return (val);
 }
@@ -73,7 +73,7 @@ uint16_t ICM20602_getWhoAmI()
 
 void ICM20602_init()
 {
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, 1);
+  HAL_GPIO_WritePin(IMU_FSYNC_GPIO_Port, IMU_FSYNC_Pin, 1);
   ICM20602_writeByte(ICM20602_PWR_MGMT_1, 0x00);  // CLK_SEL=0: internal 8MHz, TEMP_DIS=0, SLEEP=0
   ICM20602_writeByte(ICM20602_SMPLRT_DIV, 0x07);  // Gyro output sample rate = Gyro Output Rate/(1+SMPLRT_DIV)
   ICM20602_writeByte(ICM20602_CONFIG, 0x01);      //176Hz     // set TEMP_OUT_L, DLPF=3 (Fs=1KHz):0x03

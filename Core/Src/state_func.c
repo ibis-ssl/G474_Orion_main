@@ -17,37 +17,37 @@ void motorTest(system_t * sys, output_t * output, omni_t * omni)
     output->velocity[1] = 0;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // fwd
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
   } else if (swBackPushed(sys->sw_adc_raw)) {
     output->velocity[0] = -OUT_MOVE_VEL;
     output->velocity[1] = 0;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // back
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
   } else if (swLeftPushed(sys->sw_adc_raw)) {
     output->velocity[0] = 0;
     output->velocity[1] = OUT_MOVE_VEL;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // left
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
   } else if (swRightPushed(sys->sw_adc_raw)) {
     output->velocity[0] = 0;
     output->velocity[1] = -OUT_MOVE_VEL;
     output->omega = 0;
     omniMove(output, OUT_LIMIT_TEST);  // right
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
   } else if (swCentorPushed(sys->sw_adc_raw)) {
     output->velocity[0] = 0;
     output->velocity[1] = 0;
     output->omega = OUT_SPIN_OMG;
     omniMove(output, OUT_LIMIT_TEST);  // spin
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
   } else {
     output->velocity[0] = 0;
     output->velocity[1] = 0;
     output->omega = 0;
     omniStopAll(output);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
+    setLowEventLED();
   }
   actuator_motor5(0.0);
 }
@@ -61,10 +61,10 @@ void dribblerTest(system_t * sys, output_t * output, can_raw_t * can_raw)
     } else {
       actuator_motor5(0.20);
     }
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
   } else {
     actuator_motor5(0.0);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
+    setLowEventLED();
   }
   omniStopAll(output);
 }
@@ -95,7 +95,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     if (!manual_mode) {
       actuator_motor5(0.5);
     }
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
         kicker_select_straight();
@@ -107,7 +107,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     if (!manual_mode) {
       actuator_motor5(0.5);
     }
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
+    setHighEventLED();
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
         kicker_select_chip();
@@ -117,7 +117,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     }
   } else {
     actuator_motor5(0.0);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
+    setLowEventLED();
     kicker_charge_start();
     actuator_kicker_cmd_voltage(400.0);
   }
