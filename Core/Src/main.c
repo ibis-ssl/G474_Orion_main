@@ -791,8 +791,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   debug.sys_mnt.tim_cnt_now[3] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   switch (sys.main_mode) {
-    case MAIN_MODE_COMBINATION_CONTROL:  // ローカル統合制御あり
-    case MAIN_MODE_SPEED_CONTROL_ONLY:   // ローカル統合制御なし
+    case MAIN_MODE_FULL_AI_CONTROL:  // ローカル統合制御あり
+    case MAIN_MODE_MANUAL_CONTROL:   // ローカル統合制御なし
       maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &omega_target);
       break;
     case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。

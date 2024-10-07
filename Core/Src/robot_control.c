@@ -109,7 +109,7 @@ void robotControl(
 
     case POSITION_TARGET_MODE:
       localPositionFeedback(integ, imu, target, ai_cmd, omni, mouse, acc_vel, output);
-      if (sys->main_mode == MAIN_MODE_COMBINATION_CONTROL) {  // 0
+      if (sys->main_mode == MAIN_MODE_FULL_AI_CONTROL) {  // 0
         // 速度誤差フィードバックなし
         simpleAccelToOutput(omni, output);
       } else {
@@ -122,11 +122,11 @@ void robotControl(
 
     case SIMPLE_VELOCITY_TARGET_MODE:
       setLocalTargetSpeed(ai_cmd, target, imu);
-      setTargetAccel(ai_cmd, acc_vel);
+      setTargetAccel(sys, ai_cmd, acc_vel);
 
-      accelControl(acc_vel, output, target, imu, omni);
+      accelControl(sys, acc_vel, output, target, imu, omni);
       speedControl(acc_vel, output, target, imu, omni, ai_cmd);
-      
+
       clampScalarSize(output->velocity, OUTPUT_SCALAR_LIMIT);
       thetaControl(ai_cmd, output, imu, omega_target);
       return;

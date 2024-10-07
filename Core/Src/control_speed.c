@@ -28,10 +28,13 @@
 //#define FF_ACC_OUTPUT_KP (0.3)
 #define FF_ACC_OUTPUT_KP (0.2)
 
-void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
+void setTargetAccel(system_t * sys, RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
 {
-  //acc_vel->accel_target = 7.0;
-  //return;
+  if (sys->main_mode == MAIN_MODE_MANUAL_CONTROL) {
+    acc_vel->accel_target = 7.0;
+    return;
+  }
+
   if (ai_cmd->acceleration_limit < 3.0 || ai_cmd->acceleration_limit > 20) {
     acc_vel->accel_target = 5.0;
   } else {
@@ -39,7 +42,7 @@ void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
   }
 }
 
-void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
+void accelControl(system_t * sys, accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni)
 {
   // XY -> rad/scalarに変換
   // 座標次元でのみフィードバックを行う。速度次元ではフィードバックを行わない。
@@ -63,17 +66,19 @@ void accelControl(accel_vector_t * acc_vel, output_t * output, target_t * target
 
   // 減速時に1.8倍
   // いずれ指令値側で増やすので、消す
-  for (int i = 0; i < 2; i++) {
-    if (target->local_vel_now[i] * output->accel[i] <= 0) {
-      output->accel[i] *= ACCEL_DECCEL_MULTI;
-    }
+  if (sys->main_mode == MAIN_MODE_MANUAL_CONTROL) {
+    for (int i = 0; i < 2; i++) {
+      if (target->local_vel_now[i] * output->accel[i] <= 0) {
+        output->accel[i] *= ACCEL_DECCEL_MULTI;
+      }
 
-    // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
-    // 現在座標も速度制御されたタイヤで見ているので、あまりｱﾃにならない
-    // これ使える気がする
-    /*if ((omni->robot_pos_diff[i] > 0 && output->accel[i] > 0) || (omni->robot_pos_diff[i] < 0 && output->accel[i] < 0)) {
+      // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
+      // 現在座標も速度制御されたタイヤで見ているので、あまりｱﾃにならない
+      // これ使える気がする
+      /*if ((omni->robot_pos_diff[i] > 0 && output->accel[i] > 0) || (omni->robot_pos_diff[i] < 0 && output->accel[i] < 0)) {
       //output->accel[i] *= 1.5;
     }*/
+    }
   }
 }
 
