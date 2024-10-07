@@ -11,13 +11,13 @@
 
 static void motor_cmd_can1(uint16_t motor_id, float duty)
 {
-  uint8_t senddata_motor[8];
+  uint8_t senddata_motor[8] = {0};
   float_to_uchar4(senddata_motor, duty);
   can1_send(motor_id, senddata_motor);
 }
 static void motor_cmd_can2(uint16_t motor_id, float duty)
 {
-  uint8_t senddata_motor[8];
+  uint8_t senddata_motor[8] = {0};
   float_to_uchar4(senddata_motor, duty);
   can2_send(motor_id, senddata_motor);
 }
@@ -33,7 +33,7 @@ void actuator_dribbler_down() { motor_cmd_can1(0x105, 0); }
 
 void actuator_kicker_cmd_voltage(float voltage)
 {
-  uint8_t senddata_kick[8];
+  uint8_t senddata_kick[8] = {0};
   float_to_uchar4(&senddata_kick[4], voltage);
 
   senddata_kick[0] = 0;
@@ -48,10 +48,10 @@ void actuator_kicker_cmd(uint8_t id, uint8_t param)
 	 * id 2: 0=>straight  1=>chip
 	 * id 3: kick strength 0~255
 	 * */
-  uint8_t senddata_kick[8];
+  uint8_t senddata_kick[8] = {0};
   senddata_kick[0] = id;
   senddata_kick[1] = param;
-  senddata_kick[2] = 100;
+  senddata_kick[2] = 200;
   can1_send(0x110, senddata_kick);
   can2_send(0x110, senddata_kick);
 }
@@ -71,7 +71,7 @@ void actuatorPower_ONOFF(uint8_t power_on)
   /*id 0=>off
 	 *   1=>on
 	 * */
-  uint8_t senddata_power[8];
+  uint8_t senddata_power[8] = {0};
   senddata_power[0] = 0;
   senddata_power[1] = power_on;
   can1_send(0x010, senddata_power);
@@ -87,7 +87,7 @@ void actuator_power_param(uint8_t id, float param)
  *   5=>maxtemp(solenoid)
  * */
 
-  uint8_t senddata_power_param[8];
+  uint8_t senddata_power_param[8] = {0};
 
   senddata_power_param[0] = id;
   float_to_uchar4(&senddata_power_param[1], param);
@@ -98,7 +98,7 @@ void actuator_power_param(uint8_t id, float param)
 
 void actuator_motor_param(uint8_t param1, float m1p, uint8_t param2, float m2p, uint8_t param3, float m3p, uint8_t param4, float m4p, uint8_t param5, float m5p)
 {
-  uint8_t send_data_param[8];
+  uint8_t send_data_param[8] = {0};
 
   float_to_uchar4(&send_data_param[1], m1p);
   send_data_param[0] = param1;

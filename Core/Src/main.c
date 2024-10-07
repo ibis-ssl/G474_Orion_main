@@ -823,6 +823,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       break;
 
     case MAIN_MODE_ERROR:  // error
+      manualPowerReset(&sys);
       maintaskStop(&output);
       sendCanError();
       break;

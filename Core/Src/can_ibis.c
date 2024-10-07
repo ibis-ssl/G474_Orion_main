@@ -391,11 +391,20 @@ void sendActuatorCanCmdStop()
 
 void sendCanError()
 {
-  uint8_t senddata_error[8];
+  uint8_t senddata_error[8] = {0};
   can1_send(0x000, senddata_error);
   can2_send(0x000, senddata_error);
 
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+}
+
+void resetPowerBoard()
+{
+  uint8_t reset_power[8] = {0};
+  reset_power[0] = 0x5A;
+  reset_power[1] = 0xA5;
+  can1_send(0x001, reset_power);
+  can2_send(0x001, reset_power);
 }
 
 const int CAN_ENC_TIMEOUT_CYCLE_CNT = 100;

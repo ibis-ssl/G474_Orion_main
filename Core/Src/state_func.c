@@ -193,6 +193,20 @@ void motorCalibration(system_t * sys)
   }
 }
 
+void manualPowerReset(system_t * sys)
+{
+  static int sw_push_cnt = 0;
+  if (swCentorPushed(sys->sw_adc_raw)) {
+    sw_push_cnt++;
+  } else {
+    sw_push_cnt = 0;
+  }
+  if (sw_push_cnt > MAIN_LOOP_CYCLE / 2) {
+    sw_push_cnt = 0;
+    resetPowerBoard();
+  }
+}
+
 void maintaskRun(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
   can_raw_t * can_raw, omega_target_t * omega_target)

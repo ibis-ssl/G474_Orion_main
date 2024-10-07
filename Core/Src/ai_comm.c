@@ -11,7 +11,7 @@
 
 static void enqueueFloatArray(float array[], int * idx, float data)
 {
-  if (*idx >= TX_VALUE_ARRAY_SIZE) {
+  if (*idx >= TX_VALUE_ARRAY_SIZE || *idx < 0) {
     return;
   }
   array[*idx] = data;

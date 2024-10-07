@@ -22,6 +22,7 @@ void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_raw, sys
 void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * can_raw);
 void sendActuatorCanCmdStop();
 void sendCanError();
+void resetPowerBoard();
 
 bool canRxTimeoutDetection(can_raw_t * can_raw);
 void canRxTimeoutCntCycle(can_raw_t * can_raw);
