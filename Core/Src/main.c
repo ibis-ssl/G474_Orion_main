@@ -41,6 +41,7 @@
 #include "ai_comm.h"
 #include "buzzer_control.h"
 #include "can_ibis.h"
+#include "control_theta.h"
 #include "error.h"
 #include "icm20602_spi.h"
 #include "odom.h"
@@ -82,7 +83,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
 uint8_t getModeSwitch();
-void yawFilter();
 bool allEncInitialized();
 uint32_t HAL_GetTick(void) { return uwTick; }
 
@@ -780,7 +780,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
   debug.sys_mnt.tim_cnt_now[1] = htim7.Instance->CNT;  // パフォーマンス計測用
 
-  yawFilter();
+  yawFilter(&sys, &debug, &imu, &cmd_v2, &connection);
   omniOdometryUpdate(&motor, &omni, &imu);  // 250us
   inntegOdomUpdate(&cmd_v2, &omni, &integ, &connection, &imu, &sys);
 
@@ -864,59 +864,6 @@ uint8_t getModeSwitch()
 {
   return 15 - (HAL_GPIO_ReadPin(DIP_0_GPIO_Port, DIP_0_Pin) + (HAL_GPIO_ReadPin(DIP_1_GPIO_Port, DIP_1_Pin) << 1) + (HAL_GPIO_ReadPin(DIP_2_GPIO_Port, DIP_2_Pin) << 3) +
                (HAL_GPIO_ReadPin(DIP_3_GPIO_Port, DIP_3_Pin) << 2));
-}
-
-void yawFilter()
-{
-  // 静止中に一気にvision角度を合わせるやつ
-  static uint32_t yaw_update_cnt = 0;
-  imu.yaw_deg_diff_integral += fabs(imu.pre_yaw_deg - imu.yaw_deg);
-  yaw_update_cnt++;
-  if (yaw_update_cnt > MAIN_LOOP_CYCLE / 2) {  // 2Hz
-    yaw_update_cnt = 0;
-    if (imu.yaw_deg_diff_integral < 1) {
-      // 機体が旋回していないとき
-      imu.theta_override_flag = true;
-
-      // visionとの角度差があるときにアプデ
-      if (connection.connected_ai && cmd_v2.is_vision_available && getAngleDiff(imu.yaw_deg, cmd_v2.vision_global_theta) > 10 * M_PI / 180) {
-        //imu.yaw_deg = cmd_v2.vision_global_theta * 180 / M_PI;
-      }
-    } else {
-      imu.theta_override_flag = false;
-    }
-    imu.yaw_deg_diff_integral = 0;
-  }
-
-  imu.pre_yaw_deg = imu.yaw_deg;
-
-  static int vision_lost_cycle_cnt = 0;
-  // vision NG -> ONになったときに強制更新するやつ
-  if (cmd_v2.is_vision_available) {
-    if (vision_lost_cycle_cnt >= MAIN_LOOP_CYCLE) {
-      //imu.yaw_deg = cmd_v2.vision_global_theta * 180 / M_PI;
-    }
-    vision_lost_cycle_cnt = 0;
-  } else if (vision_lost_cycle_cnt <= MAIN_LOOP_CYCLE) {
-    vision_lost_cycle_cnt++;
-  }
-
-  ICM20602_read_IMU_data((float)1.0 / MAIN_LOOP_CYCLE, &(imu.yaw_deg));
-
-  if (sys.main_mode == MAIN_MODE_CMD_DEBUG_MODE && !cmd_v2.is_vision_available) {
-    // デバッグ用、visionないときはtargetへ補正する
-    imu.yaw_deg = imu.yaw_deg - (getAngleDiff(imu.yaw_deg * M_PI / 180.0, cmd_v2.target_global_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
-
-  } else if (!cmd_v2.is_vision_available || debug.latency_check.enabled) {
-    // VisionLost時は補正しない
-    // レイテンシチェック中(一定速度での旋回中)は相補フィルタ切る
-
-  } else {
-    imu.yaw_deg = imu.yaw_deg - (getAngleDiff(imu.yaw_deg * M_PI / 180.0, cmd_v2.vision_global_theta) * 180.0 / M_PI) * 0.001;  // 0.001 : gain
-  }
-
-  imu.pre_yaw_rad = imu.yaw_rad;
-  imu.yaw_rad = imu.yaw_deg * M_PI / 180;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
