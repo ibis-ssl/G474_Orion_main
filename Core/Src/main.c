@@ -854,6 +854,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuatorPower_ONOFF(1);
     }
 
+    if(connection.connected_cm4 == false){
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
+    }
+
     toggleInterruptLED();
   }
   debug.sys_mnt.tim_cnt_now[6] = htim7.Instance->CNT;  // パフォーマンス計測用
