@@ -2,7 +2,9 @@
 
 #include "actuator.h"
 #include "can_ibis.h"
+#include "control_omni_angle.h"
 #include "control_speed.h"
+#include "control_theta.h"
 #include "omni_wheel.h"
 #include "robot_control.h"
 #include "util.h"
@@ -209,7 +211,7 @@ void manualPowerReset(system_t * sys)
 
 void maintaskRun(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
-  can_raw_t * can_raw, omega_target_t * omega_target)
+  can_raw_t * can_raw, motor_t * motor)
 
 {
   const float OMNI_OUTPUT_LIMIT = 40;
@@ -217,19 +219,42 @@ void maintaskRun(
   // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
   // 全部で250us
-  robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output, omega_target);
+  // 出力しない
+  if (sys->main_mode > MAIN_MODE_CMD_DEBUG_MODE) {
+    output->velocity[0] = 0;
+    output->velocity[1] = 0;
+    output->omega = 0;
+    return;
+  }
+
+  if (sys->stop_flag) {
+    clearSpeedContrlValue(acc_vel, output, target, imu, omni, ai_cmd);
+  }
+
+  bool local_devvel_control_flag = false;
+  if (sys->main_mode == MAIN_MODE_MANUAL_CONTROL) {
+    local_devvel_control_flag = true;
+  }
+
+  setLocalTargetSpeed(ai_cmd, target, imu);
+  setTargetAccel(ai_cmd, acc_vel, local_devvel_control_flag);
+
+  accelControl(acc_vel, target, local_devvel_control_flag);
+  speedControl(acc_vel, target, imu);
+  thetaControl(ai_cmd, imu, target);
+
+  setTargetOmniAngle(target);
+  omniAngleControl(target, output, motor);
 
   // いまのところvision lostしたら止める
   if (sys->main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
     omniStopAll(output);
-    //clearPosDiffSpeedControl();
     //デバッグ用に出力しないだけなのでクリアはしない
   } else if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available || ai_cmd->elapsed_time_ms_since_last_vision > 500) {
     //resetLocalSpeedControl(&ai_cmd);
     omniStopAll(output);
-    clearPosDiffSpeedControl(target, omni);
   } else {
-    omniMove(output, OMNI_OUTPUT_LIMIT);
+    omniMoveIndiv(output, OMNI_OUTPUT_LIMIT);
   }
 
   sendActuatorCanCmdRun(ai_cmd, sys, can_raw);

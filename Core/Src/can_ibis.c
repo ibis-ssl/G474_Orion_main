@@ -215,10 +215,13 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x201:
     case 0x202:
     case 0x203:
+    case 0x204:
       uint32_t enc_id = rx_can_id - 0x200;
+      motor->rps[enc_id] = uchar4_to_float(rx_data);
       motor->enc_angle[enc_id] = uchar4_to_float(&rx_data[4]);
-      can_raw->motor_feedback[enc_id] = uchar4_to_float(rx_data);
-      can_raw->motor_feedback_velocity[enc_id] = uchar4_to_float(rx_data) * OMNI_DIAMETER * M_PI;
+
+      can_raw->motor_feedback[enc_id] = motor->rps[enc_id];
+
       if (rx_can_id == 0x200 || rx_can_id == 0x201) {
         can_raw->rx_stat.timeout_cnt[BOARD_ID_MOTOR_RIGHT] = 0;
       } else if (rx_can_id == 0x202 || rx_can_id == 0x203) {
@@ -226,10 +229,6 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       }
       can_raw->rx_stat.enc_flag[enc_id] = true;
       break;
-    case 0x204:
-      can_raw->motor_feedback_velocity[4] = uchar4_to_float(rx_data);
-      break;
-
       // can_raw->power_Voltage
     case 0x210:  // m0
     case 0x211:  // m1
@@ -294,7 +293,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x501:
     case 0x502:
     case 0x503:
-      can_raw->motor_rps[rx_can_id - 0x500] = uchar4_to_float(rx_data);
+      can_raw->motor_param_rps[rx_can_id - 0x500] = uchar4_to_float(rx_data);
       break;
   }
 }

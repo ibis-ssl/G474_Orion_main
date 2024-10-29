@@ -20,18 +20,18 @@
  *
  * */
 // 0.056 * 3.14
-float rotation_length_omni = OMNI_DIAMETER * M_PI;
-const float sinM1 = sin(30 * M_PI / 180);
-const float cosM1 = cos(30 * M_PI / 180);
+static float rotation_length_omni = OMNI_DIAMETER * M_PI;
+static const float sinM1 = sin(30 * M_PI / 180);
+static const float cosM1 = cos(30 * M_PI / 180);
 
-const float sinM2 = sin(315 * M_PI / 180);
-const float cosM2 = cos(315 * M_PI / 180);
+static const float sinM2 = sin(315 * M_PI / 180);
+static const float cosM2 = cos(315 * M_PI / 180);
 
-const float sinM3 = sin(225 * M_PI / 180);
-const float cosM3 = cos(225 * M_PI / 180);
+static const float sinM3 = sin(225 * M_PI / 180);
+static const float cosM3 = cos(225 * M_PI / 180);
 
-const float sinM4 = sin(150 * M_PI / 180);
-const float cosM4 = cos(150 * M_PI / 180);
+static const float sinM4 = sin(150 * M_PI / 180);
+static const float cosM4 = cos(150 * M_PI / 180);
 
 void omniMove(output_t * output, float out_limit)
 {
@@ -44,6 +44,11 @@ void omniMove(output_t * output, float out_limit)
   output->motor_voltage[2] = ((output->velocity[1] * sinM3) + (output->velocity[0] * cosM3) + rotation_omega_motor) / rotation_length_omni;
   output->motor_voltage[3] = ((output->velocity[1] * sinM4) + (output->velocity[0] * cosM4) + rotation_omega_motor) / rotation_length_omni;
 
+  omniMoveIndiv(output, out_limit);
+}
+
+void omniMoveIndiv(output_t * output, float out_limit)
+{
   for (int i = 0; i < 4; i++) {
     output->motor_voltage[i] = clampSize(output->motor_voltage[i], out_limit);
   }

@@ -3,21 +3,19 @@
 #include "icm20602_spi.h"
 #include "util.h"
 
-//#define OMEGA_GAIN_KP (160.0)
-#define OMEGA_GAIN_KP (60.0)
-#define OMEGA_GAIN_KD (4.0 * MAIN_LOOP_CYCLE)
-
-void thetaControl(RobotCommandV2 * ai_cmd, output_t * output, imu_t * imu, omega_target_t * omega_target)
+void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target)
 {
-  const float OUTPUT_OMEGA_LIMIT = 20.0;  // ~ rad/s
+  const float DIFF_TO_RPS_GAIN = 2.0;  // rad -> rad/s
+  const float DEAD_ZONE_DEG = 5;       // rad -> rad/s
 
-  float target_diff_angle = getAngleDiff(ai_cmd->target_global_theta, omega_target->current_target);
-  target_diff_angle = clampSize(target_diff_angle, ai_cmd->angular_velocity_limit / MAIN_LOOP_CYCLE);
-  omega_target->current_target += target_diff_angle;
-  // PID
-  output->omega = (getAngleDiff(omega_target->current_target, imu->yaw_rad) * OMEGA_GAIN_KP) - (getAngleDiff(imu->yaw_rad, imu->pre_yaw_rad) * OMEGA_GAIN_KD);
-  output->omega = clampSize(output->omega, OUTPUT_OMEGA_LIMIT);
-  //output->omega = 0;
+  float angle_diff = getAngleDiff(ai_cmd->target_global_theta, imu->yaw_rad);
+
+  if (fabs(angle_diff) < DEAD_ZONE_DEG * M_PI / 180) {
+    angle_diff = 0;
+  }
+
+  float temp_tar_rps = angle_diff * DIFF_TO_RPS_GAIN;
+  target->yaw_rps = clampSize(temp_tar_rps, ai_cmd->angular_velocity_limit / MAIN_LOOP_CYCLE);
 }
 
 // 静止中に一気にvision角度を合わせるやつ

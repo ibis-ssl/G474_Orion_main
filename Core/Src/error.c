@@ -31,7 +31,7 @@ enum {
   BLDC_OVER_VOLTAGE = 0x0020,
 };
 
-void convertErrorDataToStr(uint8_t id, uint16_t info, unsigned char * str_buf)
+void convertErrorDataToStr(uint8_t id, uint16_t info, char * str_buf)
 {
   int offset = 0;
   if (id == 100) {

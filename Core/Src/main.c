@@ -99,7 +99,6 @@ system_t sys;
 integ_control_t integ;
 accel_vector_t acc_vel;
 debug_t debug;
-omega_target_t omega_target;
 camera_t camera, camera_buf;
 
 RobotCommandV2 cmd_v2, cmd_v2_buf;
@@ -299,7 +298,7 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = PRINT_IDX_VEL;
-  unsigned char error_str[100] = {0};
+  char error_str[100] = {0};
 
   /* USER CODE END 2 */
 
@@ -448,13 +447,13 @@ int main(void)
           setTextNormal();
           p("Rps ");
           for (int i = 0; i < 4; i++) {
-            p("%4.2f ", can_raw.motor_rps[i]);
+            p("%4.2f ", can_raw.motor_param_rps[i]);
           }
           break;
         case PRINT_IDX_DRIBBLER:  // Dribblerテスト
           p("DRIBBLER ");
           p("Batt(Sub) %3.1f / ", can_raw.power_voltage[4]);
-          p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
+          p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback[4]);
           //p("local_vision x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
 
           break;
@@ -478,7 +477,7 @@ int main(void)
           }
           p("FET=%5.1f L1=%5.1f L2=%5.1f / ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
           setTextNormal();
-          p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
+          p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback[4]);
 
           break;
         case PRINT_IDX_MOUSE:  // Mouse odom
@@ -544,12 +543,12 @@ int main(void)
           //p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
           p("diffG %+6.3f %+6.3f ", integ.position_diff[0], integ.position_diff[1]);
-          p("dist %+6.3f ", target.pos_ctrl.target_pos_dist_scalar);
+          //p("dist %+6.3f ", target.pos_ctrl.target_pos_dist_scalar);
           //p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
           //p("angle %+5.2f ", target.pos_ctrl.target_vel_angle);
 
           //p("GlobalVel %+6.3f Y %+6.3f ", target.pos_ctrl.global_odom_speed[0], target.pos_ctrl.global_odom_speed[1]);
-          p("tarScV %+5.2f ", target.pos_ctrl.target_scalar_vel);
+          /*p("tarScV %+5.2f ", target.pos_ctrl.target_scalar_vel);
           if (target.pos_ctrl.target_scalar_vel > target.pos_ctrl.current_speed_crd[0]) {
             setTextCyan();
           } else {
@@ -560,6 +559,7 @@ int main(void)
           p("accCrd X %+6.2f, Y %+6.2f ", target.pos_ctrl.target_crd_acc[0], target.pos_ctrl.target_crd_acc[1]);
           p("accGl X %+6.2f, Y %+6.2f ", target.pos_ctrl.global_acc[0], target.pos_ctrl.global_acc[1]);
           p("%d ", target.pos_ctrl.to_stop_mode_flag);
+          */
           //p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           //p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
 
@@ -592,10 +592,10 @@ int main(void)
           //p("out-vel X %+5.1f, Y %+5.1f W %+5.1f ", output.velocity[0], output.velocity[1], output.omega);
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
           p("Err X%+5.2f Y%+5.2f Sc%+5.2f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
-          p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
+          p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
           //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
           p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
-          p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
+          //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
           p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
 
@@ -793,11 +793,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   switch (sys.main_mode) {
     case MAIN_MODE_FULL_AI_CONTROL:  // ローカル統合制御あり
     case MAIN_MODE_MANUAL_CONTROL:   // ローカル統合制御なし
-      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &omega_target);
+      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor);
       break;
     case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。
                                     // 相補フィルタなし、
-      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &omega_target);
+      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor);
       break;
 
     case MAIN_MODE_MOTOR_TEST:  // motor test
@@ -854,7 +854,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuatorPower_ONOFF(1);
     }
 
-    if(connection.connected_cm4 == false){
+    if (connection.connected_cm4 == false) {
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
     }
 
