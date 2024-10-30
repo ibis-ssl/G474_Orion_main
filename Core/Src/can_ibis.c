@@ -218,7 +218,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x204:
       uint32_t enc_id = rx_can_id - 0x200;
       motor->rps[enc_id] = uchar4_to_float(rx_data);
-      motor->enc_angle[enc_id] = uchar4_to_float(&rx_data[4]);
+      motor->enc_angle_rad[enc_id] = uchar4_to_float(&rx_data[4]);
 
       can_raw->motor_feedback[enc_id] = motor->rps[enc_id];
 

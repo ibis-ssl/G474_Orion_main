@@ -136,8 +136,8 @@ typedef struct
 
 typedef struct
 {
-  float enc_angle[5];
-  float pre_enc_angle[5];
+  float enc_angle_rad[5];
+  float pre_enc_angle_rad[5];
   float angle_diff[5];
   float rps[5];
 } motor_t;
@@ -188,7 +188,7 @@ typedef struct
 
 typedef struct
 {
-  float current_rps, angle;
+  float current_rps, angle_rad;
   float diff, real_rps;
 } omni_angle_t;
 typedef struct
@@ -212,8 +212,8 @@ typedef struct
     bool to_stop_mode_flag;
   } pos_ctrl;*/
   omni_angle_t omni_angle[4];
+  float omni_angle_kp, omni_angle_kd;
 } target_t;
-
 
 typedef struct
 {

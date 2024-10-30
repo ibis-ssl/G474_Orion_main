@@ -300,6 +300,9 @@ int main(void)
   debug.print_idx = PRINT_IDX_VEL;
   char error_str[100] = {0};
 
+  target.omni_angle_kd = 1;
+  target.omni_angle_kp = 50;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -531,7 +534,7 @@ int main(void)
           p("theta %+6.1f ", imu.yaw_deg);
 
           //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
-          //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
+          //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle_rad[0], motor.enc_angle_rad[1], motor.enc_angle_rad[2], motor.enc_angle_rad[3]);
           //p("odomL X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
           //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
           if (cmd_v2.is_vision_available) {
@@ -594,11 +597,14 @@ int main(void)
           p("Err X%+5.2f Y%+5.2f Sc%+5.2f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
           p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
           //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
-          p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
+          //p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
-          p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
-
+          //p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
+          p("KP %+4.1f KD %+4.1f ", target.omni_angle_kp, target.omni_angle_kd);
+          for (int i = 0; i < 4; i++) {
+            p("M%d %+4.1f ", i, target.omni_angle[i].diff);
+          }
           break;
         case PRINT_IDX_LATENCY:
           p("LATENCY ");
@@ -724,7 +730,7 @@ void resetOdomAtEncInitialized()
       omni.local_raw_odom_vel[i] = 0;
     }
     for (int i = 0; i < 4; i++) {
-      motor.pre_enc_angle[i] = motor.enc_angle[i];
+      motor.pre_enc_angle_rad[i] = motor.enc_angle_rad[i];
     }
     initialized_flag = true;
   }
@@ -914,6 +920,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
   if (huart->Instance == hlpuart1.Instance) {
     switch (lpuart1_rx_buf) {
+      case 'q':
+        target.omni_angle_kp *= 1.1;
+        break;
+      case 'a':
+        target.omni_angle_kp /= 1.1;
+        break;
+      case 'w':
+        target.omni_angle_kd *= 1.1;
+        break;
+      case 's':
+        target.omni_angle_kd /= 1.1;
+        break;
+
+      /*
       case 'v':
         debug.print_idx = PRINT_IDX_VEL;
         break;
@@ -940,7 +960,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         break;
       case 'u':
         debug.print_idx = PRINT_IDX_UART_RAW;
-        break;
+        break;*/
       case 0x7f:  // del
         debug.print_idx = 0;
         break;

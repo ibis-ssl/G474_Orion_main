@@ -3,7 +3,7 @@
 #include "math.h"
 #include "util.h"
 
-static float rotation_length_omni = OMNI_DIAMETER * M_PI;
+static const float rotation_length_omni = OMNI_DIAMETER * M_PI;
 static const float sinM1 = sin(30 * M_PI / 180);
 static const float cosM1 = cos(30 * M_PI / 180);
 
@@ -28,18 +28,22 @@ void setTargetOmniAngle(target_t * target)
   target->omni_angle[3].current_rps = ((target->local_vel_now[1] * sinM4) + (target->local_vel_now[0] * cosM4) + rotation_omega_motor) / rotation_length_omni;
 
   for (int i = 0; i < 4; i++) {
-    target->omni_angle[i].angle += target->omni_angle[i].current_rps;
+    target->omni_angle[i].angle_rad += 2 * M_PI * target->omni_angle[i].current_rps / MAIN_LOOP_CYCLE;
+    if (target->omni_angle[i].angle_rad > M_PI) {
+      target->omni_angle[i].angle_rad -= 2 * M_PI;
+    } else if (target->omni_angle[i].angle_rad < -M_PI) {
+      target->omni_angle[i].angle_rad += 2 * M_PI;
+    }
   }
 }
 
 void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
 {
-  static const float ANGLE_KP = 10;
-  static const float ANGLE_KD = 10;
   for (int i = 0; i < 4; i++) {
-    target->omni_angle[i].diff = target->omni_angle[i].angle - motor->enc_angle[i];
+    target->omni_angle[i].diff = getAngleDiff(target->omni_angle[i].angle_rad, M_PI - motor->enc_angle_rad[i]);
+
     target->omni_angle[i].real_rps = motor->rps[i];
 
-    output->motor_voltage[i] = target->omni_angle[i].diff * ANGLE_KP - target->omni_angle[i].real_rps * ANGLE_KD;
+    output->motor_voltage[i] = target->omni_angle[i].diff * target->omni_angle_kp - target->omni_angle[i].real_rps * target->omni_angle_kd;
   }
 }

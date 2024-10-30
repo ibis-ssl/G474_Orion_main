@@ -43,14 +43,14 @@ void mouseOdometryUpdate(mouse_t * mouse, imu_t * imu)
 
 void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
 {
-  // motor->enc_angle,/imu->yaw_rad
+  // motor->enc_angle_rad,/imu->yaw_rad
 
   for (int i = 0; i < 4; i++) {
-    if (isnan(motor->enc_angle[i])) {
-      motor->enc_angle[i] = 0;
+    if (isnan(motor->enc_angle_rad[i])) {
+      motor->enc_angle_rad[i] = 0;
     }
-    motor->angle_diff[i] = getAngleDiff(motor->pre_enc_angle[i], motor->enc_angle[i]);
-    motor->pre_enc_angle[i] = motor->enc_angle[i];
+    motor->angle_diff[i] = getAngleDiff(motor->pre_enc_angle_rad[i], motor->enc_angle_rad[i]);
+    motor->pre_enc_angle_rad[i] = motor->enc_angle_rad[i];
     omni->travel_distance[i] = motor->angle_diff[i] * OMNI_DIAMETER;
   }
 
