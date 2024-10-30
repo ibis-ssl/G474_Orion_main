@@ -218,6 +218,9 @@ void maintaskRun(
   // 上げると過電流エラーになりがち｡
   // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
+  if (swCentorPushed(sys->sw_adc_raw)) {
+    sys->error_flag = true;
+  }
   // 全部で250us
   // 出力しない
   if (sys->main_mode > MAIN_MODE_CMD_DEBUG_MODE) {
