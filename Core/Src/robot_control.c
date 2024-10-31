@@ -5,18 +5,13 @@
  *      Author: hiroyuki
  */
 #include "robot_control.h"
+
 #include "robot_packet.h"
 #include "util.h"
 
 // スカラ速度制限(速度制御モード)
 #define SPEED_SCALAR_LIMIT (7.0)
 
-// ドライバ側は 50 rps 制限
-// omegaぶんは考慮しない
-#define OUTPUT_SCALAR_LIMIT (8.0)  //
-                                   //#define OUTPUT_SCALAR_LIMIT (40.0)  //
-
-// omegaぶんの制限
 
 void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu)
 {
@@ -34,7 +29,7 @@ void setOutZero(output_t * output)
   output->omega = 0;
 }
 
-void clearSpeedContrlValue(accel_vector_t * acc_vel, output_t * output, target_t * target, imu_t * imu, omni_t * omni, RobotCommandV2 * ai_cmd)
+void clearSpeedContrlValue(accel_vector_t * acc_vel, target_t * target, imu_t * imu, omni_t * omni, motor_t * motor)
 {
   acc_vel->vel_error_rad = 0;
   acc_vel->vel_error_scalar = 0;
@@ -42,6 +37,8 @@ void clearSpeedContrlValue(accel_vector_t * acc_vel, output_t * output, target_t
     acc_vel->vel_error_xy[i] = 0;  //毎回更新するので多分いらない
     //target->local_vel_now[i] = omni->local_odom_speed_mvf[i];
     target->global_pos[i] = omni->odom[i];
+
+    target->omni_angle[i].angle_rad = motor->angle_rad[i];
   }
   convertLocalToGlobal(omni->local_odom_speed_mvf, target->global_vel_now, imu->yaw_rad);
 }

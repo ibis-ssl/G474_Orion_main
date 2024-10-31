@@ -218,20 +218,13 @@ void maintaskRun(
   // 上げると過電流エラーになりがち｡
   // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
+  // デバッガ接続用にエラー入れる
   if (swCentorPushed(sys->sw_adc_raw)) {
     sys->error_flag = true;
   }
-  // 全部で250us
-  // 出力しない
-  if (sys->main_mode > MAIN_MODE_CMD_DEBUG_MODE) {
-    output->velocity[0] = 0;
-    output->velocity[1] = 0;
-    output->omega = 0;
-    return;
-  }
 
   if (sys->stop_flag) {
-    clearSpeedContrlValue(acc_vel, output, target, imu, omni, ai_cmd);
+    clearSpeedContrlValue(acc_vel, target, imu, omni, motor);
   }
 
   bool local_devvel_control_flag = false;
@@ -254,7 +247,6 @@ void maintaskRun(
     omniStopAll(output);
     //デバッグ用に出力しないだけなのでクリアはしない
   } else if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available || ai_cmd->elapsed_time_ms_since_last_vision > 500) {
-    //resetLocalSpeedControl(&ai_cmd);
     omniStopAll(output);
   } else {
     omniMoveIndiv(output, OMNI_OUTPUT_LIMIT);
