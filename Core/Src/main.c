@@ -603,7 +603,7 @@ int main(void)
           //p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           p("KP %+4.1f KD %+4.1f ", target.omni_angle_kp, target.omni_angle_kd);
           for (int i = 0; i < 4; i++) {
-            p("M%d %+4.1f ", i, target.omni_angle[i].diff);
+            p("M%d %5.1f : %+4.0f / ", i, target.omni_angle[i].current_rps, target.omni_angle[i].diff * 180 / M_PI);
           }
           break;
         case PRINT_IDX_LATENCY:

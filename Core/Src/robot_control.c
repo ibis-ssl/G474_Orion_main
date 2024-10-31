@@ -12,7 +12,6 @@
 // スカラ速度制限(速度制御モード)
 #define SPEED_SCALAR_LIMIT (7.0)
 
-
 void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu)
 {
   target->global_vel[0] = ai_cmd->mode_args.simple_velocity.target_global_vel[0];
@@ -37,7 +36,9 @@ void clearSpeedContrlValue(accel_vector_t * acc_vel, target_t * target, imu_t * 
     acc_vel->vel_error_xy[i] = 0;  //毎回更新するので多分いらない
     //target->local_vel_now[i] = omni->local_odom_speed_mvf[i];
     target->global_pos[i] = omni->odom[i];
+  }
 
+  for (int i = 0; i < 4; i++) {
     target->omni_angle[i].angle_rad = motor->angle_rad[i];
   }
   convertLocalToGlobal(omni->local_odom_speed_mvf, target->global_vel_now, imu->yaw_rad);
