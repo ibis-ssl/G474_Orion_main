@@ -61,7 +61,7 @@ inline void buzzerControl(can_raw_t * can_raw, system_t * sys, connection_t * co
   static float buzzer_frq_offset__gain = 1.0;
   // 電圧受信できてない時に低電圧エラー鳴るとウザいので消す
   buzzer_cnt++;
-  if (sys->error_flag) {  // エラー時
+  if (sys->error_flag || sys->current_error.id != 0) {  // エラー時
     if (buzzer_cnt > 20) {
       buzzer_cnt = 0;
       if (buzzer_state == false) {
