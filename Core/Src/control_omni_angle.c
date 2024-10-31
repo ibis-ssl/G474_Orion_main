@@ -16,6 +16,7 @@ static const float cosM3 = cos(225 * M_PI / 180);
 static const float sinM4 = sin(150 * M_PI / 180);
 static const float cosM4 = cos(150 * M_PI / 180);
 
+// 機体速度からオムニ回転数に変換
 void setTargetOmniAngle(target_t * target)
 {
   float rotation_omega_motor = 0;
@@ -37,6 +38,7 @@ void setTargetOmniAngle(target_t * target)
   }
 }
 
+//
 void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
 {
   for (int i = 0; i < 4; i++) {
@@ -45,6 +47,8 @@ void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
 
     target->omni_angle[i].real_rps = motor->rps[i];
 
-    output->motor_voltage[i] = target->omni_angle[i].diff * target->omni_angle_kp - target->omni_angle[i].real_rps * target->omni_angle_kd;
+    output->motor_voltage[i] = target->omni_angle[i].diff * target->omni_angle_kp;
+    output->motor_voltage[i] -= target->omni_angle[i].real_rps * target->omni_angle_kd;
+    output->motor_voltage[i] += target->omni_angle[i].current_rps;
   }
 }
