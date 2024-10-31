@@ -534,7 +534,7 @@ int main(void)
           p("theta %+6.1f ", imu.yaw_deg);
 
           //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
-          //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle_rad[0], motor.enc_angle_rad[1], motor.enc_angle_rad[2], motor.enc_angle_rad[3]);
+          //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.angle_rad[0], motor.angle_rad[1], motor.angle_rad[2], motor.angle_rad[3]);
           //p("odomL X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
           //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
           if (cmd_v2.is_vision_available) {
@@ -730,7 +730,7 @@ void resetOdomAtEncInitialized()
       omni.local_raw_odom_vel[i] = 0;
     }
     for (int i = 0; i < 4; i++) {
-      motor.pre_enc_angle_rad[i] = motor.enc_angle_rad[i];
+      motor.pre_angle_rad[i] = motor.angle_rad[i];
     }
     initialized_flag = true;
   }

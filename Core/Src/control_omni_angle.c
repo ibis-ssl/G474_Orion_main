@@ -40,7 +40,8 @@ void setTargetOmniAngle(target_t * target)
 void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
 {
   for (int i = 0; i < 4; i++) {
-    target->omni_angle[i].diff = getAngleDiff(target->omni_angle[i].angle_rad, M_PI - motor->enc_angle_rad[i]);
+    // angle_radは回転方向逆
+    target->omni_angle[i].diff = getAngleDiff(target->omni_angle[i].angle_rad, motor->angle_rad[i] - M_PI);
 
     target->omni_angle[i].real_rps = motor->rps[i];
 

@@ -136,8 +136,8 @@ typedef struct
 
 typedef struct
 {
-  float enc_angle_rad[5];
-  float pre_enc_angle_rad[5];
+  float angle_rad[5];  // これだけ回転方向の定義が逆なので注意
+  float pre_angle_rad[5];
   float angle_diff[5];
   float rps[5];
 } motor_t;
