@@ -169,7 +169,7 @@ typedef struct
     LocalCameraModeArgs local_camera;
     PositionTargetModeArgs position;
     SimpleVelocityTargetModeArgs simple_velocity;
-    PolarVelocityModeArgs velocity;
+    PolarVelocityModeArgs polar_velocity;
   } mode_args;
 } RobotCommandV2;
 
@@ -254,7 +254,7 @@ inline void RobotCommandSerializedV2_serialize(RobotCommandSerializedV2 * serial
       SimpleVelocityTargetModeArgs_serialize(&command->mode_args.simple_velocity, &serialized->data[CONTROL_MODE_ARGS]);
       break;
     case POLAR_VELOCITY_TARGET_MODE:
-      PolarVelocityModeArgs_serialize(&command->mode_args.velocity, &serialized->data[CONTROL_MODE_ARGS]);
+      PolarVelocityModeArgs_serialize(&command->mode_args.polar_velocity, &serialized->data[CONTROL_MODE_ARGS]);
       break;
   }
 }
@@ -294,7 +294,7 @@ inline RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSer
       SimpleVelocityTargetModeArgs_init(&command.mode_args.simple_velocity, &serialized->data[CONTROL_MODE_ARGS]);
       break;
     case POLAR_VELOCITY_TARGET_MODE:
-      PolarVelocityModeArgs_init(&command.mode_args.velocity, &serialized->data[CONTROL_MODE_ARGS]);
+      PolarVelocityModeArgs_init(&command.mode_args.polar_velocity, &serialized->data[CONTROL_MODE_ARGS]);
       break;
   }
   return command;

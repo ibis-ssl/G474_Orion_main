@@ -420,7 +420,7 @@ int main(void)
 
             case POLAR_VELOCITY_TARGET_MODE:
               p("PolarVel ");
-              p("VelR %+6.2f T %+6.2f ", cmd_v2.mode_args.velocity.target_global_velocity_r, cmd_v2.mode_args.simple_velocity.target_global_vel);
+              p("VelR %+6.2f T %+6.2f ", cmd_v2.mode_args.polar_velocity.target_global_velocity_r, cmd_v2.mode_args.polar_velocity.target_global_velocity_theta);
               break;
 
             default:
