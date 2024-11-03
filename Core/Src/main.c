@@ -405,24 +405,24 @@ int main(void)
               p("BallX %+6.2f Y %+6.2f ", cmd_v2.mode_args.local_camera.ball_pos[0], cmd_v2.mode_args.local_camera.ball_pos[1]);
               p("VelX %+4.2f VelY %+4.2f ", cmd_v2.mode_args.local_camera.ball_vel[0], cmd_v2.mode_args.local_camera.ball_vel[1]);
               p("TarX %+4.2f TarY %+4.2f ", cmd_v2.mode_args.local_camera.target_global_vel[0], cmd_v2.mode_args.local_camera.target_global_vel[1]);
-
               break;
+
             case POSITION_TARGET_MODE:
               p("POS ");
               p("TarX %+6.2f Y %+6.2f ", cmd_v2.mode_args.position.target_global_pos[0], cmd_v2.mode_args.position.target_global_pos[1]);
               p("TermSpd %4.1f ", cmd_v2.mode_args.position.terminal_velocity);
               break;
+
             case SIMPLE_VELOCITY_TARGET_MODE:
               p("SimpleVel ");
-              p("VelX %+6.2f %+6.2f ", cmd_v2.mode_args.simple_velocity.target_global_vel[0], cmd_v2.mode_args.simple_velocity.target_global_vel[1]);
+              p("VelX %+6.2f Y %+6.2f ", cmd_v2.mode_args.simple_velocity.target_global_vel[0], cmd_v2.mode_args.simple_velocity.target_global_vel[1]);
               break;
 
-            case VELOCITY_TARGET_WITH_TRAJECTORY_MODE:
-              p("VEL ");
-              p("VelX %+6.2f Y %+6.2f ", cmd_v2.mode_args.velocity.target_global_vel[0], cmd_v2.mode_args.velocity.target_global_vel[1]);
-              p("Tra OrgX %+6.2f Y %+6.2f ", cmd_v2.mode_args.velocity.trajectory_global_origin[0], cmd_v2.mode_args.velocity.trajectory_global_origin[1]);
-              p("Angle %+6.2f Cur %+6.2f ", cmd_v2.mode_args.velocity.trajectory_origin_angle, cmd_v2.mode_args.velocity.trajectory_curvature);
+            case POLAR_VELOCITY_TARGET_MODE:
+              p("PolarVel ");
+              p("VelR %+6.2f T %+6.2f ", cmd_v2.mode_args.velocity.target_global_velocity_r, cmd_v2.mode_args.simple_velocity.target_global_vel);
               break;
+
             default:
               p("Unknown Mode ");
               break;
