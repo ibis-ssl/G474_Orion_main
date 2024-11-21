@@ -611,7 +611,11 @@ int main(void)
           p("setting : %3d / ", cmd_v2.latency_time_ms);
           p("EN %d cnt %4d target %+5.2f diff %+5.2f / ", debug.latency_check.enabled, debug.latency_check.seq_cnt, debug.latency_check.rotation_target_theta,
             getAngleDiff(debug.latency_check.rotation_target_theta, imu.yaw_rad));
-
+          if (camera.fps == 0) {
+            setTextNormal();
+          } else {
+            setTextGreen();
+          }
           p("CAM ");
           p("x %+4d y%+4d rad %4d fps %3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
 
