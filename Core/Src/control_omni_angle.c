@@ -21,7 +21,7 @@ void setTargetOmniAngle(target_t * target)
 {
   float rotation_omega_motor = 0;
 
-  //rotation_omega_motor = ROBOT_RADIUS * target->yaw_rps;
+  rotation_omega_motor = ROBOT_RADIUS * target->yaw_rps;
 
   target->omni_angle[0].current_rps = ((target->local_vel_now[1] * sinM1) + (target->local_vel_now[0] * cosM1) + rotation_omega_motor) / rotation_length_omni;
   target->omni_angle[1].current_rps = ((target->local_vel_now[1] * sinM2) + (target->local_vel_now[0] * cosM2) + rotation_omega_motor) / rotation_length_omni;
