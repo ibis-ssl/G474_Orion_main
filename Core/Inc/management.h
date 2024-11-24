@@ -228,6 +228,7 @@ typedef struct
   bool connected_cm4;
   bool already_connected_ai;
   bool updated_flag;
+  bool camera_updated_flag;
   float ai_cmd_rx_frq;
   int ai_cmd_rx_cnt;
   uint32_t latest_ai_cmd_update_time;
@@ -282,6 +283,8 @@ typedef struct
 {
   int16_t pos_xy[2], radius;
   uint8_t fps;
+  bool is_detected, is_connected;
+  uint32_t latest_local_cam_update_time;
 } camera_t;
 
 //extern float voltage[6];

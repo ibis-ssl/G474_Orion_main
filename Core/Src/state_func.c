@@ -211,7 +211,7 @@ void manualPowerReset(system_t * sys)
 
 void maintaskRun(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
-  can_raw_t * can_raw, motor_t * motor)
+  can_raw_t * can_raw, motor_t * motor, camera_t * cam)
 
 {
   const float OMNI_OUTPUT_LIMIT = 40;
@@ -227,16 +227,29 @@ void maintaskRun(
     clearSpeedContrlValue(acc_vel, target, imu, omni, motor);
   }
 
-  bool local_devvel_control_flag = false;
+  bool local_deccel_control_flag = false;
   if (sys->main_mode == MAIN_MODE_MANUAL_CONTROL) {
-    local_devvel_control_flag = true;
+    local_deccel_control_flag = true;
   }
 
   setLocalTargetSpeed(ai_cmd, target, imu);
-  setTargetAccel(ai_cmd, acc_vel, local_devvel_control_flag);
 
-  accelControl(acc_vel, target, local_devvel_control_flag);
+  if (!local_deccel_control_flag) {
+  } else {
+    if (cam->is_detected) {
+      // 320x240
+      //target->yaw_rps = (float)(cam->pos_xy[0] - 160) / 10;
+      target->local_vel[1] = (float)(cam->pos_xy[0] - 160) / 100;
+    } else {
+      target->local_vel[1] = 0;
+    }
+  }
+
+  setTargetAccel(ai_cmd, acc_vel, local_deccel_control_flag);
+
+  accelControl(acc_vel, target, local_deccel_control_flag);
   speedControl(acc_vel, target, imu);
+
   thetaControl(ai_cmd, imu, target);
 
   setTargetOmniAngle(target);

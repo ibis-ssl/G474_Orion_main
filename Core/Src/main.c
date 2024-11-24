@@ -84,7 +84,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
 uint8_t getModeSwitch();
 bool allEncInitialized();
-uint32_t HAL_GetTick(void) { return uwTick; }
+uint32_t HAL_GetTick(void)
+{
+  return uwTick;
+}
 
 // shared with other files
 imu_t imu;
@@ -144,7 +147,10 @@ uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_buf = 0;
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
+void __io_putchar(uint8_t ch)
+{
+  HAL_UART_Transmit(&hlpuart1, &ch, 1, 1);
+}
 
 void p(const char * format, ...)
 {
@@ -154,13 +160,31 @@ void p(const char * format, ...)
   va_end(args);
 }
 
-void setTextRed() { p("\e[31m"); }
-void setTextYellow() { p("\e[33m"); }
-void setTextGreen() { p("\e[32m"); }
+void setTextRed()
+{
+  p("\e[31m");
+}
+void setTextYellow()
+{
+  p("\e[33m");
+}
+void setTextGreen()
+{
+  p("\e[32m");
+}
 //void setTextBlue() { p("\e[34m"); } //見づらいので非推奨
-void setTextMagenta() { p("\e[35m"); }
-void setTextCyan() { p("\e[36m"); }
-void setTextNormal() { p("\e[37m"); }
+void setTextMagenta()
+{
+  p("\e[35m");
+}
+void setTextCyan()
+{
+  p("\e[36m");
+}
+void setTextNormal()
+{
+  p("\e[37m");
+}
 
 // たまにLPUARTの割り込みが停止するので自動復帰
 void checkAndRestartLPUART_IT(void)
@@ -577,7 +601,7 @@ int main(void)
           p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
-
+          p("Yt %+6.2f ", target.yaw_rps);
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
           break;
@@ -611,13 +635,14 @@ int main(void)
           p("setting : %3d / ", cmd_v2.latency_time_ms);
           p("EN %d cnt %4d target %+5.2f diff %+5.2f / ", debug.latency_check.enabled, debug.latency_check.seq_cnt, debug.latency_check.rotation_target_theta,
             getAngleDiff(debug.latency_check.rotation_target_theta, imu.yaw_rad));
-          if (camera.fps == 0) {
+          if (camera.is_connected == 0) {
             setTextNormal();
           } else {
             setTextGreen();
           }
           p("CAM ");
-          p("x %+4d y%+4d rad %4d fps %3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
+          p("Cn %d %6d ", camera.is_connected, sys.system_time_ms - camera.latest_local_cam_update_time);
+          p("x %+4d y%+4d rad%4d fps%3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
 
           break;
         case PRINT_IDX_SYSTEM:
@@ -758,7 +783,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
   }
 }
 
-void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan) { canTxEmptyInterrupt(hfdcan); }
+void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan)
+{
+  canTxEmptyInterrupt(hfdcan);
+}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
@@ -775,9 +803,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (connection.updated_flag) {
     connection.updated_flag = false;
     memcpy(&cmd_v2, &cmd_v2_buf, sizeof(RobotCommandV2));
-    memcpy(&camera, &camera_buf, sizeof(camera_t));
   }
   commStateCheck(&connection, &sys, &cmd_v2);
+
+  if (connection.camera_updated_flag) {
+    connection.camera_updated_flag = false;
+    memcpy(&camera, &camera_buf, sizeof(camera_t));
+
+    // need to set : is_detected,is_connected,latest_local_cam_update_time
+    camera.latest_local_cam_update_time = sys.system_time_ms;
+    camera.is_connected = true;
+    if (camera.radius != 0) {
+      camera.is_detected = true;
+    } else {
+      camera.is_detected = false;
+    }
+  }
+  if (sys.system_time_ms - camera.latest_local_cam_update_time > 200) {
+    camera.is_detected = false;
+    camera.is_connected = false;
+  }
 
   canRxTimeoutCntCycle(&can_raw);
 
@@ -803,11 +848,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   switch (sys.main_mode) {
     case MAIN_MODE_FULL_AI_CONTROL:  // ローカル統合制御あり
     case MAIN_MODE_MANUAL_CONTROL:   // ローカル統合制御なし
-      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor);
+      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor, &camera);
       break;
     case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。
                                     // 相補フィルタなし、
-      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor);
+      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor, &camera);
       break;
 
     case MAIN_MODE_MOTOR_TEST:  // motor test
@@ -913,11 +958,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
 
       uart_rx_cmd_idx = -1;
-      memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
-      cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
-      camera_buf = parseCameraPacket(&(data_from_cm4[64]));
       if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
+        memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
+        cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
         updateCM4CmdTimeStamp(&connection, &sys);
+
+        // check updated
+        camera_buf = parseCameraPacket(&(data_from_cm4[64]));
+        if (camera_buf.fps != 0) {
+          connection.camera_updated_flag = true;
+        }
       }
     }
   }

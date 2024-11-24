@@ -19,7 +19,7 @@ void motorCalibration(system_t * sys);
 void manualPowerReset(system_t * sys);
 void maintaskRun(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
-  can_raw_t * can_raw, motor_t * motor);
+  can_raw_t * can_raw, motor_t * motor, camera_t * cam);
 void maintaskStop(output_t * output);
 
 #endif /* INC_STATE_FUNC_H_ */
