@@ -19,7 +19,8 @@ static void enqueueFloatArray(float array[], int * idx, float data)
 }
 
 void sendRobotInfo(
-  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integ_control_t * integ, output_t * out, target_t * target)
+  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integ_control_t * integ, output_t * out, target_t * target,
+  camera_t * cam)
 {
   static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
 
@@ -72,10 +73,10 @@ void sendRobotInfo(
   float_to_uchar4(&(buf[52]), omni->global_odom_speed[0]);
   float_to_uchar4(&(buf[56]), omni->global_odom_speed[1]);
 
-  buf[60] = 0;
-  buf[61] = 0;
-  buf[62] = 0;
-  buf[63] = 0;
+  buf[60] = cam->pos_xy[0] / 2;  // 0~340 -> 0-170
+  buf[61] = cam->pos_xy[1];      // 0~180 -> 0-90
+  buf[62] = cam->radius / 4;     // ??? -> ???
+  buf[63] = cam->fps;            // ~60
 
   // 以下float array
   float tx_value_array[TX_VALUE_ARRAY_SIZE] = {0};
