@@ -5,8 +5,8 @@
 
 void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target)
 {
-  const float DIFF_TO_RPS_GAIN = 2.0;  // rad -> rad/s
-  const float DEAD_ZONE_DEG = 5;       // rad -> rad/s
+  const float DIFF_TO_RPS_GAIN = 20.0;  // rad -> rad/s
+  const float DEAD_ZONE_DEG = 2;       // +-, rad -> rad/s
 
   float angle_diff = getAngleDiff(ai_cmd->target_global_theta, imu->yaw_rad);
 
@@ -15,7 +15,7 @@ void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target)
   }
 
   float temp_tar_rps = angle_diff * DIFF_TO_RPS_GAIN;
-  target->yaw_rps = clampSize(temp_tar_rps, ai_cmd->angular_velocity_limit / MAIN_LOOP_CYCLE);
+  target->yaw_rps = clampSize(temp_tar_rps, ai_cmd->angular_velocity_limit);
 }
 
 // 静止中に一気にvision角度を合わせるやつ
