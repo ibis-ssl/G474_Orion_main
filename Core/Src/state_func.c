@@ -234,15 +234,10 @@ void maintaskRun(
 
   setLocalTargetSpeed(ai_cmd, target, imu);
 
-  if (!local_deccel_control_flag) {
-  } else {
-    if (cam->is_detected) {
-      // 320x240
-      //target->yaw_rps = (float)(cam->pos_xy[0] - 160) / 10;
-      target->local_vel[1] = (float)(cam->pos_xy[0] - 160) / 100;
-    } else {
-      target->local_vel[1] = 0;
-    }
+  if (local_deccel_control_flag && cam->is_detected) {  // MANUAL MODEで、カメラ見えているときだけ上書き
+    // 320x240
+    //target->yaw_rps = (float)(cam->pos_xy[0] - 160) / 10;
+    target->local_vel[1] = (float)(cam->pos_xy[0] - 160) / 100;
   }
 
   setTargetAccel(ai_cmd, acc_vel, local_deccel_control_flag);
