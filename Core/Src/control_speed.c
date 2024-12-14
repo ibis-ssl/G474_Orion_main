@@ -31,12 +31,12 @@
 void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel, bool local_devvel_control_flag)
 {
   if (local_devvel_control_flag) {
-    acc_vel->accel_target = 7.0;
+    acc_vel->accel_target = 5.0;
     return;
   }
 
   if (ai_cmd->acceleration_limit < 3.0 || ai_cmd->acceleration_limit > 20) {
-    acc_vel->accel_target = 5.0;
+    acc_vel->accel_target = 3.0;
   } else {
     acc_vel->accel_target = ai_cmd->acceleration_limit;
   }

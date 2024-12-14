@@ -666,6 +666,7 @@ int main(void)
           p("ErrLatest %s %+5.2f Resume %2d", error_str, sys.latest_error.value, sys.current_error.resume_cnt);
           break;
         case PRINT_IDX_UART_RAW:
+          //dumpAIFeedback();
           p("UART RAW ");
           setTextNormal();
           for (int i = 0; i < 64; i++) {
