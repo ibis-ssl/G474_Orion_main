@@ -113,7 +113,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
         kicker_select_chip();
-        kicker_kick_start(0.5);
+        kicker_kick_start(1.0);
         sys->kick_state = 1;
       }
     }
