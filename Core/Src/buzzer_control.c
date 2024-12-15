@@ -77,7 +77,7 @@ inline void buzzerControl(can_raw_t * can_raw, system_t * sys, connection_t * co
       buzzer_cnt = 0;
       if (buzzer_state == false) {
         buzzer_state = true;
-        //actuator_buzzer_frq_on(2000);
+        actuator_buzzer_frq_on(2000);
       } else {
         buzzer_state = false;
         actuator_buzzer_off();
