@@ -89,14 +89,17 @@ void sendRobotInfo(
   value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->global_vel[0]);
   value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->global_vel[1]);
 
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, integ->vision_based_position[0]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, integ->vision_based_position[1]);
-
   value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[0]);
   value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[1]);
+  
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[0]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[1]);
 
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[0]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[1]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[2]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[3]);
+
+  //value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[0]);
+  //value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[1]);
 
   value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[0]);
   value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[1]);
