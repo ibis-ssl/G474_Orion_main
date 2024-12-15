@@ -14,6 +14,7 @@
 #include "management.h"
 
 void omniMove(output_t * output, float out_limit);
+void omniMoveIndiv(output_t * output, float out_limit);
 void omniStopAll(output_t * output);
 
 #endif /* OMNI_WHEEL_H_ */

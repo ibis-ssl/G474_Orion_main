@@ -17,6 +17,7 @@
         "complex": "c",
         "robot_packet.h": "c",
         "ranges": "c",
-        "random": "c"
+        "random": "c",
+        "actuator.h": "c"
     }
 }

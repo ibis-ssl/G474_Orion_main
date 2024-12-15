@@ -11,8 +11,8 @@
 #include "management.h"
 #include "robot_packet.h"
 
-void robotControl(
-  system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
-  omega_target_t * omega_target);
+void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu);
+void setOutZero(output_t * output);
+void clearSpeedContrlValue(accel_vector_t * acc_vel, target_t * target, imu_t * imu, omni_t * omni, motor_t * motor);
 
 #endif /* INC_ROBOT_CONTROL_H_ */

@@ -19,14 +19,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "gpio.h"
+#include "usart.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -84,7 +83,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
 uint8_t getModeSwitch();
 bool allEncInitialized();
-uint32_t HAL_GetTick(void) { return uwTick; }
+uint32_t HAL_GetTick(void)
+{
+  return uwTick;
+}
 
 // shared with other files
 imu_t imu;
@@ -99,7 +101,6 @@ system_t sys;
 integ_control_t integ;
 accel_vector_t acc_vel;
 debug_t debug;
-omega_target_t omega_target;
 camera_t camera, camera_buf;
 
 RobotCommandV2 cmd_v2, cmd_v2_buf;
@@ -145,7 +146,10 @@ uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_buf = 0;
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void __io_putchar(uint8_t ch) { HAL_UART_Transmit(&hlpuart1, &ch, 1, 1); }
+void __io_putchar(uint8_t ch)
+{
+  HAL_UART_Transmit(&hlpuart1, &ch, 1, 1);
+}
 
 void p(const char * format, ...)
 {
@@ -155,13 +159,31 @@ void p(const char * format, ...)
   va_end(args);
 }
 
-void setTextRed() { p("\e[31m"); }
-void setTextYellow() { p("\e[33m"); }
-void setTextGreen() { p("\e[32m"); }
+void setTextRed()
+{
+  p("\e[31m");
+}
+void setTextYellow()
+{
+  p("\e[33m");
+}
+void setTextGreen()
+{
+  p("\e[32m");
+}
 //void setTextBlue() { p("\e[34m"); } //見づらいので非推奨
-void setTextMagenta() { p("\e[35m"); }
-void setTextCyan() { p("\e[36m"); }
-void setTextNormal() { p("\e[37m"); }
+void setTextMagenta()
+{
+  p("\e[35m");
+}
+void setTextCyan()
+{
+  p("\e[36m");
+}
+void setTextNormal()
+{
+  p("\e[37m");
+}
 
 // たまにLPUARTの割り込みが停止するので自動復帰
 void checkAndRestartLPUART_IT(void)
@@ -299,7 +321,10 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = PRINT_IDX_VEL;
-  unsigned char error_str[100] = {0};
+  char error_str[100] = {0};
+
+  target.omni_angle_kd = 1;
+  target.omni_angle_kp = 50;
 
   /* USER CODE END 2 */
 
@@ -403,24 +428,24 @@ int main(void)
               p("BallX %+6.2f Y %+6.2f ", cmd_v2.mode_args.local_camera.ball_pos[0], cmd_v2.mode_args.local_camera.ball_pos[1]);
               p("VelX %+4.2f VelY %+4.2f ", cmd_v2.mode_args.local_camera.ball_vel[0], cmd_v2.mode_args.local_camera.ball_vel[1]);
               p("TarX %+4.2f TarY %+4.2f ", cmd_v2.mode_args.local_camera.target_global_vel[0], cmd_v2.mode_args.local_camera.target_global_vel[1]);
-
               break;
+
             case POSITION_TARGET_MODE:
               p("POS ");
               p("TarX %+6.2f Y %+6.2f ", cmd_v2.mode_args.position.target_global_pos[0], cmd_v2.mode_args.position.target_global_pos[1]);
               p("TermSpd %4.1f ", cmd_v2.mode_args.position.terminal_velocity);
               break;
+
             case SIMPLE_VELOCITY_TARGET_MODE:
               p("SimpleVel ");
-              p("VelX %+6.2f %+6.2f ", cmd_v2.mode_args.simple_velocity.target_global_vel[0], cmd_v2.mode_args.simple_velocity.target_global_vel[1]);
+              p("VelX %+6.2f Y %+6.2f ", cmd_v2.mode_args.simple_velocity.target_global_vel[0], cmd_v2.mode_args.simple_velocity.target_global_vel[1]);
               break;
 
-            case VELOCITY_TARGET_WITH_TRAJECTORY_MODE:
-              p("VEL ");
-              p("VelX %+6.2f Y %+6.2f ", cmd_v2.mode_args.velocity.target_global_vel[0], cmd_v2.mode_args.velocity.target_global_vel[1]);
-              p("Tra OrgX %+6.2f Y %+6.2f ", cmd_v2.mode_args.velocity.trajectory_global_origin[0], cmd_v2.mode_args.velocity.trajectory_global_origin[1]);
-              p("Angle %+6.2f Cur %+6.2f ", cmd_v2.mode_args.velocity.trajectory_origin_angle, cmd_v2.mode_args.velocity.trajectory_curvature);
+            case POLAR_VELOCITY_TARGET_MODE:
+              p("PolarVel ");
+              p("VelR %+6.2f T %+6.2f ", cmd_v2.mode_args.polar_velocity.target_global_velocity_r, cmd_v2.mode_args.polar_velocity.target_global_velocity_theta);
               break;
+
             default:
               p("Unknown Mode ");
               break;
@@ -448,13 +473,13 @@ int main(void)
           setTextNormal();
           p("Rps ");
           for (int i = 0; i < 4; i++) {
-            p("%4.2f ", can_raw.motor_rps[i]);
+            p("%4.2f ", can_raw.motor_param_rps[i]);
           }
           break;
         case PRINT_IDX_DRIBBLER:  // Dribblerテスト
           p("DRIBBLER ");
           p("Batt(Sub) %3.1f / ", can_raw.power_voltage[4]);
-          p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
+          p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback[4]);
           //p("local_vision x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
 
           break;
@@ -478,7 +503,7 @@ int main(void)
           }
           p("FET=%5.1f L1=%5.1f L2=%5.1f / ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
           setTextNormal();
-          p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback_velocity[4]);
+          p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback[4]);
 
           break;
         case PRINT_IDX_MOUSE:  // Mouse odom
@@ -532,7 +557,7 @@ int main(void)
           p("theta %+6.1f ", imu.yaw_deg);
 
           //p("omg %+3.0f out %+5.2f, %+5.2f ", output.omega, output.velocity[0], output.velocity[1]);
-          //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.enc_angle[0], motor.enc_angle[1], motor.enc_angle[2], motor.enc_angle[3]);
+          //p("ENC angle %+6.3f %+6.3f %+6.3f %+6.3f ", motor.angle_rad[0], motor.angle_rad[1], motor.angle_rad[2], motor.angle_rad[3]);
           //p("odomL X %+8.3f, Y %+8.3f, ", omni.odom[0], omni.odom[1]);
           //p("omni-GV X %+8.1f ,Y %+8.1f. ", omni.global_odom_speed[0] * 1000, omni.global_odom_speed[1] * 1000);
           if (cmd_v2.is_vision_available) {
@@ -544,12 +569,12 @@ int main(void)
           //p("integ.govd %+7.2f %+7.2f ", integ.global_odom_vision_diff[0] * 1000, integ.global_odom_vision_diff[1] * 1000);
           //p("integ.vbp %+5.2f %+5.2f ", integ.vision_based_position[0], integ.vision_based_position[1]);
           p("diffG %+6.3f %+6.3f ", integ.position_diff[0], integ.position_diff[1]);
-          p("dist %+6.3f ", target.pos_ctrl.target_pos_dist_scalar);
+          //p("dist %+6.3f ", target.pos_ctrl.target_pos_dist_scalar);
           //p("Global-VO %+6.3f Y %+6.3f ", target.global_vel[0], target.global_vel[1]);
           //p("angle %+5.2f ", target.pos_ctrl.target_vel_angle);
 
           //p("GlobalVel %+6.3f Y %+6.3f ", target.pos_ctrl.global_odom_speed[0], target.pos_ctrl.global_odom_speed[1]);
-          p("tarScV %+5.2f ", target.pos_ctrl.target_scalar_vel);
+          /*p("tarScV %+5.2f ", target.pos_ctrl.target_scalar_vel);
           if (target.pos_ctrl.target_scalar_vel > target.pos_ctrl.current_speed_crd[0]) {
             setTextCyan();
           } else {
@@ -560,6 +585,7 @@ int main(void)
           p("accCrd X %+6.2f, Y %+6.2f ", target.pos_ctrl.target_crd_acc[0], target.pos_ctrl.target_crd_acc[1]);
           p("accGl X %+6.2f, Y %+6.2f ", target.pos_ctrl.global_acc[0], target.pos_ctrl.global_acc[1]);
           p("%d ", target.pos_ctrl.to_stop_mode_flag);
+          */
           //p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           //p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
 
@@ -574,7 +600,7 @@ int main(void)
           p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
           p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
-
+          p("Yt %+6.2f ", target.yaw_rps);
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
           break;
@@ -592,22 +618,30 @@ int main(void)
           //p("out-vel X %+5.1f, Y %+5.1f W %+5.1f ", output.velocity[0], output.velocity[1], output.omega);
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
           p("Err X%+5.2f Y%+5.2f Sc%+5.2f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
-          p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
+          p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
           //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
-          p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
-          p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
+          //p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
+          //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
           p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
-          p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
-
+          //p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
+          p("KP %+4.1f KD %+4.1f ", target.omni_angle_kp, target.omni_angle_kd);
+          for (int i = 0; i < 4; i++) {
+            p("M%d %5.1f : %+4.0f / ", i, target.omni_angle[i].current_rps, target.omni_angle[i].diff * 180 / M_PI);
+          }
           break;
         case PRINT_IDX_LATENCY:
           p("LATENCY ");
           p("setting : %3d / ", cmd_v2.latency_time_ms);
           p("EN %d cnt %4d target %+5.2f diff %+5.2f / ", debug.latency_check.enabled, debug.latency_check.seq_cnt, debug.latency_check.rotation_target_theta,
             getAngleDiff(debug.latency_check.rotation_target_theta, imu.yaw_rad));
-
+          if (camera.is_connected == 0) {
+            setTextNormal();
+          } else {
+            setTextGreen();
+          }
           p("CAM ");
-          p("x %+4d y%+4d rad %4d fps %3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
+          p("Cn %d %6d ", camera.is_connected, sys.system_time_ms - camera.latest_local_cam_update_time);
+          p("x %+4d y%+4d rad%4d fps%3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
 
           break;
         case PRINT_IDX_SYSTEM:
@@ -631,6 +665,7 @@ int main(void)
           p("ErrLatest %s %+5.2f Resume %2d", error_str, sys.latest_error.value, sys.current_error.resume_cnt);
           break;
         case PRINT_IDX_UART_RAW:
+          //dumpAIFeedback();
           p("UART RAW ");
           setTextNormal();
           for (int i = 0; i < 64; i++) {
@@ -692,19 +727,22 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
     Error_Handler();
   }
 }
@@ -724,7 +762,7 @@ void resetOdomAtEncInitialized()
       omni.local_raw_odom_vel[i] = 0;
     }
     for (int i = 0; i < 4; i++) {
-      motor.pre_enc_angle[i] = motor.enc_angle[i];
+      motor.pre_angle_rad[i] = motor.angle_rad[i];
     }
     initialized_flag = true;
   }
@@ -748,7 +786,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
   }
 }
 
-void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan) { canTxEmptyInterrupt(hfdcan); }
+void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan)
+{
+  canTxEmptyInterrupt(hfdcan);
+}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
@@ -765,9 +806,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (connection.updated_flag) {
     connection.updated_flag = false;
     memcpy(&cmd_v2, &cmd_v2_buf, sizeof(RobotCommandV2));
-    memcpy(&camera, &camera_buf, sizeof(camera_t));
   }
   commStateCheck(&connection, &sys, &cmd_v2);
+
+  if (connection.camera_updated_flag) {
+    connection.camera_updated_flag = false;
+    memcpy(&camera, &camera_buf, sizeof(camera_t));
+
+    // need to set : is_detected,is_connected,latest_local_cam_update_time
+    camera.latest_local_cam_update_time = sys.system_time_ms;
+    camera.is_connected = true;
+    if (camera.radius != 0) {
+      camera.is_detected = true;
+    } else {
+      camera.is_detected = false;
+    }
+  }
+  if (sys.system_time_ms - camera.latest_local_cam_update_time > 200) {
+    camera.is_detected = false;
+    camera.is_connected = false;
+  }
 
   canRxTimeoutCntCycle(&can_raw);
 
@@ -793,11 +851,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   switch (sys.main_mode) {
     case MAIN_MODE_FULL_AI_CONTROL:  // ローカル統合制御あり
     case MAIN_MODE_MANUAL_CONTROL:   // ローカル統合制御なし
-      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &omega_target);
+      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor, &camera);
       break;
     case MAIN_MODE_CMD_DEBUG_MODE:  // local test mode, Visionなし前提。
                                     // 相補フィルタなし、
-      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &omega_target);
+      maintaskRun(&sys, &cmd_v2, &imu, &acc_vel, &integ, &target, &omni, &mouse, &debug, &output, &can_raw, &motor, &camera);
       break;
 
     case MAIN_MODE_MOTOR_TEST:  // motor test
@@ -854,8 +912,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuatorPower_ONOFF(1);
     }
 
-    if(connection.connected_cm4 == false){
-      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
+    if (connection.connected_cm4 == false) {
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
     }
 
     toggleInterruptLED();
@@ -900,20 +958,39 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
       // UARTバスを送受信で同時に使えないので、受信完了してから送信開始
-      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
+      sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
 
       uart_rx_cmd_idx = -1;
-      memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
-      cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
-      camera_buf = parseCameraPacket(&(data_from_cm4[64]));
       if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
+        memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
+        cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
         updateCM4CmdTimeStamp(&connection, &sys);
+
+        // check updated
+        camera_buf = parseCameraPacket(&(data_from_cm4[64]));
+        if (camera_buf.fps != 0) {
+          connection.camera_updated_flag = true;
+        }
       }
     }
   }
 
   if (huart->Instance == hlpuart1.Instance) {
     switch (lpuart1_rx_buf) {
+      case 'q':
+        target.omni_angle_kp *= 1.1;
+        break;
+      case 'a':
+        target.omni_angle_kp /= 1.1;
+        break;
+      case 'w':
+        target.omni_angle_kd *= 1.1;
+        break;
+      case 's':
+        target.omni_angle_kd /= 1.1;
+        break;
+
+      /*
       case 'v':
         debug.print_idx = PRINT_IDX_VEL;
         break;
@@ -940,7 +1017,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         break;
       case 'u':
         debug.print_idx = PRINT_IDX_UART_RAW;
-        break;
+        break;*/
       case 0x7f:  // del
         debug.print_idx = 0;
         break;
@@ -977,7 +1054,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -985,7 +1062,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t * file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,

@@ -1,5 +1,6 @@
 #include "ai_comm.h"
 
+#include "main.h"
 #include "robot_packet.h"
 #include "stop_state_control.h"
 #include "util.h"
@@ -9,17 +10,20 @@
 
 #define TX_VALUE_ARRAY_SIZE (14)
 
-static void enqueueFloatArray(float array[], int * idx, float data)
+// 以下float array
+
+static int enqueueFloatArray(float array[], int idx, float data)
 {
-  if (*idx >= TX_VALUE_ARRAY_SIZE || *idx < 0) {
+  if (idx >= TX_VALUE_ARRAY_SIZE || idx < 0) {
     return;
   }
-  array[*idx] = data;
-  *idx++;
+  array[idx] = data;
+  return idx + 1;
 }
 
 void sendRobotInfo(
-  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integ_control_t * integ, output_t * out, target_t * target)
+  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integ_control_t * integ, output_t * out, target_t * target,
+  camera_t * cam)
 {
   static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
 
@@ -66,41 +70,42 @@ void sendRobotInfo(
   // capacitor boost
   float_to_uchar4(&(buf[40]), can_raw->power_voltage[6]);
 
-  float_to_uchar4(&(buf[44]), omni->global_odom_diff[0]);
-  float_to_uchar4(&(buf[48]), omni->global_odom_diff[1]);
+  float_to_uchar4(&(buf[44]), integ->vision_based_position[0]);
+  float_to_uchar4(&(buf[48]), integ->vision_based_position[1]);
 
   float_to_uchar4(&(buf[52]), omni->global_odom_speed[0]);
   float_to_uchar4(&(buf[56]), omni->global_odom_speed[1]);
 
-  buf[60] = 0;
-  buf[61] = 0;
-  buf[62] = 0;
-  buf[63] = 0;
+  buf[60] = cam->pos_xy[0] / 2;  // 0~340 -> 0-170
+  buf[61] = cam->pos_xy[1];      // 0~180 -> 0-90
+  buf[62] = cam->radius / 4;     // ??? -> ???
+  buf[63] = cam->fps;            // ~60
 
-  // 以下float array
-  float tx_value_array[TX_VALUE_ARRAY_SIZE] = {0};
+  static float tx_value_array[TX_VALUE_ARRAY_SIZE] = {0};
   int value_idx = 0;
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->odom[0]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->odom[1]);
 
-  enqueueFloatArray(tx_value_array, &value_idx, mouse->odom[0]);
-  enqueueFloatArray(tx_value_array, &value_idx, mouse->odom[1]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->global_vel[0]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->global_vel[1]);
 
-  enqueueFloatArray(tx_value_array, &value_idx, mouse->global_vel[0]);
-  enqueueFloatArray(tx_value_array, &value_idx, mouse->global_vel[1]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[0]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[1]);
+  
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[0]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[1]);
 
-  enqueueFloatArray(tx_value_array, &value_idx, integ->vision_based_position[0]);
-  enqueueFloatArray(tx_value_array, &value_idx, integ->vision_based_position[1]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[2]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[3]);
 
-  enqueueFloatArray(tx_value_array, &value_idx, out->velocity[0]);
-  enqueueFloatArray(tx_value_array, &value_idx, out->velocity[1]);
+  //value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[0]);
+  //value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[1]);
 
-  enqueueFloatArray(tx_value_array, &value_idx, target->global_vel_now[0]);
-  enqueueFloatArray(tx_value_array, &value_idx, target->global_vel_now[1]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[0]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[1]);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[2]);
 
-  enqueueFloatArray(tx_value_array, &value_idx, omni->local_odom_speed_mvf[0]);
-  enqueueFloatArray(tx_value_array, &value_idx, omni->local_odom_speed_mvf[1]);
-  enqueueFloatArray(tx_value_array, &value_idx, omni->local_odom_speed_mvf[2]);
-
-  enqueueFloatArray(tx_value_array, &value_idx, mouse->quality);
+  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->quality);
 
   for (int i = 0; i < TX_VALUE_ARRAY_SIZE; i++) {
     float_to_uchar4(&(buf[64 + i * 4]), tx_value_array[i]);

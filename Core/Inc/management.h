@@ -120,25 +120,26 @@ typedef struct
 typedef struct
 {
   uint8_t error_no[8];
-  float motor_feedback[5];           // rps
-  float motor_feedback_velocity[5];  // m/s
+  float motor_feedback[5];  // rps
   float power_voltage[7];
   float temperature[7];
   float current[5];
   uint8_t ball_detection[4];
-  float motor_rps[4];
+  float motor_param_rps[4];
   struct
   {
-    uint32_t timeout_cnt[4];
-    bool enc_flag[4], mouse_flag;
+    uint32_t timeout_cnt[5];  // omni + dribbler
+    bool enc_flag[5];         // omni + dribbler
+    bool mouse_flag;
   } rx_stat;
 } can_raw_t;
 
 typedef struct
 {
-  float enc_angle[4];
-  float pre_enc_angle[4];
-  float angle_diff[4];
+  float angle_rad[5];  // これだけ回転方向の定義が逆なので注意
+  float pre_angle_rad[5];
+  float angle_diff[5];
+  float rps[5];
 } motor_t;
 
 typedef struct
@@ -146,6 +147,7 @@ typedef struct
   float vel_error_xy[2];
   float vel_error_scalar, vel_error_rad;
   float accel_target;
+  float accel[2];
 } accel_vector_t;
 
 typedef struct
@@ -186,14 +188,20 @@ typedef struct
 
 typedef struct
 {
-  float global_vel[2];           // m/s 速度指令値の入力
-  float local_vel[2];            // m/s 上記とほぼ同じ
-  float local_vel_now[2];        // 台形制御指令値
-  float local_vel_ff_factor[2];  // 最終指令速度への追従を高めるためのFF項目
-  float global_vel_now[2];       // ターゲットグローバル速度
-  float global_pos[2];           // 上記で移動するX,Y座標
+  float current_rps, angle_rad;
+  float diff, real_rps;
+} omni_angle_t;
+typedef struct
+{
+  float global_vel[2];      // m/s 速度指令値の入力
+  float local_vel[2];       // m/s 上記とほぼ同じ
+  float local_vel_now[2];   // 台形制御指令値
+  float global_vel_now[2];  // ターゲットグローバル速度
+  float global_pos[2];      // 上記で移動するX,Y座標
 
-  struct
+  float yaw_rps;
+
+  /*struct
   {
     float target_vel_angle;
     float global_odom_speed[2];
@@ -202,20 +210,15 @@ typedef struct
     float global_acc[2];
     float target_scalar_vel, target_pos_dist_scalar;
     bool to_stop_mode_flag;
-  } pos_ctrl;
+  } pos_ctrl;*/
+  omni_angle_t omni_angle[4];
+  float omni_angle_kp, omni_angle_kd;
 } target_t;
-
-typedef struct
-{
-  float current_target;
-  // float accel_limit;  //今の所実装なし
-} omega_target_t;
 
 typedef struct
 {
   float velocity[2];
   float omega;
-  float accel[2];
   float motor_voltage[4];
 } output_t;
 
@@ -225,6 +228,7 @@ typedef struct
   bool connected_cm4;
   bool already_connected_ai;
   bool updated_flag;
+  bool camera_updated_flag;
   float ai_cmd_rx_frq;
   int ai_cmd_rx_cnt;
   uint32_t latest_ai_cmd_update_time;
@@ -279,6 +283,8 @@ typedef struct
 {
   int16_t pos_xy[2], radius;
   uint8_t fps;
+  bool is_detected, is_connected;
+  uint32_t latest_local_cam_update_time;
 } camera_t;
 
 //extern float voltage[6];

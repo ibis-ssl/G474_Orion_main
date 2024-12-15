@@ -2,7 +2,9 @@
 
 #include "actuator.h"
 #include "can_ibis.h"
+#include "control_omni_angle.h"
 #include "control_speed.h"
+#include "control_theta.h"
 #include "omni_wheel.h"
 #include "robot_control.h"
 #include "util.h"
@@ -111,7 +113,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
         kicker_select_chip();
-        kicker_kick_start(0.5);
+        kicker_kick_start(1.0);
         sys->kick_state = 1;
       }
     }
@@ -209,27 +211,53 @@ void manualPowerReset(system_t * sys)
 
 void maintaskRun(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
-  can_raw_t * can_raw, omega_target_t * omega_target)
+  can_raw_t * can_raw, motor_t * motor, camera_t * cam)
 
 {
   const float OMNI_OUTPUT_LIMIT = 40;
   // 上げると過電流エラーになりがち｡
   // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
-  // 全部で250us
-  robotControl(sys, ai_cmd, imu, acc_vel, integ, target, omni, mouse, debug, output, omega_target);
+  // デバッガ接続用にエラー入れる
+  if (swCentorPushed(sys->sw_adc_raw)) {
+    sys->error_flag = true;
+  }
+
+  if (sys->stop_flag) {
+    clearSpeedContrlValue(acc_vel, target, imu, omni, motor);
+  }
+
+  bool local_deccel_control_flag = false;
+  if (sys->main_mode == MAIN_MODE_MANUAL_CONTROL) {
+    local_deccel_control_flag = true;
+  }
+
+  setLocalTargetSpeed(ai_cmd, target, imu);
+
+  if (local_deccel_control_flag && cam->is_detected) {  // MANUAL MODEで、カメラ見えているときだけ上書き
+    // 320x240
+    //target->yaw_rps = (float)(cam->pos_xy[0] - 160) / 10;
+    target->local_vel[1] = (float)(cam->pos_xy[0] - 160) / 100;
+  }
+
+  setTargetAccel(ai_cmd, acc_vel, local_deccel_control_flag);
+
+  accelControl(acc_vel, target, local_deccel_control_flag);
+  speedControl(acc_vel, target, imu);
+
+  thetaControl(ai_cmd, imu, target);
+
+  setTargetOmniAngle(target);
+  omniAngleControl(target, output, motor);
 
   // いまのところvision lostしたら止める
   if (sys->main_mode == MAIN_MODE_CMD_DEBUG_MODE) {
     omniStopAll(output);
-    //clearPosDiffSpeedControl();
     //デバッグ用に出力しないだけなのでクリアはしない
   } else if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available || ai_cmd->elapsed_time_ms_since_last_vision > 500) {
-    //resetLocalSpeedControl(&ai_cmd);
     omniStopAll(output);
-    clearPosDiffSpeedControl(target, omni);
   } else {
-    omniMove(output, OMNI_OUTPUT_LIMIT);
+    omniMoveIndiv(output, OMNI_OUTPUT_LIMIT);
   }
 
   sendActuatorCanCmdRun(ai_cmd, sys, can_raw);
