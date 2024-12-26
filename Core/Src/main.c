@@ -19,13 +19,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "usart.h"
+#include "gpio.h"
 #include "spi.h"
 #include "tim.h"
-#include "gpio.h"
+#include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -320,7 +321,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_VEL;
+  debug.print_idx = PRINT_IDX_MOTOR;
   char error_str[100] = {0};
 
   target.omni_angle_kd = 1;
@@ -456,7 +457,8 @@ int main(void)
         case PRINT_IDX_MOTOR:  //Motor
 
           p("MOTOR ");
-          p("Spd %+6.1f %+6.1f %+6.1f %+6.1f / ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3]);
+          float spin_total = can_raw.motor_feedback[0] + can_raw.motor_feedback[1] + can_raw.motor_feedback[2] + can_raw.motor_feedback[3];
+          p("Spd %+6.1f %+6.1f %+6.1f %+6.1f total %+6.1f/ ", can_raw.motor_feedback[0], can_raw.motor_feedback[1], can_raw.motor_feedback[2], can_raw.motor_feedback[3], spin_total);
           //p("Spd M0=%+6.1f M1=%+6.1f M2=%+6.1f M3=%+6.1f / ", omni.travel_distance[0], omni.travel_distance[1], omni.travel_distance[2], omni.travel_distance[3]);
           p("PwV %5.1f %5.1f %5.1f %5.1f / ", can_raw.power_voltage[0], can_raw.power_voltage[1], can_raw.power_voltage[2], can_raw.power_voltage[3]);
           p("Im %+5.1f %+5.1f %+5.1f %+5.1f / ", can_raw.current[0], can_raw.current[1], can_raw.current[2], can_raw.current[3]);
@@ -626,7 +628,7 @@ int main(void)
           //p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           p("KP %+4.1f KD %+4.1f ", target.omni_angle_kp, target.omni_angle_kd);
           for (int i = 0; i < 4; i++) {
-            p("M%d %5.1f : %+4.0f / ", i, target.omni_angle[i].current_rps, target.omni_angle[i].diff * 180 / M_PI);
+            p("/ M%d %5.1f : %+4.0f ", i, target.omni_angle[i].current_rps, target.omni_angle[i].diff * 180 / M_PI);
           }
           break;
         case PRINT_IDX_LATENCY:
@@ -660,7 +662,7 @@ int main(void)
           for (int i = 0; i < 4; i++) {
             p("%+6.2f ", output.motor_voltage[i]);
           }
-          p("SW ADC %4d ", sys.sw_adc_raw);
+          p("SW ADC %3.2fV ", (float)3.3 * sys.sw_adc_raw / 4096);
           convertErrorDataToStr(sys.latest_error.id, sys.latest_error.info, error_str);
           p("ErrLatest %s %+5.2f Resume %2d", error_str, sys.latest_error.value, sys.current_error.resume_cnt);
           break;
@@ -727,22 +729,19 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -1054,7 +1053,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1062,7 +1061,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t * file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,

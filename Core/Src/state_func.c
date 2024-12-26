@@ -9,9 +9,11 @@
 #include "robot_control.h"
 #include "util.h"
 
+static const float OUT_LIMIT_TEST = 40.0;     // テストはゆっくりなのであまり気にしない
+static const float OMNI_OUTPUT_LIMIT = 50.0;  // ドライバ側で50に制限
+
 void motorTest(system_t * sys, output_t * output, omni_t * omni)
 {
-  const float OUT_LIMIT_TEST = 40.0;
   const float OUT_MOVE_VEL = 2.0;
   const float OUT_SPIN_OMG = 20;
   if (swForwardPushed(sys->sw_adc_raw)) {
@@ -214,7 +216,7 @@ void maintaskRun(
   can_raw_t * can_raw, motor_t * motor, camera_t * cam)
 
 {
-  const float OMNI_OUTPUT_LIMIT = 40;
+  //
   // 上げると過電流エラーになりがち｡
   // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
 
