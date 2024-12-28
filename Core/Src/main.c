@@ -470,7 +470,15 @@ int main(void)
             } else {
               setTextNormal();
             }
-            p("M%d %3.0f D %3.0f ", i, can_raw.temp_motor[i], can_raw.temp_driver[i]);
+            p("M%d %3.0f ", i, can_raw.temp_motor[i]);
+          }
+          for (int i = 0; i < 4; i++) {
+            if (can_raw.temp_driver[i] > MOTOR_OVER_HEAT_WARN_THRESH) {
+              setTextYellow();
+            } else {
+              setTextNormal();
+            }
+            p("D%d %3.0f ", i, can_raw.temp_driver[i]);
           }
           setTextNormal();
           p("Rps ");
@@ -619,7 +627,7 @@ int main(void)
           //p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           //p("out-vel X %+5.1f, Y %+5.1f W %+5.1f ", output.velocity[0], output.velocity[1], output.omega);
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
-          p("Err X%+5.2f Y%+5.2f Sc%+5.2f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
+          p("Err X%+5.21f Y%+5.1f Sc%+5.1f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
           p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
           //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
           //p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
