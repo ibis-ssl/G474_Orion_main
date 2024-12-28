@@ -465,12 +465,12 @@ int main(void)
           const int MOTOR_OVER_HEAT_WARN_THRESH = 60;
           p("Temp ");
           for (int i = 0; i < 4; i++) {
-            if (can_raw.temperature[i] > MOTOR_OVER_HEAT_WARN_THRESH) {
+            if (can_raw.temp_motor[i] > MOTOR_OVER_HEAT_WARN_THRESH) {
               setTextYellow();
             } else {
               setTextNormal();
             }
-            p("M%d %3.0f ", i, can_raw.temperature[i]);
+            p("M%d %3.0f D %3.0f ", i, can_raw.temp_motor[i], can_raw.temp_driver[i]);
           }
           setTextNormal();
           p("Rps ");
@@ -498,12 +498,12 @@ int main(void)
           setTextNormal();
           p("BattC %+6.1f Batt(Sub) %3.1f / ", can_raw.current[4], can_raw.power_voltage[4]);
           const int KICKER_OVER_HEAT_WARN_THRESH = 70;  // power側でエラーは80度
-          if (can_raw.temperature[4] > KICKER_OVER_HEAT_WARN_THRESH || can_raw.temperature[5] > KICKER_OVER_HEAT_WARN_THRESH || can_raw.temperature[6] > KICKER_OVER_HEAT_WARN_THRESH) {
+          if (can_raw.temp_fet > KICKER_OVER_HEAT_WARN_THRESH || can_raw.temp_coil[0] > KICKER_OVER_HEAT_WARN_THRESH || can_raw.temp_coil[1] > KICKER_OVER_HEAT_WARN_THRESH) {
             setTextYellow();
           } else {
             setTextNormal();
           }
-          p("FET=%5.1f L1=%5.1f L2=%5.1f / ", can_raw.temperature[4], can_raw.temperature[5], can_raw.temperature[6]);
+          p("FET=%5.1f L1=%5.1f L2=%5.1f / ", can_raw.temp_fet, can_raw.temp_coil[0], can_raw.temp_coil[1]);
           setTextNormal();
           p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback[4]);
 

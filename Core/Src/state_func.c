@@ -9,12 +9,14 @@
 #include "robot_control.h"
 #include "util.h"
 
-static const float OUT_LIMIT_TEST = 40.0;     // テストはゆっくりなのであまり気にしない
-static const float OMNI_OUTPUT_LIMIT = 50.0;  // ドライバ側で50に制限
+static const float OUT_LIMIT_TEST = 80.0;     // テストはゆっくりなのであまり気にしない
+static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 80.0;  // ドライバ側で50に制限なので揃えてる
+// 上げすぎると過電流エラーになるかも
+// 速度制限にはrobot_controlのSPEED_SCALAR_LIMITを使用する｡
 
 void motorTest(system_t * sys, output_t * output, omni_t * omni)
 {
-  const float OUT_MOVE_VEL = 2.0;
+  const float OUT_MOVE_VEL = 80.0;
   const float OUT_SPIN_OMG = 20;
   if (swForwardPushed(sys->sw_adc_raw)) {
     output->velocity[0] = OUT_MOVE_VEL;
@@ -216,10 +218,6 @@ void maintaskRun(
   can_raw_t * can_raw, motor_t * motor, camera_t * cam)
 
 {
-  //
-  // 上げると過電流エラーになりがち｡
-  // 速度制限にはrobotControlのOUTPUT_XY_LIMITを使用する｡
-
   // デバッガ接続用にエラー入れる
   if (swCentorPushed(sys->sw_adc_raw)) {
     sys->error_flag = true;
@@ -259,7 +257,7 @@ void maintaskRun(
   } else if (sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available || ai_cmd->elapsed_time_ms_since_last_vision > 500) {
     omniStopAll(output);
   } else {
-    omniMoveIndiv(output, OMNI_OUTPUT_LIMIT);
+    omniMoveIndiv(output, OMNI_OUTPUT_VOLTAGE_LIMIT);
   }
 
   sendActuatorCanCmdRun(ai_cmd, sys, can_raw);

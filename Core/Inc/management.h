@@ -122,7 +122,7 @@ typedef struct
   uint8_t error_no[8];
   float motor_feedback[5];  // rps
   float power_voltage[7];
-  float temperature[7];
+  float temp_motor[4], temp_fet,temp_coil[2], temp_driver[4];
   float current[5];
   uint8_t ball_detection[4];
   float motor_param_rps[4];

@@ -35,7 +35,10 @@ stack_buffer_t can_buf[2];
 
 uint32_t can_resend_cnt = 0;
 
-inline bool canBufferStackable(stack_buffer_t * buf) { return buf->count + 1 <= buf->size; }
+inline bool canBufferStackable(stack_buffer_t * buf)
+{
+  return buf->count + 1 <= buf->size;
+}
 inline void canBufferStack(stack_buffer_t * buf, buffer_data_t * data)
 {
   if (!canBufferStackable(buf)) return;  //
@@ -45,7 +48,10 @@ inline void canBufferStack(stack_buffer_t * buf, buffer_data_t * data)
   buf->count++;
 }
 
-inline bool canBufferAvailable(stack_buffer_t * buf) { return buf->count != 0; }
+inline bool canBufferAvailable(stack_buffer_t * buf)
+{
+  return buf->count != 0;
+}
 
 inline void canBufferDeque(stack_buffer_t * buf, buffer_data_t * ret)
 {
@@ -245,18 +251,19 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       }
       break;
 
-    // can_raw->temperature from BLDC
+    // can_raw->temp_motor[],temp_driver[] from BLDC, motor & FET
     case 0x220:
     case 0x221:
     case 0x222:
     case 0x223:
-      can_raw->temperature[rx_can_id - 0x220] = uchar4_to_float(rx_data);
+      can_raw->temp_motor[rx_can_id - 0x220] = uchar4_to_float(rx_data);
+      can_raw->temp_driver[rx_can_id - 0x220] = uchar4_to_float(&(rx_data[4]));
       break;
-    // can_raw->temperature from power
+    // can_raw->temp_fet,temp_coil[] from power
     case 0x224:
-      can_raw->temperature[4] = rx_data[0];  // fet
-      can_raw->temperature[5] = rx_data[1];  // coil 1
-      can_raw->temperature[6] = rx_data[2];  // coil 2
+      can_raw->temp_fet = rx_data[0];      // fet
+      can_raw->temp_coil[0] = rx_data[1];  // coil 1
+      can_raw->temp_coil[1] = rx_data[2];  // coil 2
       break;
 
     // can_raw->current

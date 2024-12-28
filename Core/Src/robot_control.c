@@ -9,7 +9,7 @@
 #include "robot_packet.h"
 #include "util.h"
 
-// スカラ速度制限(速度制御モード)
+// スカラ速度制限
 #define SPEED_SCALAR_LIMIT (7.0)
 
 void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu)

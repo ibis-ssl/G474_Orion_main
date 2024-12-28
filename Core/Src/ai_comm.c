@@ -56,13 +56,13 @@ void sendRobotInfo(
 
   buf[28] = can_raw->ball_detection[3];
 
-  buf[29] = (uint8_t)can_raw->temperature[0];
-  buf[30] = (uint8_t)can_raw->temperature[1];
-  buf[31] = (uint8_t)can_raw->temperature[2];
-  buf[32] = (uint8_t)can_raw->temperature[3];
-  buf[33] = (uint8_t)can_raw->temperature[4];
-  buf[34] = (uint8_t)can_raw->temperature[5];
-  buf[35] = (uint8_t)can_raw->temperature[6];
+  buf[29] = (uint8_t)can_raw->temp_motor[0];
+  buf[30] = (uint8_t)can_raw->temp_motor[1];
+  buf[31] = (uint8_t)can_raw->temp_motor[2];
+  buf[32] = (uint8_t)can_raw->temp_motor[3];
+  buf[33] = (uint8_t)can_raw->temp_fet;
+  buf[34] = (uint8_t)can_raw->temp_coil[0];
+  buf[35] = (uint8_t)can_raw->temp_coil[1];
 
   float diff_angle = imu->yaw_deg - ai_cmd->vision_global_theta;
 
@@ -91,7 +91,7 @@ void sendRobotInfo(
 
   value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[0]);
   value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[1]);
-  
+
   value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[0]);
   value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[1]);
 
