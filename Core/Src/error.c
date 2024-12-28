@@ -96,7 +96,7 @@ void convertErrorDataToStr(uint8_t id, uint16_t info, char * str_buf)
     } else if (id == 3) {
       offset = sprintf(str_buf, "BLDC-LF : ");
     } else {
-      sprintf(str_buf, "unknown id : %d info : %d ", id, info);
+      sprintf(str_buf, "BLDC unknown id : %d info : %d ", id, info);
       return;
     }
     switch (info) {
