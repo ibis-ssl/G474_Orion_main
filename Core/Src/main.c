@@ -321,7 +321,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_MOTOR;
+  debug.print_idx = PRINT_IDX_MOTION;
   char error_str[100] = {0};
 
   target.omni_angle_kd = 1;
@@ -607,10 +607,37 @@ int main(void)
           //p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
           //p("vel-diff X %+8.2f, Y %+8.2f, ", acc_vel.vel_error_xy[0] * 1000, acc_vel.vel_error_xy[1] * 1000);
           //p("rad %+8.2f, scalar %+8.2f, ", acc_vel.vel_error_rad * 180 / M_PI, acc_vel.vel_error_scalar * 1000);
-          p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
+          //p("out-vel %+5.1f, %+5.1f ", output.velocity[0], output.velocity[1]);
           //p("acc sca %7.4f rad %5.2f ", acc_vel.vel_error_scalar, acc_vel.vel_error_rad);
-          p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
-          p("Yt %+6.2f ", target.yaw_rps);
+          //p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
+
+          p("TarTheta %+6.2f ", cmd_v2.target_global_theta);
+
+          const float DEAD_ZONE_RADIAN = 5 * M_PI / 180;
+
+          float angle_diff = getAngleDiff(cmd_v2.target_global_theta, imu.yaw_rad);
+
+          p("Diff %+6.2f ", angle_diff);
+
+          if (fabs(angle_diff) < DEAD_ZONE_RADIAN) {
+            angle_diff = 0;
+          } else {
+            if (angle_diff > 0) {
+              angle_diff -= DEAD_ZONE_RADIAN;
+            } else {
+              angle_diff += DEAD_ZONE_RADIAN;
+            }
+          }
+          p("Diff %+6.2f ", angle_diff);
+
+          //float temp_tar_rps = angle_diff * DIFF_TO_RPS_GAIN;
+          float temp_tar_rps = sqrtf(fabs(2 * angle_diff * 50));
+          p("Temp %+6.2f ", temp_tar_rps);
+
+          temp_tar_rps = copysignf(temp_tar_rps, angle_diff);
+
+          p("Temp %+6.2f ", temp_tar_rps);
+          p("YawTar %+6.2f ", target.yaw_rps);
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
           break;

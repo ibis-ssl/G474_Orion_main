@@ -47,8 +47,9 @@ void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
 
     target->omni_angle[i].real_rps = motor->rps[i];
 
-    output->motor_voltage[i] = target->omni_angle[i].diff * target->omni_angle_kp;
-    output->motor_voltage[i] -= target->omni_angle[i].real_rps * target->omni_angle_kd;
+    output->motor_voltage[i] = target->omni_angle[i].diff * target->omni_angle_kp;       //速度次元ではI項
+    output->motor_voltage[i] -= target->omni_angle[i].real_rps * target->omni_angle_kd;  //速度次元ではP項
+    output->motor_voltage[i] += ROBOT_RADIUS * target->yaw_rps_drag;                     //速度次元ではD項
     output->motor_voltage[i] += target->omni_angle[i].current_rps;
   }
 }

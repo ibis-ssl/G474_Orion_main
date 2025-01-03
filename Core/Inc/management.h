@@ -122,7 +122,7 @@ typedef struct
   uint8_t error_no[8];
   float motor_feedback[5];  // rps
   float power_voltage[7];
-  float temp_motor[4], temp_fet,temp_coil[2], temp_driver[4];
+  float temp_motor[4], temp_fet, temp_coil[2], temp_driver[4];
   float current[5];
   uint8_t ball_detection[4];
   float motor_param_rps[4];
@@ -199,7 +199,7 @@ typedef struct
   float global_vel_now[2];  // ターゲットグローバル速度
   float global_pos[2];      // 上記で移動するX,Y座標
 
-  float yaw_rps;
+  float yaw_rps, yaw_rps_drag;
 
   /*struct
   {
