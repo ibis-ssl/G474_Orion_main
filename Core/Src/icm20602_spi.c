@@ -430,14 +430,14 @@ void ICM20602_IMU_calibration2(void)
     }
     cal_len++;
 
-    if ((fabs(gyro_ave[2][9] - gyro_ave[2][0]) < SHRINK_ERROR) && cal_len > 1000) {
+    if ((fabsf(gyro_ave[2][9] - gyro_ave[2][0]) < SHRINK_ERROR) && cal_len > 1000) {
       // エラーが一定以内になったのでキャリブレーション完了
       break;
     }
   }
 
   printf("length = %d\n", cal_len);
-  printf("Gyro Yaw %+8.6f ", fabs(gyro_ave[2][9] - gyro_ave[2][0]));
+  printf("Gyro Yaw %+8.6f ", fabsf(gyro_ave[2][9] - gyro_ave[2][0]));
 
   // たまにIMUのデータ取れない場合がある
   if (cal_len == 5000 || cal_len == 1001) {

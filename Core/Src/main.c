@@ -337,7 +337,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     debug.sys_mnt.main_loop_cnt++;
-    if (debug.print_flag /* && fabs(omni.local_odom_speed_mvf[0]) > 0.01*/) {
+    if (debug.print_flag /* && fabsf(omni.local_odom_speed_mvf[0]) > 0.01*/) {
       debug.print_flag = false;
 
       // 文字列初期化
@@ -619,7 +619,7 @@ int main(void)
 
           p("Diff %+6.2f ", angle_diff);
 
-          if (fabs(angle_diff) < DEAD_ZONE_RADIAN) {
+          if (fabsf(angle_diff) < DEAD_ZONE_RADIAN) {
             angle_diff = 0;
           } else {
             if (angle_diff > 0) {
@@ -631,7 +631,7 @@ int main(void)
           p("Diff %+6.2f ", angle_diff);
 
           //float temp_tar_rps = angle_diff * DIFF_TO_RPS_GAIN;
-          float temp_tar_rps = sqrtf(fabs(2 * angle_diff * 50));
+          float temp_tar_rps = sqrtf(fabsf(2 * angle_diff * 50));
           p("Temp %+6.2f ", temp_tar_rps);
 
           temp_tar_rps = copysignf(temp_tar_rps, angle_diff);

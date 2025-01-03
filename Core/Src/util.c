@@ -78,7 +78,7 @@ float min(float a, float b)
 
 float abs_max(float a, float b)
 {
-  if (fabs(a) > fabs(b))
+  if (fabsf(a) > fabsf(b))
     return a;
   else
     return b;
@@ -86,7 +86,7 @@ float abs_max(float a, float b)
 
 float abs_min(float a, float b)
 {
-  if (fabs(a) < fabs(b))
+  if (fabsf(a) < fabsf(b))
     return a;
   else
     return b;
@@ -163,11 +163,20 @@ void float_to_uchar4(unsigned char * value, float float_value)
   value[3] = tmp.char4_value[3];
 }
 
-float deg_to_radian(float deg) { return (deg / 180) * M_PI; }
+float deg_to_radian(float deg)
+{
+  return (deg / 180) * M_PI;
+}
 
-float radian_to_deg(float radian) { return (radian * 180) / M_PI; }
+float radian_to_deg(float radian)
+{
+  return (radian * 180) / M_PI;
+}
 
-long map(long x, long in_min, long in_max, long out_min, long out_max) { return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min; }
+long map(long x, long in_min, long in_max, long out_min, long out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 float normalizeAngle(float angle_rad)
 {
@@ -184,7 +193,7 @@ float getAngleDiff(float angle_rad1, float angle_rad2)
 {
   angle_rad1 = normalizeAngle(angle_rad1);
   angle_rad2 = normalizeAngle(angle_rad2);
-  if (fabs(angle_rad1 - angle_rad2) > M_PI) {
+  if (fabsf(angle_rad1 - angle_rad2) > M_PI) {
     if (angle_rad1 > angle_rad2) {
       return angle_rad1 - (angle_rad2 + 2 * M_PI);
     } else {
@@ -207,7 +216,10 @@ void convertLocalToGlobal(float local[], float global[], float yaw_rad)
   global[1] = local[0] * sin(yaw_rad) + local[1] * cos(yaw_rad);
 }
 
-float calcScalar(float x, float y) { return pow(x * x + y * y, 0.5); }
+float calcScalar(float x, float y)
+{
+  return pow(x * x + y * y, 0.5);
+}
 
 void clampScalarSize(float xy_value[], float scalar_limit)
 {
@@ -229,11 +241,32 @@ float clampSize(float in, float max)
   return in;
 }
 
-bool swForwardPushed(uint16_t sw_raw_data) { return sw_raw_data <= 3000 && sw_raw_data > 2000; }
-bool swCentorPushed(uint16_t sw_raw_data) { return sw_raw_data <= 100; }
-bool swBackPushed(uint16_t sw_raw_data) { return sw_raw_data <= 500 && sw_raw_data > 100; }
-bool swRightPushed(uint16_t sw_raw_data) { return sw_raw_data <= 2000 && sw_raw_data > 500; }
-bool swLeftPushed(uint16_t sw_raw_data) { return sw_raw_data <= 3900 && sw_raw_data > 3000; }
+bool swForwardPushed(uint16_t sw_raw_data)
+{
+  return sw_raw_data <= 3000 && sw_raw_data > 2000;
+}
+bool swCentorPushed(uint16_t sw_raw_data)
+{
+  return sw_raw_data <= 100;
+}
+bool swBackPushed(uint16_t sw_raw_data)
+{
+  return sw_raw_data <= 500 && sw_raw_data > 100;
+}
+bool swRightPushed(uint16_t sw_raw_data)
+{
+  return sw_raw_data <= 2000 && sw_raw_data > 500;
+}
+bool swLeftPushed(uint16_t sw_raw_data)
+{
+  return sw_raw_data <= 3900 && sw_raw_data > 3000;
+}
 
-float two_to_float(uint8_t data[2]) { return (float)((data[0] << 8 | data[1]) - 32767.0) / 32767.0; }
-float two_to_int(uint8_t data[2]) { return ((data[0] << 8 | data[1]) - 32767.0); }
+float two_to_float(uint8_t data[2])
+{
+  return (float)((data[0] << 8 | data[1]) - 32767.0) / 32767.0;
+}
+float two_to_int(uint8_t data[2])
+{
+  return ((data[0] << 8 | data[1]) - 32767.0);
+}
