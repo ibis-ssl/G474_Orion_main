@@ -206,19 +206,19 @@ float getAngleDiff(float angle_rad1, float angle_rad2)
 
 void convertGlobalToLocal(float global[], float local[], float yaw_rad)
 {
-  local[0] = global[0] * cos(-yaw_rad) - global[1] * sin(-yaw_rad);
-  local[1] = global[0] * sin(-yaw_rad) + global[1] * cos(-yaw_rad);
+  local[0] = global[0] * cosf(-yaw_rad) - global[1] * sinf(-yaw_rad);
+  local[1] = global[0] * sinf(-yaw_rad) + global[1] * cosf(-yaw_rad);
 }
 
 void convertLocalToGlobal(float local[], float global[], float yaw_rad)
 {
-  global[0] = local[0] * cos(yaw_rad) - local[1] * sin(yaw_rad);
-  global[1] = local[0] * sin(yaw_rad) + local[1] * cos(yaw_rad);
+  global[0] = local[0] * cosf(yaw_rad) - local[1] * sinf(yaw_rad);
+  global[1] = local[0] * sinf(yaw_rad) + local[1] * cosf(yaw_rad);
 }
 
 float calcScalar(float x, float y)
 {
-  return pow(x * x + y * y, 0.5);
+  return sqrtf(x * x + y * y);
 }
 
 void clampScalarSize(float xy_value[], float scalar_limit)

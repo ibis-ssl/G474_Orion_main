@@ -31,11 +31,11 @@ void mouseOdometryUpdate(mouse_t * mouse, imu_t * imu)
   // 旋回速度ぶん補正
   const float DIST_CORRECITON_RATE = (0.066 / 1.56) / 3;  // No.5
   //  const float DIST_CORRECITON_RATE = 0.066 / 1.56;  // No.
-  mouse->odom[0] = DIST_CORRECITON_RATE * mouse->floor_odom[0] - (DIST_CORRECITON_RATE * cos(imu->yaw_rad) - DIST_CORRECITON_RATE);
+  mouse->odom[0] = DIST_CORRECITON_RATE * mouse->floor_odom[0] - (DIST_CORRECITON_RATE * cosf(imu->yaw_rad) - DIST_CORRECITON_RATE);
   // X位置補正は誤差に埋もれてしまう。パラメーター調整を省略するために無効化
-  //  +(0.009 * sin(imu->yaw_rad));
-  mouse->odom[1] = DIST_CORRECITON_RATE * mouse->floor_odom[1] - (DIST_CORRECITON_RATE * sin(imu->yaw_rad));
-  //  +(0.009 * cos(imu->yaw_rad) - 0.009);
+  //  +(0.009 * sinf(imu->yaw_rad));
+  mouse->odom[1] = DIST_CORRECITON_RATE * mouse->floor_odom[1] - (DIST_CORRECITON_RATE * sinf(imu->yaw_rad));
+  //  +(0.009 * cosf(imu->yaw_rad) - 0.009);
 
   mouse->global_vel[0] = mouse->odom[0] - mouse->pre_odom[0];
   mouse->global_vel[1] = mouse->odom[1] - mouse->pre_odom[1];
@@ -56,8 +56,8 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
 
   // 右後方車輪を基準とした座標系､travel_distance[2]は反転している
   float raw_odom_angle = -(M_PI * 1 / 4);  // + imu->yaw_rad;
-  omni->local_raw_odom_vel[0] = omni->travel_distance[1] * cos(raw_odom_angle) + omni->travel_distance[2] * sin(raw_odom_angle);
-  omni->local_raw_odom_vel[1] = omni->travel_distance[1] * sin(raw_odom_angle) - omni->travel_distance[2] * cos(raw_odom_angle);
+  omni->local_raw_odom_vel[0] = omni->travel_distance[1] * cosf(raw_odom_angle) + omni->travel_distance[2] * sinf(raw_odom_angle);
+  omni->local_raw_odom_vel[1] = omni->travel_distance[1] * sinf(raw_odom_angle) - omni->travel_distance[2] * cosf(raw_odom_angle);
 
   omni->local_raw_odom_vel[0] *= MAIN_LOOP_CYCLE / 2;
   omni->local_raw_odom_vel[1] *= MAIN_LOOP_CYCLE / 2;
