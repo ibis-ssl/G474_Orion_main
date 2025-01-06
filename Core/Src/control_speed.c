@@ -6,27 +6,10 @@
 /*  速度制御用パラメーター  */
 
 // 減速時の加速度の倍率
-#define ACCEL_DECCEL_MULTI (1.8)
+#define ACCEL_DECCEL_RATIO (1.8)
 
 // 後方へ加速(減速)するときの倍率
-#define ACCEL_BACK_SIDE_MULTI (0.7)
-
-// 速度制御の位置に対するフィードバックゲイン
-// ~ m/s / m : -250 -> 4cm : 1m/s
-#define OUTPUT_GAIN_KP_ODOM_DIFF (150)
-// 上記の出力制限、速度に追従できていれば小さいほうが良い
-#define OUTPUT_LIMIT_ODOM_DIFF (2)
-
-// モーター側でパラメーター併せてあるので1.0で良いはず(念の為調整用)
-#define OUTPUT_GAIN_TAR_TO_VEL (1)
-
-// 指令速度と内部目標速度の差が大きい時に、加速の立ち上がりを良くするためだけのパラメーター
-// 上限がついているので、大きくはならない。
-// 加速終了時を滑らかにするために比例項としている。
-// 0.3はややデカいかも、0.2は割といい感じ
-// output = ACCEL_LIMIT x FF_ACC_OUTPUT_KP
-//#define FF_ACC_OUTPUT_KP (0.3)
-#define FF_ACC_OUTPUT_KP (0.2)
+#define ACCEL_BACK_SIDE_RATIO (0.7)
 
 void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel, bool local_devvel_control_flag)
 {
@@ -60,8 +43,8 @@ void accelControl(accel_vector_t * acc_vel, target_t * target, bool local_devvel
   acc_vel->accel[1] = sinf(acc_vel->vel_error_rad) * acc_vel->accel_target;
 
   // バック方向だけ加速度制限
-  if (acc_vel->accel[0] < -(acc_vel->accel_target * ACCEL_BACK_SIDE_MULTI)) {
-    acc_vel->accel[0] = -(acc_vel->accel_target * ACCEL_BACK_SIDE_MULTI);
+  if (acc_vel->accel[0] < -(acc_vel->accel_target * ACCEL_BACK_SIDE_RATIO)) {
+    acc_vel->accel[0] = -(acc_vel->accel_target * ACCEL_BACK_SIDE_RATIO);
   }
 
   // 減速時に1.8倍
@@ -69,7 +52,7 @@ void accelControl(accel_vector_t * acc_vel, target_t * target, bool local_devvel
   if (local_devvel_control_flag) {
     for (int i = 0; i < 2; i++) {
       if (target->local_vel_now[i] * acc_vel->accel[i] <= 0) {
-        acc_vel->accel[i] *= ACCEL_DECCEL_MULTI;
+        acc_vel->accel[i] *= ACCEL_DECCEL_RATIO;
       }
 
       // 目標座標を追い越した場合、加速度を2倍にして現実の位置に追従
