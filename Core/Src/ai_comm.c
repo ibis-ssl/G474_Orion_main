@@ -172,11 +172,6 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
   }
 }
 
-void calcAIcmdRxFrq(connection_t * connection)
-{
-  connection->ai_cmd_rx_frq = connection->ai_cmd_rx_cnt * (MAIN_LOOP_CYCLE / PRINT_LOOP_CYCLE);
-  connection->ai_cmd_rx_cnt = 0;
-}
 
 // "一度はAI側から接続があったあと"､CM4との通信が途切れたらリセット
 // JO2024でたまに動作中にマイコンのUART受信が止まることがあったので､対策として導入
