@@ -15,7 +15,7 @@
 static int enqueueFloatArray(float array[], int idx, float data)
 {
   if (idx >= TX_VALUE_ARRAY_SIZE || idx < 0) {
-    return;
+    return 0;
   }
   array[idx] = data;
   return idx + 1;
