@@ -108,7 +108,7 @@ RobotCommandV2 cmd_v2, cmd_v2_buf;
 
 UART_HandleTypeDef * huart_xprintf;
 
-#define printf_BUF_SIZE 1000
+#define printf_BUF_SIZE 2000
 static char printf_buffer[printf_BUF_SIZE];
 
 enum {
@@ -123,6 +123,7 @@ enum {
   PRINT_IDX_LATENCY,
   PRINT_IDX_SYSTEM,
   PRINT_IDX_UART_RAW,
+  PRINT_IDX_TUI,
   PRINT_IDX_MAX
 };
 
@@ -334,7 +335,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_MOTION;
+  debug.print_idx = PRINT_IDX_TUI;
   sprintf(print_idx_name_list[PRINT_IDX_AI_CMD], "AI_CMD");
   sprintf(print_idx_name_list[PRINT_IDX_MOTOR], "MOTOR");
   sprintf(print_idx_name_list[PRINT_IDX_DRIBBLER], "DRIBBLER");
@@ -346,6 +347,7 @@ int main(void)
   sprintf(print_idx_name_list[PRINT_IDX_LATENCY], "LATENCY");
   sprintf(print_idx_name_list[PRINT_IDX_SYSTEM], "SYSTEM");
   sprintf(print_idx_name_list[PRINT_IDX_UART_RAW], "UART");
+  sprintf(print_idx_name_list[PRINT_IDX_TUI], "TUI");
 
   char error_str[100] = {0};
 
@@ -405,6 +407,7 @@ int main(void)
         setTextYellow();
       }
 
+      debug.print_cycle = PRINT_LOOP_CYCLE;
       switch (debug.print_idx) {
         case PRINT_IDX_AI_CMD:
           // 通信接続状態表示
@@ -763,6 +766,13 @@ int main(void)
           setTextMagenta();
           p(" ck 0x%2x , error %4d", connection.check_cnt, connection.check_sum_error_cnt);
           break;
+        case PRINT_IDX_TUI:
+          debug.print_cycle = PRINT_TUI_CYCLE;
+          p("hogehoge1\n");
+          p("hogehoge2\n");
+          p("hogehoge3\n");
+          p("\e[4A");
+          break;
         default:
           debug.print_idx = 0;
           break;
@@ -983,7 +993,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // interrupt : 500Hz
   static uint16_t print_cycle_cnt;
   print_cycle_cnt++;
-  if (print_cycle_cnt >= (MAIN_LOOP_CYCLE / PRINT_LOOP_CYCLE)) {
+  if (print_cycle_cnt >= (MAIN_LOOP_CYCLE / debug.print_cycle)) {
     print_cycle_cnt = 0;
 
     debug.print_flag = true;

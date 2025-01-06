@@ -73,6 +73,7 @@ enum {
 
 #define MAIN_LOOP_CYCLE (500)
 #define PRINT_LOOP_CYCLE (50)
+#define PRINT_TUI_CYCLE (10)
 
 #define CAN_RX_DATA_SIZE 8
 #define CAN_TX_DATA_SIZE 8
@@ -262,6 +263,7 @@ typedef struct
 {
   volatile int32_t print_idx;
   volatile bool print_flag;
+  volatile uint32_t print_cycle;
 
   struct
   {
