@@ -108,7 +108,7 @@ RobotCommandV2 cmd_v2, cmd_v2_buf;
 
 UART_HandleTypeDef * huart_xprintf;
 
-#define printf_BUF_SIZE 500
+#define printf_BUF_SIZE 1000
 static char printf_buffer[printf_BUF_SIZE];
 
 enum {
@@ -125,6 +125,10 @@ enum {
   PRINT_IDX_UART_RAW,
   PRINT_IDX_MAX
 };
+
+#define PRINT_IDX_NAME_LIST_LEN (30)
+
+char print_idx_name_list[PRINT_IDX_MAX][PRINT_IDX_NAME_LIST_LEN];
 
 struct
 {
@@ -156,6 +160,10 @@ void p(const char * format, ...)
 {
   va_list args;
   va_start(args, format);
+  if (strlen(printf_buffer) > printf_BUF_SIZE * 0.9) {
+    vsprintf(printf_buffer, "\e[1m\e[31m\n\n\n\nUART BUFFER OVERRUN ERROR\n\n\n\n", args);
+    return;
+  }
   vsprintf(printf_buffer + strlen(printf_buffer), format, args);
   va_end(args);
 }
@@ -183,7 +191,12 @@ void setTextCyan()
 }
 void setTextNormal()
 {
-  p("\e[37m");
+  p("\e[0m");
+}
+
+void setTextBold()
+{
+  p("\e[1m");
 }
 
 // たまにLPUARTの割り込みが停止するので自動復帰
@@ -322,6 +335,18 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = PRINT_IDX_MOTION;
+  sprintf(print_idx_name_list[PRINT_IDX_AI_CMD], "AI_CMD");
+  sprintf(print_idx_name_list[PRINT_IDX_MOTOR], "MOTOR");
+  sprintf(print_idx_name_list[PRINT_IDX_DRIBBLER], "DRIBBLER");
+  sprintf(print_idx_name_list[PRINT_IDX_KICKER], "KICKER");
+  sprintf(print_idx_name_list[PRINT_IDX_MOUSE], "MOUSE");
+  sprintf(print_idx_name_list[PRINT_IDX_ODOM], "ODOM");
+  sprintf(print_idx_name_list[PRINT_IDX_MOTION], "MOTION");
+  sprintf(print_idx_name_list[PRINT_IDX_VEL], "VEL");
+  sprintf(print_idx_name_list[PRINT_IDX_LATENCY], "LATENCY");
+  sprintf(print_idx_name_list[PRINT_IDX_SYSTEM], "SYSTEM");
+  sprintf(print_idx_name_list[PRINT_IDX_UART_RAW], "UART");
+
   char error_str[100] = {0};
 
   target.omni_angle_kd = 1;
@@ -342,8 +367,25 @@ int main(void)
 
       // 文字列初期化
       printf_buffer[0] = 0;
-
       p("\e[0m");  //初期化
+
+      // IDXリスト表示
+      static uint8_t pre_print_idx = 0;
+      if (pre_print_idx != debug.print_idx) {
+        pre_print_idx = debug.print_idx;
+        for (int i = 0; i < PRINT_IDX_MAX; i++) {
+          if (debug.print_idx == i) {
+            setTextGreen();
+            setTextBold();
+          } else {
+            setTextNormal();
+          }
+          p(" %s ", print_idx_name_list[i]);
+        }
+        p("\n");
+      }
+
+      // 電圧表示
       if (isLowVoltage(&can_raw)) {
         setTextYellow();
       }
@@ -683,12 +725,18 @@ int main(void)
           break;
         case PRINT_IDX_SYSTEM:
           p("SYSTEM TIME ");
+          p("NOW ");
           for (int i = 0; i < 7; i++) {
             if (debug.sys_mnt.tim_cnt_max[i] < debug.sys_mnt.tim_cnt_now[i]) {
               debug.sys_mnt.tim_cnt_max[i] = debug.sys_mnt.tim_cnt_now[i];
             }
-            p("%4d %4d / ", debug.sys_mnt.tim_cnt_now[i], debug.sys_mnt.tim_cnt_max[i]);
+            p("%4.1f%% ", (float)debug.sys_mnt.tim_cnt_now[i] * 100 / 2000);
           }
+          p(" / MAX ");
+          for (int i = 0; i < 7; i++) {
+            p("%4.1f%% ", (float)debug.sys_mnt.tim_cnt_max[i] * 100 / 2000);
+          }
+          p("TO ");
           p("PW%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_POWER]);
           p("RD%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_MOTOR_RIGHT]);
           p("LD%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_MOTOR_LEFT]);
@@ -699,7 +747,7 @@ int main(void)
           }
           p("SW ADC %3.2fV ", (float)3.3 * sys.sw_adc_raw / 4096);
           convertErrorDataToStr(sys.latest_error.id, sys.latest_error.info, error_str);
-          p("ErrLatest %s %+5.2f Resume %2d", error_str, sys.latest_error.value, sys.current_error.resume_cnt);
+          p("ErrLatest %s %+5.2f Resume %2d ", error_str, sys.latest_error.value, sys.current_error.resume_cnt);
           break;
         case PRINT_IDX_UART_RAW:
           //dumpAIFeedback();
@@ -720,7 +768,7 @@ int main(void)
           break;
       }
 
-      if (debug.sys_mnt.main_loop_cnt < 100000) {
+      if (debug.sys_mnt.main_loop_cnt < 100000 || debug.print_idx == PRINT_IDX_SYSTEM) {
         p("loop %6d", debug.sys_mnt.main_loop_cnt / 10);
       }
       if (debug.sys_mnt.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
@@ -1011,7 +1059,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
   if (huart->Instance == hlpuart1.Instance) {
     switch (lpuart1_rx_buf) {
-      case 'q':
+        /*       case 'q':
         target.omni_angle_kp *= 1.1;
         break;
       case 'a':
@@ -1022,7 +1070,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         break;
       case 's':
         target.omni_angle_kd /= 1.1;
-        break;
+        break; */
 
       /*
       case 'v':
@@ -1052,6 +1100,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       case 'u':
         debug.print_idx = PRINT_IDX_UART_RAW;
         break;*/
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        debug.print_idx = lpuart1_rx_buf - '0';
+        break;
       case 0x7f:  // del
         debug.print_idx = 0;
         break;
