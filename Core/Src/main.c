@@ -335,7 +335,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_TUI;
+  debug.print_idx = PRINT_IDX_AI_CMD;
   sprintf(print_idx_name_list[PRINT_IDX_AI_CMD], "AI_CMD");
   sprintf(print_idx_name_list[PRINT_IDX_MOTOR], "MOTOR");
   sprintf(print_idx_name_list[PRINT_IDX_DRIBBLER], "DRIBBLER");
