@@ -29,6 +29,7 @@ enum {
   BLDC_OVER_LOAD = 0x0008,
   BLDC_ENC_ERROR = 0x0010,
   BLDC_OVER_VOLTAGE = 0x0020,
+  BLDC_FET_OVER_HEAT = 0x0040,
 };
 
 void convertErrorDataToStr(uint8_t id, uint16_t info, char * str_buf)
@@ -120,6 +121,9 @@ void convertErrorDataToStr(uint8_t id, uint16_t info, char * str_buf)
         break;
       case BLDC_OVER_VOLTAGE:
         sprintf(str_buf + offset, "OVER_VOLTAGE");
+        break;
+      case BLDC_FET_OVER_HEAT:
+        sprintf(str_buf + offset, "FET_OVER_HEAT");
         break;
       default:
         sprintf(str_buf + offset, "unknown info %d ", info);
