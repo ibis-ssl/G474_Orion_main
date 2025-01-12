@@ -10,7 +10,7 @@
 #include "util.h"
 
 static const float OUT_LIMIT_TEST = 20.0;     // テストはゆっくりなのであまり気にしない
-static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 80.0;  // ドライバ側で50に制限なので揃えてる
+static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 40.0;  // ドライバ側で50に制限なので揃えてる
 // 上げすぎると過電流エラーになるかも
 // 速度制限にはrobot_controlのSPEED_SCALAR_LIMITを使用する｡
 
