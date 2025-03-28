@@ -89,24 +89,22 @@ uint32_t HAL_GetTick(void)
   return uwTick;
 }
 
-// shared with other files
-imu_t imu;
-can_raw_t can_raw;
-target_t target;
-mouse_t mouse;
-omni_t omni;
-output_t output;
-motor_t motor;
-connection_t connection;
-system_t sys;
-integ_control_t integ;
-accel_vector_t acc_vel;
-debug_t debug;
-camera_t camera, camera_buf;
+static imu_t imu;
+static can_raw_t can_raw;
+static target_t target;
+static mouse_t mouse;
+static omni_t omni;
+static output_t output;
+static motor_t motor;
+static connection_t connection;
+static system_t sys;
+static integ_control_t integ;
+static accel_vector_t acc_vel;
+static debug_t debug;
+static camera_t camera, camera_buf;
 
-RobotCommandV2 cmd_v2, cmd_v2_buf;
+static RobotCommandV2 cmd_v2, cmd_v2_buf;
 
-UART_HandleTypeDef * huart_xprintf;
 
 #define printf_BUF_SIZE 2000
 static char printf_buffer[printf_BUF_SIZE];
@@ -129,23 +127,13 @@ enum {
 
 #define PRINT_IDX_NAME_LIST_LEN (30)
 
-char print_idx_name_list[PRINT_IDX_MAX][PRINT_IDX_NAME_LIST_LEN];
+static char print_idx_name_list[PRINT_IDX_MAX][PRINT_IDX_NAME_LIST_LEN];
 
-struct
-{
-  float spin_total[4];
-  float diff[4];
-} slip_detect;
 
-struct
-{
-  bool enabled_flag;
-} latency_test;
 
 // communication with CM4
-uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
-uint8_t tx_data_uart[TX_BUF_SIZE_CM4];
-uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_buf = 0;
+static uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
+static uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_buf = 0;
 
 /* USER CODE END PFP */
 
