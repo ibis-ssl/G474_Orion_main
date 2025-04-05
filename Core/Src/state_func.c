@@ -9,8 +9,8 @@
 #include "robot_control.h"
 #include "util.h"
 
-static const float OUT_LIMIT_TEST = 20.0;     // テストはゆっくりなのであまり気にしない
-static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 40.0;  // ドライバ側で50に制限なので揃えてる
+static const float OUT_LIMIT_TEST = 20.0;             // テストはゆっくりなのであまり気にしない
+static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 50.0;  // ドライバ側で50に制限なので揃えてる
 // 上げすぎると過電流エラーになるかも
 // 速度制限にはrobot_controlのSPEED_SCALAR_LIMITを使用する｡
 
@@ -240,7 +240,7 @@ void maintaskRun(
     target->local_vel[1] = (float)(cam->pos_xy[0] - 160) / 100;
   }
 
-  setTargetAccel(ai_cmd, acc_vel, local_deccel_control_flag);
+  setTargetAccel(ai_cmd, acc_vel);
 
   accelControl(acc_vel, target, local_deccel_control_flag);
   speedControl(acc_vel, target, imu);

@@ -1,5 +1,8 @@
 #include "control_theta.h"
 
+#include <math.h>
+#include <stdint.h>
+
 #include "icm20602_spi.h"
 #include "util.h"
 
@@ -40,7 +43,7 @@ void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target)
 
   // 立ち下がりは目標角度との差によって連続になるが、立ち上がりはそうではないので角加速度で制限する
   float yaw_rps_diff = temp_yaw_rps - target->yaw_rps;
-  if (yaw_rps_diff * temp_yaw_rps > 0) {                                                 //符号が同じ場合のみ(=反転時を排除)
+  if (yaw_rps_diff * temp_yaw_rps > 0) {                                                  //符号が同じ場合のみ(=反転時を排除)
     if (fabsf(yaw_rps_diff) > fabsf(target->yaw_rps) + max_additional_speed_per_cycle) {  //加速時のみ適用
       yaw_rps_diff = clampSize(yaw_rps_diff, max_additional_speed_per_cycle);
     }

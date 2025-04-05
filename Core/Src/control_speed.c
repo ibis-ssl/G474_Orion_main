@@ -11,12 +11,8 @@
 // 後方へ加速(減速)するときの倍率
 #define ACCEL_BACK_SIDE_RATIO (0.7)
 
-void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel, bool local_devvel_control_flag)
+void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
 {
-  if (local_devvel_control_flag) {
-    acc_vel->accel_target = 5.0;
-    return;
-  }
 
   if (ai_cmd->acceleration_limit < 3.0 || ai_cmd->acceleration_limit > 20) {
     acc_vel->accel_target = 3.0;
