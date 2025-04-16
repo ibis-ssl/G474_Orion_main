@@ -91,7 +91,7 @@ uint32_t HAL_GetTick(void)
 
 static imu_t imu;
 static can_raw_t can_raw;
-static target_t target;
+static target_t target = {.omni_angle_kp = 50, .omni_angle_kd = 1};
 static mouse_t mouse;
 static omni_t omni;
 static output_t output;
@@ -104,7 +104,6 @@ static debug_t debug;
 static camera_t camera, camera_buf;
 
 static RobotCommandV2 cmd_v2, cmd_v2_buf;
-
 
 #define printf_BUF_SIZE 2000
 static char printf_buffer[printf_BUF_SIZE];
@@ -128,8 +127,6 @@ enum {
 #define PRINT_IDX_NAME_LIST_LEN (30)
 
 static char print_idx_name_list[PRINT_IDX_MAX][PRINT_IDX_NAME_LIST_LEN];
-
-
 
 // communication with CM4
 static uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
@@ -323,7 +320,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_AI_CMD;
+  debug.print_idx = PRINT_IDX_ODOM;
   sprintf(print_idx_name_list[PRINT_IDX_AI_CMD], "AI_CMD");
   sprintf(print_idx_name_list[PRINT_IDX_MOTOR], "MOTOR");
   sprintf(print_idx_name_list[PRINT_IDX_DRIBBLER], "DRIBBLER");
@@ -338,9 +335,6 @@ int main(void)
   sprintf(print_idx_name_list[PRINT_IDX_TUI], "TUI");
 
   char error_str[100] = {0};
-
-  target.omni_angle_kd = 1;
-  target.omni_angle_kp = 50;
 
   /* USER CODE END 2 */
 
@@ -519,13 +513,15 @@ int main(void)
             p("%4.2f ", can_raw.motor_param_rps[i]);
           }
           break;
+
         case PRINT_IDX_DRIBBLER:  // Dribblerテスト
           p("DRIBBLER ");
           p("Batt(Sub) %3.1f / ", can_raw.power_voltage[4]);
           p("ball_sensor %d %d / ESC Spd %+5.0f / ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback[4]);
           //p("local_vision x=%3d y=%3d radius=%3d FPS=%3d ", ai_cmd.ball_local_x, ai_cmd.ball_local_y, ai_cmd.ball_local_radius, ai_cmd.ball_local_FPS);
-
+          p("omni.gos %+6.3f ", omni.global_odom_speed[0]);
           break;
+
         case PRINT_IDX_KICKER:  // Kicker Test
           p("KICKER ");
           p("Cnt %3d ", sys.kick_state);
@@ -549,6 +545,7 @@ int main(void)
           p("ball_sensor %d %d / ESC Spd %+5.0f ", can_raw.ball_detection[0], can_raw.ball_detection[1], can_raw.motor_feedback[4]);
 
           break;
+
         case PRINT_IDX_MOUSE:  // Mouse odom
           p("MOUSE ");
           p("%d / enc all%d %d %d %d %d / ", can_raw.rx_stat.mouse_flag, allEncInitialized(&can_raw), can_raw.rx_stat.enc_flag[0], can_raw.rx_stat.enc_flag[1], can_raw.rx_stat.enc_flag[2],
@@ -571,6 +568,7 @@ int main(void)
           p("/ raw X %+4d Y %+4d Q %6d", mouse.raw[0], mouse.raw[1], mouse.quality);
 
           break;
+
         case PRINT_IDX_ODOM:
           p("ODOM ");
 
@@ -595,6 +593,7 @@ int main(void)
           p("omgD %+6.3f ", getAngleDiff(imu.yaw_rad, imu.pre_yaw_rad) * 4000);
           p("omg %+6.2f ", output.omega);
           break;
+
         case PRINT_IDX_MOTION:
           p("MOTION ");
           p("theta %+6.1f ", imu.yaw_deg);
@@ -674,9 +673,10 @@ int main(void)
           //p("vel-diff %+8.3f, %+8.3f, ", target.local_vel_now[0] - omni.local_odom_speed_mvf[0], target.local_vel_now[1] - omni.local_odom_speed_mvf[1]);
 
           break;
+
         case PRINT_IDX_VEL:
           p("VEL ");
-          //p("theta %+6.1f ", imu.yaw_deg);
+          p("theta %+6.1f ", imu.yaw_deg);
           //p("rawVel X %+8.3f, Y %+8.3f, ", omni.local_raw_odom_vel[0], omni.local_raw_odom_vel[1]);
           //p("rawGbVel X %+8.3f, Y %+8.3f ", omni.global_raw_odom_vel[0], omni.global_raw_odom_vel[1]);
           //p("rawGbOdom X %+8.3f, Y %+8.3f, ", omni.global_raw_odom[0], omni.global_raw_odom[1]);
@@ -687,7 +687,7 @@ int main(void)
           //p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           //p("out-vel X %+5.1f, Y %+5.1f W %+5.1f ", output.velocity[0], output.velocity[1], output.omega);
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
-          p("Err X%+5.21f Y%+5.1f Sc%+5.1f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
+          p("Err X%+5.1f Y%+5.1f Sc%+5.1f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
           p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
           //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
           //p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
@@ -698,7 +698,13 @@ int main(void)
           for (int i = 0; i < 4; i++) {
             p("/ M%d %5.1f : %+4.0f ", i, target.omni_angle[i].current_rps, target.omni_angle[i].diff * 180 / M_PI);
           }
+          float temp = 0;
+          for (int i = 0; i < 4; i++) {
+            temp += target.omni_angle[i].diff;
+          }
+          p("total %+6.2f", temp);
           break;
+
         case PRINT_IDX_LATENCY:
           p("LATENCY ");
           p("setting : %3d / ", cmd_v2.latency_time_ms);
@@ -714,6 +720,7 @@ int main(void)
           p("x %+4d y%+4d rad%4d fps%3d ", camera.pos_xy[0], camera.pos_xy[1], camera.radius, camera.fps);
 
           break;
+
         case PRINT_IDX_SYSTEM:
           p("SYSTEM TIME ");
           p("NOW ");
@@ -740,6 +747,7 @@ int main(void)
           convertErrorDataToStr(sys.latest_error.id, sys.latest_error.info, error_str);
           p("ErrLatest %s %+5.2f Resume %2d ", error_str, sys.latest_error.value, sys.current_error.resume_cnt);
           break;
+
         case PRINT_IDX_UART_RAW:
           //dumpAIFeedback();
           p("UART RAW ");
@@ -754,6 +762,7 @@ int main(void)
           setTextMagenta();
           p(" ck 0x%2x , error %4d", connection.check_cnt, connection.check_sum_error_cnt);
           break;
+
         case PRINT_IDX_TUI:
           debug.print_cycle = PRINT_TUI_CYCLE;
           p("hogehoge1\n");
@@ -1057,7 +1066,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
   if (huart->Instance == hlpuart1.Instance) {
     switch (lpuart1_rx_buf) {
-        /*       case 'q':
+/*       case 'q':
         target.omni_angle_kp *= 1.1;
         break;
       case 'a':
