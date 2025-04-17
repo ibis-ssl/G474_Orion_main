@@ -436,7 +436,7 @@ void ICM20602_IMU_calibration2(void)
     }
   }
 
-  printf("length = %d\n", cal_len);
+  printf("cal_len[%d]\n", cal_len);
   printf("Gyro Yaw %+8.6f ", fabsf(gyro_ave[2][9] - gyro_ave[2][0]));
 
   // たまにIMUのデータ取れない場合がある

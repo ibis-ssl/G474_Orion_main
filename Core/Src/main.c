@@ -260,7 +260,7 @@ int main(void)
   HAL_UART_Init(&hlpuart1);
   HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
 
-  printf("orion main start %s %s\r\n", __DATE__, __TIME__);
+  printf("orion main start [%s] [%s]\r\n", __DATE__, __TIME__);
 
   HAL_ADC_Start_DMA(&hadc5, &sys.sw_adc_raw, 1);
 
@@ -320,7 +320,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_ODOM;
+  debug.print_idx = PRINT_IDX_VEL;
   sprintf(print_idx_name_list[PRINT_IDX_AI_CMD], "AI_CMD");
   sprintf(print_idx_name_list[PRINT_IDX_MOTOR], "MOTOR");
   sprintf(print_idx_name_list[PRINT_IDX_DRIBBLER], "DRIBBLER");
@@ -687,17 +687,20 @@ int main(void)
           //p("real-vel X %+8.3f, Y %+8.3f, X2 %+8.3f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           //p("out-vel X %+5.1f, Y %+5.1f W %+5.1f ", output.velocity[0], output.velocity[1], output.omega);
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
-          p("Err X%+5.1f Y%+5.1f Sc%+5.1f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
-          p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
+          //p("Err X%+5.1f Y%+5.1f Sc%+5.1f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
+          //p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
           //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
           //p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
-          p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
+          //p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
           //p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           p("KP %+4.1f KD %+4.1f ", target.omni_angle_kp, target.omni_angle_kd);
-          for (int i = 0; i < 4; i++) {
-            p("/ M%d %5.1f : %+4.0f ", i, target.omni_angle[i].current_rps, target.omni_angle[i].diff * 180 / M_PI);
+          for (int i = 0; i < 1; i++) {
+            p("/ M%d %+5.1f %5.1f : %+5.3f ", i, target.omni_angle[i].current_tar_rps, target.omni_angle[i].real_rps, target.omni_angle[i].diff);
           }
+          p(" RPSd ");
+          p("/ M0flag %+6.3f %3d ", target.omni_angle[0].tar_aps_acc, target.omni_angle[0].weak_flag);
+          p("V %+6.2f tar %+6.2f", output.motor_voltage[0], target.omni_angle[0].current_tar_rps);
           float temp = 0;
           for (int i = 0; i < 4; i++) {
             temp += target.omni_angle[i].diff;
@@ -1066,7 +1069,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
   if (huart->Instance == hlpuart1.Instance) {
     switch (lpuart1_rx_buf) {
-/*       case 'q':
+      case 'q':
         target.omni_angle_kp *= 1.1;
         break;
       case 'a':
@@ -1077,7 +1080,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         break;
       case 's':
         target.omni_angle_kd /= 1.1;
-        break; */
+        break;
 
       /*
       case 'v':

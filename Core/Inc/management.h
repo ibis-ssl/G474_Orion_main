@@ -189,8 +189,10 @@ typedef struct
 
 typedef struct
 {
-  float current_rps, angle_rad;
+  float current_tar_rps, pre_tar_rps, angle_rad;
   float diff, real_rps;
+  float tar_aps_acc;
+  int weak_flag;
 } omni_angle_t;
 typedef struct
 {
@@ -214,6 +216,7 @@ typedef struct
   } pos_ctrl;*/
   omni_angle_t omni_angle[4];
   float omni_angle_kp, omni_angle_kd;
+  int weak_flag;
 } target_t;
 
 typedef struct

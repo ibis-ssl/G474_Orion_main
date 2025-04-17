@@ -13,7 +13,7 @@
 
 void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
 {
-
+  
   if (ai_cmd->acceleration_limit < 3.0 || ai_cmd->acceleration_limit > 20) {
     acc_vel->accel_target = 3.0;
   } else {
@@ -21,7 +21,7 @@ void setTargetAccel(RobotCommandV2 * ai_cmd, accel_vector_t * acc_vel)
   }
 }
 
-void accelControl(accel_vector_t * acc_vel, target_t * target, bool local_devvel_control_flag)
+void accelControl(accel_vector_t * acc_vel, target_t * target, bool local_deccel_control_flag)
 {
   // XY -> rad/scalarに変換
   // 座標次元でのみフィードバックを行う。速度次元ではフィードバックを行わない。
@@ -39,13 +39,14 @@ void accelControl(accel_vector_t * acc_vel, target_t * target, bool local_devvel
   acc_vel->accel[1] = sinf(acc_vel->vel_error_rad) * acc_vel->accel_target;
 
   // バック方向だけ加速度制限
-  if (acc_vel->accel[0] < -(acc_vel->accel_target * ACCEL_BACK_SIDE_RATIO)) {
-    acc_vel->accel[0] = -(acc_vel->accel_target * ACCEL_BACK_SIDE_RATIO);
-  }
 
   // 減速時に1.8倍
   // いずれ指令値側で増やすので、消す
-  if (local_devvel_control_flag) {
+  if (local_deccel_control_flag) {
+    if (acc_vel->accel[0] < -(acc_vel->accel_target * ACCEL_BACK_SIDE_RATIO)) {
+      acc_vel->accel[0] = -(acc_vel->accel_target * ACCEL_BACK_SIDE_RATIO);
+    }
+
     for (int i = 0; i < 2; i++) {
       if (target->local_vel_now[i] * acc_vel->accel[i] <= 0) {
         acc_vel->accel[i] *= ACCEL_DECCEL_RATIO;
