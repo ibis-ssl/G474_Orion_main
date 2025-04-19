@@ -52,7 +52,8 @@ void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target)
 
   // 旋回方向のみの減衰項
   const float YAW_IMU_DRAG_GAIN = 40;  // 旋回減衰(:IMU) 80だと振動する
-  target->yaw_rps_drag = -YAW_IMU_DRAG_GAIN * (imu->yaw_rad - imu->pre_yaw_rad) * MAIN_LOOP_CYCLE;
+  float rad_per_sec = (imu->yaw_rad - imu->pre_yaw_rad) * MAIN_LOOP_CYCLE;
+  target->yaw_rps_drag = -YAW_IMU_DRAG_GAIN * (rad_per_sec - target->yaw_rps);
 }
 
 // 静止中に一気にvision角度を合わせるやつ
