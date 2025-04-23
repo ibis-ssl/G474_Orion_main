@@ -10,8 +10,8 @@
 #include "util.h"
 
 static const float OUT_LIMIT_TEST = 20.0;             // テストはゆっくりなのであまり気にしない
-static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 50.0;  // ドライバ側で50に制限なので揃えてる
-// 上げすぎると過電流エラーになるかも
+static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 60.0;  // ドライバ側で80に制限
+// 80だと10m/sまで出せる
 // 速度制限にはrobot_controlのSPEED_SCALAR_LIMITを使用する｡
 
 void motorTest(system_t * sys, output_t * output, omni_t * omni)

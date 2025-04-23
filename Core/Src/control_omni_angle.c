@@ -56,8 +56,12 @@ void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
     float rps_diff = target->omni_angle[i].real_rps - target->omni_angle[i].current_tar_rps;
     float angle_diff = target->omni_angle[i].diff;
     float gain_cofe = 1.0;
-    /*     if (rps_diff > -0.5 && rps_diff < 0.5) {
-      angle_diff = 0;
+    /*     if (fabs(rps_diff) < 1) {
+      rps_diff = 0;
+    } else if (rps_diff < -1) {
+      angle_diff += 1;
+    } else if (rps_diff > 1) {
+      angle_diff -= 1;
     } */
 
     if (target->omni_angle[i].tar_aps_acc * rps_diff < 0) {
@@ -69,7 +73,9 @@ void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
       gain_cofe = 1;
     }
 
-    output->motor_voltage[i] = clampSize(angle_diff * target->omni_angle_kp * gain_cofe, 5);  //速度次元ではI項
+    // diff 30:0.3, 0.3x50
+    // だいたいピークで15ぐらいなのでいい感じっぽい
+    output->motor_voltage[i] = clampSize(angle_diff * target->omni_angle_kp * gain_cofe, 15);  //速度次元ではI項
 
     // 通常D､微分先行はFFと打ち消し合うのでNG
     output->motor_voltage[i] -= rps_diff * target->omni_angle_kd;  //速度次元ではP項
