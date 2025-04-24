@@ -17,14 +17,13 @@ void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target)
   float angle_diff = getAngleDiff(ai_cmd->target_global_theta, imu->yaw_rad);
 
   // 目標角度近くでは立ち上がりを緩やかにする
-
-  /*const float LOW_ACCEL_ZONE_RADIAN = 10 * M_PI / 180;  // deg -> rad
+  const float LOW_ACCEL_ZONE_RADIAN = 10 * M_PI / 180;  // deg -> rad
      if (fabsf(angle_diff) < LOW_ACCEL_ZONE_RADIAN) {
     max_additional_speed_per_cycle /= 2;
-  }*/
+  }
 
   // 不感帯設定
-  const float DEAD_ZONE_RADIAN = 2 * M_PI / 180;  // deg -> rad
+  const float DEAD_ZONE_RADIAN = 1 * M_PI / 180;  // deg -> rad
   if (fabsf(angle_diff) < DEAD_ZONE_RADIAN) {
     angle_diff = 0;
   } else {
