@@ -242,7 +242,8 @@ void maintaskRun(
 
   setTargetAccel(ai_cmd, acc_vel);
 
-  accelControl(acc_vel, target, local_deccel_control_flag);
+  accelControl(acc_vel, target);
+  accelBoost(acc_vel, target, local_deccel_control_flag);
   speedControl(acc_vel, target, imu);
 
   thetaControl(ai_cmd, imu, target);
