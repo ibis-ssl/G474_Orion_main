@@ -99,19 +99,19 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
 
   if (swCentorPushed(sys->sw_adc_raw)) {
     if (!manual_mode) {
-      actuator_motor5(0.5);
+      actuator_motor5(1.0);
     }
     setHighEventLED();
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
       if (sys->kick_state == 0) {
         kicker_select_straight();
-        kicker_kick_start(0.2);
+        kicker_kick_start(0.4);
         sys->kick_state = 1;
       }
     }
   } else if (swBackPushed(sys->sw_adc_raw)) {
     if (!manual_mode) {
-      actuator_motor5(0.5);
+      actuator_motor5(1.0);
     }
     setHighEventLED();
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
