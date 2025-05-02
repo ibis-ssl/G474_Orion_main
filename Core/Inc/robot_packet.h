@@ -42,7 +42,10 @@ inline TwoByte convertUInt16ToTwoByte(uint16_t val)
   return result;
 }
 
-inline uint16_t convertTwoByteToUInt16(uint8_t byte_high, uint8_t byte_low) { return (byte_high << 8) | byte_low; }
+inline uint16_t convertTwoByteToUInt16(uint8_t byte_high, uint8_t byte_low)
+{
+  return (byte_high << 8) | byte_low;
+}
 
 inline void forward(uint8_t * arg1, uint8_t * arg2, float val, float range)
 {
@@ -271,8 +274,17 @@ inline RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSer
   command.kick_power = serialized->data[KICK_POWER] / 20.;
   command.dribble_power = serialized->data[DRIBBLE_POWER] / 20.;
   command.acceleration_limit = convertTwoByteToFloat(serialized->data[ACCELERATION_LIMIT_HIGH], serialized->data[ACCELERATION_LIMIT_LOW], 32.767);
+  if (command.acceleration_limit < 0) {
+    command.acceleration_limit = 1;
+  }
   command.linear_velocity_limit = convertTwoByteToFloat(serialized->data[LINEAR_VELOCITY_LIMIT_HIGH], serialized->data[LINEAR_VELOCITY_LIMIT_LOW], 32.767);
+  if (command.linear_velocity_limit < 0) {
+    command.linear_velocity_limit = 1;
+  }
   command.angular_velocity_limit = convertTwoByteToFloat(serialized->data[ANGULAR_VELOCITY_LIMIT_HIGH], serialized->data[ANGULAR_VELOCITY_LIMIT_LOW], 32.767);
+  if (command.angular_velocity_limit < 0) {
+    command.angular_velocity_limit = 1;
+  }
   command.latency_time_ms = convertTwoByteToUInt16(serialized->data[LATENCY_TIME_MS_HIGH], serialized->data[LATENCY_TIME_MS_LOW]);
   command.elapsed_time_ms_since_last_vision = convertTwoByteToUInt16(serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_HIGH], serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_LOW]);
   uint8_t flags = serialized->data[FLAGS];
