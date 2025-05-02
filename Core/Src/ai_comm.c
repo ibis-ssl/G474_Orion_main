@@ -64,7 +64,7 @@ void sendRobotInfo(
   buf[34] = (uint8_t)can_raw->temp_coil[0];
   buf[35] = (uint8_t)can_raw->temp_coil[1];
 
-  float diff_angle = imu->yaw_deg - ai_cmd->vision_global_theta;
+  float diff_angle = imu->yaw_deg - radian_to_deg(ai_cmd->vision_global_theta);
 
   float_to_uchar4(&(buf[36]), diff_angle);
   // capacitor boost
@@ -171,7 +171,6 @@ static void checkConnect2AI(connection_t * connection, system_t * sys, RobotComm
     requestStop(sys, 1000);
   }
 }
-
 
 // "一度はAI側から接続があったあと"､CM4との通信が途切れたらリセット
 // JO2024でたまに動作中にマイコンのUART受信が止まることがあったので､対策として導入
