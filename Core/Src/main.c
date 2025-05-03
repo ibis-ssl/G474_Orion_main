@@ -695,17 +695,29 @@ int main(void)
           //p("vel-now %+6.3f, %+6.3f, ", target.local_vel_now[0], target.local_vel_now[1]);
           //p("real-vel X %+7.2f, Y %+7.2f, 2 %+7.2f,", omni.local_odom_speed_mvf[0], omni.local_odom_speed_mvf[1], omni.local_odom_speed_mvf[2]);
           p("KP %+4.1f KD %+4.1f ", target.omni_angle_kp, target.omni_angle_kd);
-          for (int i = 0; i < 1; i++) {
-            p("/ M%d %+5.1f %5.1f : %+5.3f ", i, target.omni_angle[i].current_tar_rps, target.omni_angle[i].real_rps, target.omni_angle[i].diff);
+          p("Tar");
+          for (int i = 0; i < 4; i++) {
+            p("%+6.1f ", target.omni_angle[i].current_tar_rps);
           }
-          p(" RPSd ");
-          p("/ M0flag %+6.3f %3d ", target.omni_angle[0].tar_aps_acc, target.omni_angle[0].weak_flag);
-          p("V %+6.2f tar %+6.2f", output.motor_voltage[0], target.omni_angle[0].current_tar_rps);
+          p("Real");
+          for (int i = 0; i < 4; i++) {
+            p("%+6.1f ", target.omni_angle[i].real_rps);
+          }
+          p("Diff");
+          for (int i = 0; i < 4; i++) {
+            p("%+6.1f ", target.omni_angle[i].diff * 100);
+          }
+          p("Vout");
+          for (int i = 0; i < 4; i++) {
+            p("%+6.1f ", output.motor_voltage[i]);
+          }
+          //p("/ M0 Acc %+6.3f ", target.omni_angle[0].tar_aps_acc);
+          //p("V %+6.2f ", output.motor_voltage[0]);
           float temp = 0;
           for (int i = 0; i < 4; i++) {
             temp += target.omni_angle[i].diff;
           }
-          p("total %+6.2f", temp);
+          p("total %+6.2f spin %+6.2f drag %+6.2f ", temp, target.yaw_rps, target.yaw_rps_drag);
           break;
 
         case PRINT_IDX_LATENCY:
