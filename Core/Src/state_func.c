@@ -125,7 +125,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     actuator_motor5(0.0);
     setLowEventLED();
     kicker_charge_start();
-    actuator_kicker_cmd_voltage(400.0);
+    actuator_kicker_cmd_voltage(350.0);
   }
   omniStopAll(output);
 }

@@ -373,7 +373,7 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
       break;
 
     case 4:
-      actuator_kicker_cmd_voltage(400.0);
+      actuator_kicker_cmd_voltage(350.0);
       break;
 
     case 5:
