@@ -285,7 +285,8 @@ inline RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSer
   if (command.angular_velocity_limit < 0) {
     command.angular_velocity_limit = 1;
   }
-  command.latency_time_ms = convertTwoByteToUInt16(serialized->data[LATENCY_TIME_MS_HIGH], serialized->data[LATENCY_TIME_MS_LOW]);
+  //command.latency_time_ms = convertTwoByteToUInt16(serialized->data[LATENCY_TIME_MS_HIGH], serialized->data[LATENCY_TIME_MS_LOW]);
+  command.latency_time_ms = 100;
   command.elapsed_time_ms_since_last_vision = convertTwoByteToUInt16(serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_HIGH], serialized->data[ELAPSED_TIME_MS_SINCE_LAST_VISION_LOW]);
   uint8_t flags = serialized->data[FLAGS];
   command.is_vision_available = (flags >> IS_VISION_AVAILABLE) & 0x01;
