@@ -194,7 +194,7 @@ void commStateCheck(connection_t * connection, system_t * sys, RobotCommandV2 * 
   static uint32_t self_timeout_reset_cnt = 0;
   if (disconnedtedFromCM4(connection, sys)) {
     self_timeout_reset_cnt++;
-    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 3) {  // <- リセット時間
+    if (self_timeout_reset_cnt > MAIN_LOOP_CYCLE * 6) {  // <- リセット時間
       NVIC_SystemReset();
     }
   } else {
