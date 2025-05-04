@@ -68,8 +68,9 @@ void accelBoost(accel_vector_t * acc_vel, target_t * target, bool local_deccel_c
 
   float x_accel_rate = fabs(acc_vel->accel[0]) / accel_acalar;
 
-  // rate = 0~1, 0.5~で加速度UP､1で1.5倍
-  acc_vel->accel_boost_gain = (x_accel_rate - 0.5) * 2;
+  // rate = 0 ~ 1.0 , 0.5~で加速度UP､1で1.5倍
+  // (0 ~ 0.3) / 0.3
+  acc_vel->accel_boost_gain = (x_accel_rate - 0.7) / 0.3;
   acc_vel->accel_boost_gain *= 1.5;
 
   // 保護
