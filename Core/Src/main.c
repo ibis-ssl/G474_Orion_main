@@ -628,7 +628,6 @@ int main(void)
           p("accGl X %+6.2f, Y %+6.2f ", target.pos_ctrl.global_acc[0], target.pos_ctrl.global_acc[1]);
           p("%d ", target.pos_ctrl.to_stop_mode_flag);
           */
-          //p("accLc X %+8.2f, Y %+8.2f, ", output.accel[0], output.accel[1]);
           //p("local-VO %+6.3f Y %+6.3f ", output.velocity[0], output.velocity[1]);
 
           //p("MsVel X %+8.4f Y %+8.4f ", mouse.global_vel[0], mouse.global_vel[1]);
@@ -688,7 +687,7 @@ int main(void)
           //p("out-vel X %+5.1f, Y %+5.1f W %+5.1f ", output.velocity[0], output.velocity[1], output.omega);
           //p("M0 %+5.2f M1 %+5.2f M2 %+5.2f M3 %+5.2f ", output.motor_voltage[0], output.motor_voltage[1], output.motor_voltage[2], output.motor_voltage[3]);
           //p("Err X%+5.1f Y%+5.1f Sc%+5.1f ", acc_vel.vel_error_xy[0], acc_vel.vel_error_xy[1], acc_vel.vel_error_scalar);
-          //p("accLc X %+8.2f, Y %+8.2f, ", acc_vel.accel[0], acc_vel.accel[1]);
+          p("accLc X %+6.1f, Y %+6.1f, B %+6.3f, S %+6.1f, ", acc_vel.accel[0], acc_vel.accel[1], acc_vel.accel_boost_gain,acc_vel.accel_scalar);
           //p("TarLocal %+5.1f %+5.1f TarGlobalN %+5.1f %+5.1f TarLocalN %+5.1f %+5.1f ", target.local_vel[0], target.local_vel[1], target.global_vel_now[0], target.global_vel_now[1],target.local_vel_now[0], target.local_vel_now[1]);
           //p("Diff X %+5.3f, Y %+5.3f, ", omni.robot_pos_diff[0], omni.robot_pos_diff[1]);  // x150は出力ゲイン
           //p("FF-N %+5.1f FF-T %+5.1f ", target.local_vel_ff_factor[0], target.local_vel_ff_factor[1]);
@@ -703,10 +702,10 @@ int main(void)
           for (int i = 0; i < 4; i++) {
             p("%+6.1f ", target.omni_angle[i].real_rps);
           }
-          p("Diff");
+          /*           p("Diff");
           for (int i = 0; i < 4; i++) {
             p("%+6.1f ", target.omni_angle[i].diff * 100);
-          }
+          } */
           p("Vout");
           for (int i = 0; i < 4; i++) {
             p("%+6.1f ", output.motor_voltage[i]);

@@ -61,10 +61,22 @@ void accelBoost(accel_vector_t * acc_vel, target_t * target, bool local_deccel_c
     }*/
     }
   }
+  float accel_acalar = calcScalar(acc_vel->accel[0], acc_vel->accel[1]);
+  acc_vel->accel_scalar = accel_acalar;
 
-  // 前後は5m/ss
-  // 斜めは2m/ss
-  // 
+  // 加速度低い目標速度付近なので無効化
+
+  float x_accel_rate = fabs(acc_vel->accel[0]) / accel_acalar;
+
+  // rate = 0~1, 0.5~で加速度UP､1で1.5倍
+  acc_vel->accel_boost_gain = (x_accel_rate - 0.5) * 2;
+  acc_vel->accel_boost_gain *= 1.5;
+
+  // 保護
+  if (acc_vel->accel_boost_gain < 1.0 || acc_vel->accel_boost_gain > 2.0) {
+    acc_vel->accel_boost_gain = 1;
+  }
+  acc_vel->accel[0] *= acc_vel->accel_boost_gain;
 }
 
 void speedControl(accel_vector_t * acc_vel, target_t * target, imu_t * imu)

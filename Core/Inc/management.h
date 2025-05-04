@@ -149,6 +149,7 @@ typedef struct
   float vel_error_scalar, vel_error_rad;
   float accel_target;
   float accel[2];
+  float accel_boost_gain, accel_scalar;
 } accel_vector_t;
 
 typedef struct
