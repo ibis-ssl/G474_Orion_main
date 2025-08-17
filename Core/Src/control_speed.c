@@ -61,12 +61,12 @@ void accelBoost(accel_vector_t * acc_vel, target_t * target, bool local_deccel_c
     }*/
     }
   }
-  float accel_acalar = calcScalar(acc_vel->accel[0], acc_vel->accel[1]);
-  acc_vel->accel_scalar = accel_acalar;
+  float accel_scalar = calcScalar(acc_vel->accel[0], acc_vel->accel[1]);
+  acc_vel->accel_scalar = accel_scalar;
 
   // 加速度低い目標速度付近なので無効化
 
-  float x_accel_rate = fabs(acc_vel->accel[0]) / accel_acalar;
+  float x_accel_rate = fabs(acc_vel->accel[0]) / accel_scalar;
 
   // rate = 0 ~ 1.0 , 0.5~で加速度UP､1で1.5倍
   // (0 ~ 0.3) / 0.3
