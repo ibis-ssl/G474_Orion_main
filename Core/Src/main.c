@@ -425,13 +425,7 @@ int main(void)
           p("Lmt: Spd %4.2f Omg %4.1f Acc %4.2f / ", cmd_v2.linear_velocity_limit, cmd_v2.angular_velocity_limit, cmd_v2.acceleration_limit);
 
           p("dri %+4.2f ", cmd_v2.dribble_power);
-          if (cmd_v2.lift_dribbler) {
-            setTextCyan();
-            p("UP ");
-          } else {
-            setTextMagenta();
-            p("DN ");
-          }
+
           if (cmd_v2.enable_chip) {
             setTextCyan();
             p("chip %3.2f ", cmd_v2.kick_power);
@@ -440,35 +434,10 @@ int main(void)
             p("stlt %3.2f ", cmd_v2.kick_power);
           }
 
-          if (cmd_v2.prioritize_accurate_acceleration) {
-            setTextCyan();
-            p("Pri-Acur ");
-          } else if (cmd_v2.prioritize_move) {
-            setTextMagenta();
-            p("Pri-Move ");
-          }
           setTextNormal();
 
           /*********************************************************************************************** */
           switch (cmd_v2.control_mode) {
-            case LOCAL_CAMERA_MODE:
-              p("CAM ");
-              p("BallX %+6.2f Y %+6.2f ", cmd_v2.mode_args.local_camera.ball_pos[0], cmd_v2.mode_args.local_camera.ball_pos[1]);
-              p("VelX %+4.2f VelY %+4.2f ", cmd_v2.mode_args.local_camera.ball_vel[0], cmd_v2.mode_args.local_camera.ball_vel[1]);
-              p("TarX %+4.2f TarY %+4.2f ", cmd_v2.mode_args.local_camera.target_global_vel[0], cmd_v2.mode_args.local_camera.target_global_vel[1]);
-              break;
-
-            case POSITION_TARGET_MODE:
-              p("POS ");
-              p("TarX %+6.2f Y %+6.2f ", cmd_v2.mode_args.position.target_global_pos[0], cmd_v2.mode_args.position.target_global_pos[1]);
-              p("TermSpd %4.1f ", cmd_v2.mode_args.position.terminal_velocity);
-              break;
-
-            case SIMPLE_VELOCITY_TARGET_MODE:
-              p("SimpleVel ");
-              p("VelX %+6.2f Y %+6.2f ", cmd_v2.mode_args.simple_velocity.target_global_vel[0], cmd_v2.mode_args.simple_velocity.target_global_vel[1]);
-              break;
-
             case POLAR_VELOCITY_TARGET_MODE:
               p("PolarVel ");
               p("VelR %+6.2f T %+6.2f ", cmd_v2.mode_args.polar_velocity.target_global_velocity_r, cmd_v2.mode_args.polar_velocity.target_global_velocity_theta);
