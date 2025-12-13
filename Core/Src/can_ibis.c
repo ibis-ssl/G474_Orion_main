@@ -361,22 +361,14 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
       break;
 
     case 2:
-      if (ai_cmd->enable_chip == true || ai_cmd->lift_dribbler) {
-        actuator_dribbler_up();
-      } else {
-        actuator_dribbler_down();
-      }
-      break;
-
-    case 3:
       kicker_charge_start();
       break;
 
-    case 4:
+    case 3:
       actuator_kicker_cmd_voltage(350.0);
       break;
 
-    case 5:
+    case 4:
       actuator_motor5(getDribblerPower(ai_cmd, can_raw));
       break;
 

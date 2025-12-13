@@ -213,6 +213,16 @@ void manualPowerReset(system_t * sys)
   }
 }
 
+bool motorHighTemp(can_raw_t * can_raw)
+{
+  for (int i = 0; i < 4; i++) {
+    if (can_raw->temp_motor[i] > 60) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void maintaskRun(
   system_t * sys, RobotCommandV2 * ai_cmd, imu_t * imu, accel_vector_t * acc_vel, integ_control_t * integ, target_t * target, omni_t * omni, mouse_t * mouse, debug_t * debug, output_t * output,
   can_raw_t * can_raw, motor_t * motor, camera_t * cam)
@@ -243,7 +253,10 @@ void maintaskRun(
   setTargetAccel(ai_cmd, acc_vel);
 
   accelControl(acc_vel, target);
-  accelBoost(acc_vel, target, local_deccel_control_flag);
+  if (!motorHighTemp(can_raw)) {
+    accelBoost(acc_vel, target, local_deccel_control_flag);
+  }
+
   speedControl(acc_vel, target, imu);
 
   thetaControl(ai_cmd, imu, target);
