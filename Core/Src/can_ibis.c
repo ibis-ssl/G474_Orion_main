@@ -378,6 +378,16 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
   }
 }
 
+void sendActuatorCanCmdCalib()
+{
+  actuator_motor5(0.0);
+
+  kicker_chaege_stop();
+  actuator_kicker_cmd_voltage(0.0);
+  actuator_dribbler_down();
+}
+
+
 void sendActuatorCanCmdStop()
 {
   actuator_motor5(0.0);

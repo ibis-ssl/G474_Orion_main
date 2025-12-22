@@ -197,6 +197,7 @@ void motorCalibration(system_t * sys)
   } else {
     calib_start_cnt = 0;
   }
+  kicker_chaege_stop();
 }
 
 void manualPowerReset(system_t * sys)
