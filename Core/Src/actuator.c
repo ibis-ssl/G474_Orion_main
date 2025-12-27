@@ -22,14 +22,26 @@ static void motor_cmd_can2(uint16_t motor_id, float duty)
   can2_send(motor_id, senddata_motor);
 }
 
-void actuator_motor1(float duty) { motor_cmd_can1(0x100, duty); }
-void actuator_motor2(float duty) { motor_cmd_can1(0x101, duty); }
-void actuator_motor3(float duty) { motor_cmd_can2(0x102, duty); }
-void actuator_motor4(float duty) { motor_cmd_can2(0x103, duty); }
-void actuator_motor5(float duty) { motor_cmd_can1(0x104, duty); }
-
-void actuator_dribbler_up() { motor_cmd_can1(0x105, 0.8); }
-void actuator_dribbler_down() { motor_cmd_can1(0x105, 0); }
+void actuator_motor_fr(float duty)
+{
+  motor_cmd_can1(0x100, duty);
+}
+void actuator_motor_br(float duty)
+{
+  motor_cmd_can1(0x101, duty);
+}
+void actuator_motor_bl(float duty)
+{
+  motor_cmd_can2(0x102, duty);
+}
+void actuator_motor_fl(float duty)
+{
+  motor_cmd_can2(0x103, duty);
+}
+void actuator_motor_drv(float duty)
+{
+  motor_cmd_can1(0x104, duty);
+}
 
 void actuator_kicker_cmd_voltage(float voltage)
 {
@@ -56,10 +68,22 @@ void actuator_kicker_cmd(uint8_t id, uint8_t param)
   can2_send(0x110, senddata_kick);
 }
 
-void kicker_select_straight(void) { actuator_kicker_cmd(2, 0); }
-void kicker_select_chip(void) { actuator_kicker_cmd(2, 1); }
-void kicker_charge_start(void) { actuator_kicker_cmd(1, 1); }
-void kicker_chaege_stop(void) { actuator_kicker_cmd(1, 0); }
+void kicker_select_straight(void)
+{
+  actuator_kicker_cmd(2, 0);
+}
+void kicker_select_chip(void)
+{
+  actuator_kicker_cmd(2, 1);
+}
+void kicker_charge_start(void)
+{
+  actuator_kicker_cmd(1, 1);
+}
+void kicker_charge_stop(void)
+{
+  actuator_kicker_cmd(1, 0);
+}
 void kicker_kick_start(float kick_power)
 {
   uint8_t kick_power_param = (float)kick_power * 255.0;
@@ -136,7 +160,10 @@ void actuator_buzzer_on()
   __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 250);
 }
 
-void actuator_buzzer_off() { __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0); }
+void actuator_buzzer_off()
+{
+  __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0);
+}
 
 void actuator_buzzer_frq_on(float frq)
 {
@@ -150,8 +177,14 @@ void actuator_buzzer_frq(float frq, uint16_t time)
   actuator_buzzer_off();
 }
 
-void morse_short() { actuator_buzzer(40, 20); }
-void morse_long() { actuator_buzzer(120, 20); }
+void morse_short()
+{
+  actuator_buzzer(40, 20);
+}
+void morse_long()
+{
+  actuator_buzzer(120, 20);
+}
 
 void morse_machine_name()
 {

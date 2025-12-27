@@ -12,18 +12,16 @@
 #include <string.h>
 
 #include "management.h"
-void actuator_motor1(float m1);
-void actuator_motor2(float m2);
-void actuator_motor3(float m3);
-void actuator_motor4(float m4);
-void actuator_motor5(float m5);
-void actuator_dribbler_up();
-void actuator_dribbler_down();
+void actuator_motor_fr(float m1);
+void actuator_motor_br(float m2);
+void actuator_motor_bl(float m3);
+void actuator_motor_fl(float m4);
+void actuator_motor_drv(float m5);
 void actuator_motor_param(uint8_t param1, float m1p, uint8_t param2, float m2p, uint8_t param3, float m3p, uint8_t param4, float m4p, uint8_t param5, float m5p);
 void kicker_select_straight(void);
 void kicker_select_chip(void);
 void kicker_charge_start(void);
-void kicker_chaege_stop(void);
+void kicker_charge_stop(void);
 void kicker_kick_start(float kick_power);
 void actuator_kicker_cmd_voltage(float voltage);
 void actuatorPower_ONOFF(uint8_t power_on);

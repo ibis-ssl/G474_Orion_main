@@ -55,21 +55,21 @@ void motorTest(system_t * sys, output_t * output, omni_t * omni)
     omniStopAll(output);
     setLowEventLED();
   }
-  actuator_motor5(0.0);
+  actuator_motor_drv(0.0);
 }
 
 void dribblerTest(system_t * sys, output_t * output, can_raw_t * can_raw)
 {
   if (swCentorPushed(sys->sw_adc_raw)) {
     if (can_raw->ball_detection[0]) {
-      actuator_motor5(0.5);
+      actuator_motor_drv(0.5);
 
     } else {
-      actuator_motor5(0.20);
+      actuator_motor_drv(0.20);
     }
     setHighEventLED();
   } else {
-    actuator_motor5(0.0);
+    actuator_motor_drv(0.0);
     setLowEventLED();
   }
   omniStopAll(output);
@@ -77,8 +77,6 @@ void dribblerTest(system_t * sys, output_t * output, can_raw_t * can_raw)
 
 void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t * output)
 {
-  static bool dribbler_up = false;
-
   if (sys->kick_state != 0) {
     if (sys->kick_state > MAIN_LOOP_CYCLE / 2) {
       if (can_raw->ball_detection[0] == 0) {
@@ -89,17 +87,9 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     }
   }
 
-  if (dribbler_up == false && swRightPushed(sys->sw_adc_raw)) {
-    dribbler_up = true;
-    actuator_dribbler_down();
-  } else if (dribbler_up == true && swLeftPushed(sys->sw_adc_raw)) {
-    dribbler_up = false;
-    actuator_dribbler_up();
-  }
-
   if (swCentorPushed(sys->sw_adc_raw)) {
     if (!manual_mode) {
-      actuator_motor5(1.0);
+      actuator_motor_drv(1.0);
     }
     setHighEventLED();
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
@@ -111,7 +101,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
     }
   } else if (swBackPushed(sys->sw_adc_raw)) {
     if (!manual_mode) {
-      actuator_motor5(1.0);
+      actuator_motor_drv(1.0);
     }
     setHighEventLED();
     if (can_raw->ball_detection[0] == 1 || manual_mode) {
@@ -122,7 +112,7 @@ void kickerTest(system_t * sys, can_raw_t * can_raw, bool manual_mode, output_t 
       }
     }
   } else {
-    actuator_motor5(0.0);
+    actuator_motor_drv(0.0);
     setLowEventLED();
     kicker_charge_start();
     actuator_kicker_cmd_voltage(350.0);
@@ -197,7 +187,7 @@ void motorCalibration(system_t * sys)
   } else {
     calib_start_cnt = 0;
   }
-  kicker_chaege_stop();
+  kicker_charge_stop();
 }
 
 void manualPowerReset(system_t * sys)

@@ -53,10 +53,10 @@ void omniMoveIndiv(output_t * output, float out_limit)
     output->motor_voltage[i] = clampSize(output->motor_voltage[i], out_limit);
   }
 
-  actuator_motor1(output->motor_voltage[0]);
-  actuator_motor2(output->motor_voltage[1]);
-  actuator_motor3(output->motor_voltage[2]);
-  actuator_motor4(output->motor_voltage[3]);
+  actuator_motor_fr(output->motor_voltage[0]);
+  actuator_motor_br(output->motor_voltage[1]);
+  actuator_motor_bl(output->motor_voltage[2]);
+  actuator_motor_fl(output->motor_voltage[3]);
 }
 
 void omniStopAll(output_t * output)
@@ -66,8 +66,8 @@ void omniStopAll(output_t * output)
   output->motor_voltage[2] = 0;
   output->motor_voltage[3] = 0;
 
-  actuator_motor1(output->motor_voltage[0]);
-  actuator_motor2(output->motor_voltage[1]);
-  actuator_motor3(output->motor_voltage[2]);
-  actuator_motor4(output->motor_voltage[3]);
+  actuator_motor_fr(output->motor_voltage[0]);
+  actuator_motor_br(output->motor_voltage[1]);
+  actuator_motor_bl(output->motor_voltage[2]);
+  actuator_motor_fl(output->motor_voltage[3]);
 }

@@ -369,7 +369,7 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
       break;
 
     case 4:
-      actuator_motor5(getDribblerPower(ai_cmd, can_raw));
+      actuator_motor_drv(getDribblerPower(ai_cmd, can_raw));
       break;
 
     default:
@@ -378,23 +378,12 @@ void sendActuatorCanCmdRun(RobotCommandV2 * ai_cmd, system_t * sys, can_raw_t * 
   }
 }
 
-void sendActuatorCanCmdCalib()
-{
-  actuator_motor5(0.0);
-
-  kicker_chaege_stop();
-  actuator_kicker_cmd_voltage(0.0);
-  actuator_dribbler_down();
-}
-
-
 void sendActuatorCanCmdStop()
 {
-  actuator_motor5(0.0);
+  actuator_motor_drv(0.0);
 
-  kicker_chaege_stop();
+  kicker_charge_stop();
   actuator_kicker_cmd_voltage(0.0);
-  actuator_dribbler_down();
 }
 
 void sendCanError()
