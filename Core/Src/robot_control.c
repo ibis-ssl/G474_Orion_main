@@ -19,8 +19,13 @@ void setLocalTargetSpeed(RobotCommandV2 * ai_cmd, target_t * target, imu_t * imu
     temp_gloval_vel[0] = ai_cmd->mode_args.polar_velocity.target_global_velocity_r * cosf(ai_cmd->mode_args.polar_velocity.target_global_velocity_theta);
     temp_gloval_vel[1] = ai_cmd->mode_args.polar_velocity.target_global_velocity_r * sinf(ai_cmd->mode_args.polar_velocity.target_global_velocity_theta);
 
+
     convertGlobalToLocal(temp_gloval_vel, target->local_vel, imu->yaw_rad);
 
+    // 司令値段階で滑り補正
+    target->local_vel[0] *= 1.1;
+    target->local_vel[1] *= 1.3;
+    
   } else {
     target->local_vel[0] = 0;
     target->local_vel[1] = 0;
