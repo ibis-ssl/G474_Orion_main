@@ -273,6 +273,7 @@ typedef struct
     volatile uint32_t tim_cnt_now[20], tim_cnt_max[20], timer_itr_exit_cnt;  //実行パフォーマンス計測用
     volatile uint32_t main_loop_cnt;
     volatile uint32_t uart_rx_itr_cnt;
+    volatile uint32_t ai_cmd_rx_cnt, robot_info_tx_cnt;
   } sys_mnt;
 
 } debug_t;

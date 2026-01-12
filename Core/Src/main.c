@@ -320,7 +320,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_VEL;
+  debug.print_idx = PRINT_IDX_AI_CMD;
   sprintf(print_idx_name_list[PRINT_IDX_AI_CMD], "AI_CMD");
   sprintf(print_idx_name_list[PRINT_IDX_MOTOR], "MOTOR");
   sprintf(print_idx_name_list[PRINT_IDX_DRIBBLER], "DRIBBLER");
@@ -399,14 +399,14 @@ int main(void)
           p("STP%d ", cmd_v2.stop_emergency);
 
           if (connection.connected_ai) {
-            p("\e[32m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.ai_cmd_rx_frq);
+            setTextGreen();
           } else if (connection.connected_cm4) {
-            // 33 : yellow
-            p("\e[33m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.ai_cmd_rx_frq);
+            setTextYellow();
           } else {
-            // 31 : red
-            p("\e[31m%3d,%3.0f\e[37m ", cmd_v2.check_counter, connection.ai_cmd_rx_frq);
+            setTextRed();
           }
+          // ai_cmd_rx_frqは実装されていない
+          p("Ck%3d,%3.0fHz\e[37m ", cmd_v2.check_counter, connection.ai_cmd_rx_frq);
 
           if (cmd_v2.is_vision_available && cmd_v2.elapsed_time_ms_since_last_vision < 200) {
             setTextGreen();
@@ -437,16 +437,18 @@ int main(void)
           setTextNormal();
 
           /*********************************************************************************************** */
-          switch (cmd_v2.control_mode) {
-            case POLAR_VELOCITY_TARGET_MODE:
-              p("PolarVel ");
-              p("VelR %+6.2f T %+6.2f ", cmd_v2.mode_args.polar_velocity.target_global_velocity_r, cmd_v2.mode_args.polar_velocity.target_global_velocity_theta);
-              break;
-
-            default:
-              p("Unknown Mode ");
-              break;
+          if (cmd_v2.control_mode == POLAR_VELOCITY_TARGET_MODE) {
+            p("PolarVel ");
+            p("VelR %+6.2f T %+6.2f ", cmd_v2.mode_args.polar_velocity.target_global_velocity_r, cmd_v2.mode_args.polar_velocity.target_global_velocity_theta);
+            break;
+          } else {
+            p("Unknown Mode ");
           }
+
+          p("TX %3d RX %3d /50ms ", debug.sys_mnt.robot_info_tx_cnt, debug.sys_mnt.ai_cmd_rx_cnt);
+          debug.sys_mnt.robot_info_tx_cnt = 0;
+          debug.sys_mnt.ai_cmd_rx_cnt = 0;
+
           /*********************************************************************************************** */
 
           break;
@@ -1031,13 +1033,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
       // UARTバスを送受信で同時に使えないので、受信完了してから送信開始
       sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
-
+      debug.sys_mnt.robot_info_tx_cnt++;
       uart_rx_cmd_idx = -1;
       if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
         memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
         cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
         updateCM4CmdTimeStamp(&connection, &sys);
-
+        debug.sys_mnt.ai_cmd_rx_cnt++;
         // check updated
         camera_buf = parseCameraPacket(&(data_from_cm4[64]));
         if (camera_buf.fps != 0) {
