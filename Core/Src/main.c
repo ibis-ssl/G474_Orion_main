@@ -977,7 +977,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   static uint16_t robot_info_send_cnt;
   uint16_t print_cycle_div = MAIN_LOOP_CYCLE / debug.print_cycle;
   bool print_timing = (comm_cycle_cnt % print_cycle_div) == 0;
-  uint16_t robot_info_send_target_cnt = ((comm_cycle_cnt + 1) * 400) / MAIN_LOOP_CYCLE;
+  uint16_t robot_info_send_target_cnt = ((comm_cycle_cnt + 1) * ROBOT_INFO_CYCLE) / MAIN_LOOP_CYCLE;
 
   if (print_timing) {
 
