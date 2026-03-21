@@ -973,10 +973,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   debug.sys_mnt.tim_cnt_now[5] = htim7.Instance->CNT;  // パフォーマンス計測用
 
   // interrupt : 500Hz
-  static uint16_t print_cycle_cnt;
-  print_cycle_cnt++;
-  if (print_cycle_cnt >= (MAIN_LOOP_CYCLE / debug.print_cycle)) {
-    print_cycle_cnt = 0;
+  static uint16_t comm_cycle_cnt;
+  static uint16_t robot_info_send_cnt;
+  uint16_t print_cycle_div = MAIN_LOOP_CYCLE / debug.print_cycle;
+  bool print_timing = (comm_cycle_cnt % print_cycle_div) == 0;
+  uint16_t robot_info_send_target_cnt = ((comm_cycle_cnt + 1) * 400) / MAIN_LOOP_CYCLE;
+
+  if (print_timing) {
 
     debug.print_flag = true;
 
@@ -986,9 +989,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
       actuatorPower_ONOFF(1);
     }
 
-    sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
-
     toggleInterruptLED();
+  }
+  if (!print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
+    sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
+    robot_info_send_cnt++;
+  }
+
+  comm_cycle_cnt++;
+  if (comm_cycle_cnt >= MAIN_LOOP_CYCLE) {
+    comm_cycle_cnt = 0;
+    robot_info_send_cnt = 0;
   }
   debug.sys_mnt.tim_cnt_now[6] = htim7.Instance->CNT;  // パフォーマンス計測用
   debug.sys_mnt.timer_itr_exit_cnt = htim7.Instance->CNT;
