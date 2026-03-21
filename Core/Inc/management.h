@@ -72,7 +72,7 @@ enum {
 #define LOW_VOLTAGE_LIMIT (22.5)
 
 #define MAIN_LOOP_CYCLE (500)
-#define PRINT_LOOP_CYCLE (50)
+#define PRINT_LOOP_CYCLE (60)
 #define PRINT_TUI_CYCLE (10)
 
 #define CAN_RX_DATA_SIZE 8
