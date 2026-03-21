@@ -111,6 +111,12 @@ void sendRobotInfo(
     float_to_uchar4(&(buf[64 + i * 4]), tx_value_array[i]);
   }
 
+  uint32_t tx_check_cnt_all = 0;
+  for (int i = 3; i < sizeof(buf); i++) {
+    tx_check_cnt_all += buf[i];
+  }
+  buf[2] = tx_check_cnt_all & 0xFF;
+
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }
 
