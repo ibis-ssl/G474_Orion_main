@@ -72,7 +72,7 @@ enum {
 #define LOW_VOLTAGE_LIMIT (22.5)
 
 #define MAIN_LOOP_CYCLE (500)
-#define ROBOT_INFO_CYCLE (120)
+#define ROBOT_INFO_CYCLE (125)
 #define PRINT_LOOP_CYCLE (60)
 #define PRINT_TUI_CYCLE (10)
 
