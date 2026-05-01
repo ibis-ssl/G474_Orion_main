@@ -26,10 +26,11 @@ void sendRobotInfo(
   camera_t * cam)
 {
   static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
+  static uint8_t tx_cycle_count = 0;
 
   buf[0] = 0xAB;
   buf[1] = 0xEA;
-  buf[2] = 10;
+  buf[2] = 10;  // CRC, 10:dummy
   buf[3] = ai_cmd->check_counter;
 
   float_to_uchar4(&(buf[4]), imu->yaw_deg);
@@ -39,7 +40,9 @@ void sendRobotInfo(
 
   buf[12] = can_raw->ball_detection[0];
   buf[13] = can_raw->ball_detection[1];
-  buf[14] = can_raw->ball_detection[2];
+  buf[14] = tx_cycle_count;
+  tx_cycle_count++;
+
   buf[15] = sys->kick_state / 10;
 
   buf[16] = (uint8_t)(sys->current_error.id & 0xFF);
@@ -54,7 +57,7 @@ void sendRobotInfo(
   buf[26] = (uint8_t)(can_raw->current[2] * 10);
   buf[27] = (uint8_t)(can_raw->current[3] * 10);
 
-  buf[28] = can_raw->ball_detection[3];
+  buf[28] = 0;  // unused
 
   buf[29] = (uint8_t)can_raw->temp_motor[0];
   buf[30] = (uint8_t)can_raw->temp_motor[1];

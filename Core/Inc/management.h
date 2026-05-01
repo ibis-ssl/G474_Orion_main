@@ -118,7 +118,7 @@ typedef struct
   float power_voltage[7];
   float temp_motor[4], temp_fet, temp_coil[2], temp_driver[4];
   float current[5];
-  uint8_t ball_detection[4];
+  uint8_t ball_detection[2];// 0:detect,1:distance(duumy)
   float motor_param_rps[4];
   struct
   {

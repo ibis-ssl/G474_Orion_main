@@ -279,8 +279,6 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
     case 0x240:
       can_raw->ball_detection[0] = rx_data[0];
       can_raw->ball_detection[1] = rx_data[1];
-      can_raw->ball_detection[2] = rx_data[2];
-      can_raw->ball_detection[3] = rx_data[3];
       break;
 
     // mouseXY
