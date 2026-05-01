@@ -86,6 +86,7 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 
 ## 参考ドキュメント
 - ハードウェア仕様（コード推定）: `doc/hardware_spec.md`
+- 速度制御レイヤ: `doc/hw_control.md`
 
 ## ハードウェア仕様更新メモ
 - `doc/hardware_spec.md` は `G474_Orion_main.ioc` と `Core` 配下の実装を根拠に再作成した。
@@ -94,3 +95,9 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - サブ基板通信は FDCAN1/FDCAN2 の Classic CAN 約1Mbps。標準 ID を全受信し、ID ごとにモータ、電源、キッカー、マウスセンサ、ボールセンサ情報を処理する。
 - IMU は SPI1 接続の ICM20602。現在の制御では yaw ジャイロを主に利用している。
 - 文字化けしていた旧 `hardware_spec.md` の内容は復旧せず、現行ソースから読み取れる仕様として整理した。
+
+## 速度制御更新メモ
+- `doc/hw_control.md` は速度制御レイヤの説明として、現行実装に合わせて再作成した。
+- 通常走行は `maintaskRun()` 内で、上位速度指令、加速度制限、ヨー角制御、オムニホイール目標角度生成、ホイール角度制御、CAN出力の順に処理する。
+- 現行の並進速度制御は実速度を直接PIDする構成ではなく、加速度制限済みの内部速度目標 `target.local_vel_now` を作り、各ホイールの角度追従で実現する。
+- `linear_velocity_limit` と `SPEED_SCALAR_LIMIT` は現行速度制御では未使用のため、速度上限制御を追加する場合はここを確認する。
