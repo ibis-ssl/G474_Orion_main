@@ -733,6 +733,11 @@ int main(void)
           p("RD%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_MOTOR_RIGHT]);
           p("LD%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_MOTOR_LEFT]);
           p("SB%4d ", can_raw.rx_stat.timeout_cnt[BOARD_ID_SUB]);
+          uint32_t can_motor_samples = can_tx_debug.motor_call_samples;
+          uint32_t can_motor_avg_us = can_motor_samples == 0 ? 0 : can_tx_debug.motor_call_delta_sum_us / can_motor_samples;
+          p("CANd L%u A%lu M%u N%lu OK%lu/%lu E%lu/%lu B%lu/%lu D%lu/%lu ", can_tx_debug.motor_call_delta_last_us, can_motor_avg_us, can_tx_debug.motor_call_delta_max_us,
+            can_motor_samples, can_tx_debug.tx_add_ok[0], can_tx_debug.tx_add_ok[1], can_tx_debug.tx_add_error[0], can_tx_debug.tx_add_error[1], can_tx_debug.sw_buffered[0],
+            can_tx_debug.sw_buffered[1], can_tx_debug.sw_dropped[0], can_tx_debug.sw_dropped[1]);
           p("MotorV ");
           for (int i = 0; i < 4; i++) {
             p("%+6.2f ", output.motor_voltage[i]);
