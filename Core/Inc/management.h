@@ -140,6 +140,7 @@ typedef struct
   float enc_noise_peak_rad[5];
   uint16_t enc_noise_sample_cnt;
   float rps[5];
+  volatile uint32_t latest_rx_time_ms[5];
 } motor_t;
 
 typedef struct
@@ -191,9 +192,25 @@ typedef struct
 {
   float current_tar_rps, pre_tar_rps, angle_rad;
   float diff, real_rps;
+  float rps_diff;
+  float kp_output, kd_output, ff_output, yaw_output;
   float tar_aps_acc;
   int weak_flag;
 } omni_angle_t;
+
+typedef struct
+{
+  uint32_t time_ms;
+  float cmd_velocity_r, cmd_velocity_theta;
+  float target_local_vel[2], target_local_vel_now[2];
+  float accel[2];
+  float yaw_rad, yaw_rate, target_yaw_rps, yaw_rps_drag;
+  float target_rps[4], real_rps[4];
+  float angle_diff[4], rps_diff[4];
+  float kp_output[4], kd_output[4], ff_output[4], yaw_output[4];
+  float motor_output[4];
+  uint32_t motor_rx_age_ms[4];
+} drive_log_sample_t;
 typedef struct
 {
   float global_vel[2];      // m/s 速度指令値の入力
@@ -267,6 +284,9 @@ typedef struct
   volatile int32_t print_idx;
   volatile bool print_flag;
   volatile uint32_t print_cycle;
+
+  volatile uint32_t drive_log_sequence;
+  drive_log_sample_t drive_log;
 
   struct
   {
