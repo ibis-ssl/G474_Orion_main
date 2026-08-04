@@ -91,7 +91,7 @@ uint32_t HAL_GetTick(void)
 
 static imu_t imu;
 static can_raw_t can_raw;
-static target_t target = {.omni_angle_kp = 50, .omni_angle_kd = 1};
+static target_t target = {.omni_angle_kp = 25, .omni_angle_kd = 2};
 static mouse_t mouse;
 static omni_t omni;
 static output_t output;
