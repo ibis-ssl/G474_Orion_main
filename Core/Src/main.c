@@ -470,6 +470,15 @@ int main(void)
             }
             p("M%d %3.0f ", i, can_raw.temp_motor[i]);
           }
+          setTextNormal();
+          p("EncNzAvgDeg ");
+          for (int i = 0; i < 4; i++) {
+            p("%5.3f ", motor.enc_noise_avg_rad[i]);
+          }
+          p("Max ");
+          for (int i = 0; i < 4; i++) {
+            p("%5.3f ", motor.enc_noise_max_rad[i]);
+          }
           for (int i = 0; i < 4; i++) {
             if (can_raw.temp_driver[i] > MOTOR_OVER_HEAT_WARN_THRESH) {
               setTextYellow();

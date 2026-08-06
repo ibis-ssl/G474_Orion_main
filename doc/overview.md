@@ -1,10 +1,4 @@
-﻿# G474_Orion_main 改善方針
-
-## 目的
-- 可読性と保守性を上げる。
-- リアルタイム制御性能を維持する。
-- 挙動を変えないリファクタリングを優先する。
-
+﻿# G474_Orion_main
 ## 全体構成（現在）
 
 
@@ -92,6 +86,7 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 
 ## 参考ドキュメント
 - ハードウェア仕様（コード推定）: `doc/hardware_spec.md`
+- 速度制御レイヤ: `doc/hw_control.md`
 
 ## ハードウェア仕様更新メモ
 - `doc/hardware_spec.md` は `G474_Orion_main.ioc` と `Core` 配下の実装を根拠に再作成した。
@@ -100,3 +95,15 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - サブ基板通信は FDCAN1/FDCAN2 の Classic CAN 約1Mbps。標準 ID を全受信し、ID ごとにモータ、電源、キッカー、マウスセンサ、ボールセンサ情報を処理する。
 - IMU は SPI1 接続の ICM20602。現在の制御では yaw ジャイロを主に利用している。
 - 文字化けしていた旧 `hardware_spec.md` の内容は復旧せず、現行ソースから読み取れる仕様として整理した。
+
+## 速度制御更新メモ
+- `doc/hw_control.md` は速度制御レイヤの説明として、現行実装に合わせて再作成した。
+- 通常走行は `maintaskRun()` 内で、上位速度指令、加速度制限、ヨー角制御、オムニホイール目標角度生成、ホイール角度制御、CAN出力の順に処理する。
+- 現行の並進速度制御は実速度を直接PIDする構成ではなく、加速度制限済みの内部速度目標 `target.local_vel_now` を作り、各ホイールの角度追従で実現する。
+- `linear_velocity_limit` と `SPEED_SCALAR_LIMIT` は現行速度制御では未使用のため、速度上限制御を追加する場合はここを確認する。
+
+## エンコーダーノイズ計測
+- `motor.enc_noise_rad[]` は TIM7 の 500Hz 周期で、CAN受信済み角度の周期差分 `motor.angle_diff[]` と、同じCANフレーム由来の `motor.rps[]` から期待される角度差分 `2π*rps/MAIN_LOOP_CYCLE` の絶対差を deg/cycle に変換して更新する。
+- `motor.enc_noise_avg_rad[]` は 1 秒ごとの平均値、`motor.enc_noise_max_rad[]` は同じ1秒窓の最大値として更新する。変数名は既存構造体との互換のため `_rad` のままだが、格納値の単位は deg/cycle。
+- LPUARTデバッグの `MOTOR` 表示に `EncNzAvgDeg` と `Max` として4輪分を deg/cycle 単位で出力する。
+- この値は受信角度の揺れや、角度値と速度値の不整合を確認するための簡易指標であり、CAN周期ずれやBLDC側の速度フィルタ遅れも含む。

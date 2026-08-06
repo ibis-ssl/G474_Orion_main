@@ -133,6 +133,12 @@ typedef struct
   float angle_rad[5];  // これだけ回転方向の定義が逆なので注意
   float pre_angle_rad[5];
   float angle_diff[5];
+  float enc_noise_rad[5];
+  float enc_noise_avg_rad[5];
+  float enc_noise_max_rad[5];
+  float enc_noise_sum_rad[5];
+  float enc_noise_peak_rad[5];
+  uint16_t enc_noise_sample_cnt;
   float rps[5];
 } motor_t;
 

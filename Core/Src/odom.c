@@ -10,6 +10,10 @@
 #include "robot_packet.h"
 #include "util.h"
 
+#define TWO_PI_F (6.2831853071795864769f)
+#define RAD_TO_DEG_F (57.295779513082320877f)
+#define ENC_NOISE_EVAL_CYCLE (MAIN_LOOP_CYCLE)
+
 // 20ms cycle
 void mouseOdometryUpdate(mouse_t * mouse, imu_t * imu)
 {
@@ -48,8 +52,23 @@ void omniOdometryUpdate(motor_t * motor, omni_t * omni, imu_t * imu)
       motor->angle_rad[i] = 0;
     }
     motor->angle_diff[i] = getAngleDiff(motor->angle_rad[i], motor->pre_angle_rad[i]);
+    motor->enc_noise_rad[i] = fabsf(motor->angle_diff[i] - ((TWO_PI_F * motor->rps[i]) / MAIN_LOOP_CYCLE)) * RAD_TO_DEG_F;
+    motor->enc_noise_sum_rad[i] += motor->enc_noise_rad[i];
+    if (motor->enc_noise_rad[i] > motor->enc_noise_peak_rad[i]) {
+      motor->enc_noise_peak_rad[i] = motor->enc_noise_rad[i];
+    }
     motor->pre_angle_rad[i] = motor->angle_rad[i];
     omni->travel_distance[i] = motor->angle_diff[i] * OMNI_DIAMETER;
+  }
+  motor->enc_noise_sample_cnt++;
+  if (motor->enc_noise_sample_cnt >= ENC_NOISE_EVAL_CYCLE) {
+    for (int i = 0; i < 4; i++) {
+      motor->enc_noise_avg_rad[i] = motor->enc_noise_sum_rad[i] / motor->enc_noise_sample_cnt;
+      motor->enc_noise_max_rad[i] = motor->enc_noise_peak_rad[i];
+      motor->enc_noise_sum_rad[i] = 0.0f;
+      motor->enc_noise_peak_rad[i] = 0.0f;
+    }
+    motor->enc_noise_sample_cnt = 0;
   }
 
   // right back & left back
