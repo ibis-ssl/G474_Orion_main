@@ -121,7 +121,8 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - デバッグLPUARTで `g` を入力すると、`DRIVE_LOG` ページを250Hzで出力する。ページ選択後に `DRV_HEADER`、以後はCSV形式の `DRV` 行を出力する。
 - 制御割り込み内でシーケンス番号付きスナップショットを作成し、UART側では同一制御周期の値だけをコピーする。更新と競合した場合は `DRV_RETRY` を出力する。
 - 共通列は時刻、cmd_v2速度指令、ローカル最終速度目標、加速度制限中の速度目標、加速度、yaw角、yaw実角速度、yaw目標角速度、yaw減衰値。
-- 各モーター0～3について、目標rps、実rps、角度誤差、rps誤差、Kp項、Kd項、FF項、yaw項、最終出力、最終CAN受信からの経過時間を出力する。
+- 各モーター0～3について、目標rps、実rps、ドライバー電源ライン電流、角度誤差、rps誤差、Kp項、Kd項、FF項、yaw項、最終出力、最終CAN受信からの経過時間を出力する。
+- 電流列 `current0_A`～`current3_A` はCAN ID `0x230`～`0x233` の受信値をA単位、小数1桁で出力する。ドライバー側の分解能が0.1Aのため、細かな電流差ではなく加速開始時の左右差や接地負荷差の傾向確認に使用する。
 - 末尾の `real_rf_lf` は `real_rps[0] + real_rps[3]`、`real_rb_lb` は `real_rps[1] + real_rps[2]`。前進時は左輪が負回転なので、正値は右側が速く、負値は左側が速いことを示す。`out_rf_lf` と `out_rb_lb` も同じ符号規則の出力差。
 - ログ保存例: `powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM167 -BaudRate 2000000 -LogPath .\drive_log.txt`
 
@@ -129,3 +130,11 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - 表示ページ名と表示周期は `Core/Src/main.c` の `print_page_config[]` に集約している。
 - `0`～`9` は従来どおり対応するページを直接選択し、Enterで次ページ、その他の未割当キーで前ページへ移動する。Deleteは `AI_CMD`、`g`は `DRIVE_LOG`へ移動する。
 - `q`/`a`はオムニ角度Kp、`w`/`s`はKdを増減するため、ページ移動には使用しない。
+
+## 静止時のオムニ角度誤差クリア
+- `clearOmniRotationAngleErrorIfStopped()` は、4輪の角度誤差をオムニホイールの逆運動学に基づいて並進成分と機体回転成分へ分離し、機体回転成分だけを内部目標角度から除去する。並進方向の角度誤差は維持する。
+- 最終ローカル速度指令と内部速度目標のXY各成分が `0.01m/s` 未満、各輪目標が `0.05rps` 未満、目標機体角度とIMU yawの誤差が±1degの不感帯内、IMU yaw角速度と目標yaw角速度が `0.05rad/s` 未満、CAN受信間隔が4ms以下の状態が2制御周期（4ms）連続した場合に補正する。
+- 実車輪速度はクリア条件に使用しない。機体回転はIMU yaw角速度で判定し、個々のエンコーダー速度ノイズによって補正機会を失わないようにする。
+- 停止時に4輪出力を0にする整定状態は使用しない。条件成立中は回転角度誤差を時定数50msの一次遅れで減衰させ、1制御周期の補正量を最大 `0.001rad`（`0.5rad/s`）に制限する。残差が `0.0005rad` 未満になった場合だけ残りを同期する。
+- 条件が外れた場合は成立カウントと `angle_clear_active` を即座に解除し、その周期の補正量を0にする。再び2周期連続成立すれば、その時点の残差から補正を再開する。
+- `DRIVE_LOG` では、500Hz制御で `angle_clear_count=2` かつ `angle_clear_active=1` が回転角度誤差の補正中を示す。`rotation_angle_error` は補正前の回転成分、`rotation_clear_step` はその周期に各輪目標角度から差し引いた補正量をrad単位で示す。

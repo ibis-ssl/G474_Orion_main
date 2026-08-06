@@ -364,7 +364,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_AI_CMD;
+  debug.print_idx = PRINT_IDX_DRIVE_LOG;
 
   char error_str[100] = {0};
 
@@ -403,9 +403,9 @@ int main(void)
         setTextNormal();
         p("\n");
         if (debug.print_idx == PRINT_IDX_DRIVE_LOG) {
-          p("DRV_HEADER,t_ms,cmd_r,cmd_th,tar_vx,tar_vy,now_vx,now_vy,acc_x,acc_y,yaw,yaw_rate,yaw_tar,yaw_drag");
+          p("DRV_HEADER,t_ms,cmd_r,cmd_th,tar_vx,tar_vy,now_vx,now_vy,acc_x,acc_y,yaw,yaw_rate,yaw_tar,yaw_drag,angle_clear_count,angle_clear_active,rotation_angle_error,rotation_clear_step");
           for (int i = 0; i < 4; i++) {
-            p(",tar%d,real%d,angle_err%d,rps_err%d,kp%d,kd%d,ff%d,yaw_out%d,out%d,age%d_ms", i, i, i, i, i, i, i, i, i, i);
+            p(",tar%d,real%d,current%d_A,angle_err%d,rps_err%d,kp%d,kd%d,ff%d,yaw_out%d,out%d,age%d_ms", i, i, i, i, i, i, i, i, i, i, i);
           }
           p(",real_rf_lf,real_rb_lb,out_rf_lf,out_rb_lb\n");
         }
@@ -810,12 +810,12 @@ int main(void)
             break;
           }
 
-          p("DRV,%lu,%+.4f,%+.4f,%+.4f,%+.4f,%+.4f,%+.4f,%+.3f,%+.3f,%+.5f,%+.4f,%+.4f,%+.3f", log.time_ms, log.cmd_velocity_r,
+          p("DRV,%lu,%+.4f,%+.4f,%+.4f,%+.4f,%+.4f,%+.4f,%+.3f,%+.3f,%+.5f,%+.4f,%+.4f,%+.3f,%u,%u,%+.6f,%+.6f", log.time_ms, log.cmd_velocity_r,
             log.cmd_velocity_theta, log.target_local_vel[0], log.target_local_vel[1], log.target_local_vel_now[0], log.target_local_vel_now[1], log.accel[0], log.accel[1], log.yaw_rad,
-            log.yaw_rate, log.target_yaw_rps, log.yaw_rps_drag);
+            log.yaw_rate, log.target_yaw_rps, log.yaw_rps_drag, log.angle_clear_stable_count, log.angle_clear_active, log.rotation_angle_error, log.rotation_clear_step);
           for (int i = 0; i < 4; i++) {
-            p(",%+.3f,%+.3f,%+.5f,%+.3f,%+.3f,%+.3f,%+.3f,%+.3f,%+.3f,%lu", log.target_rps[i], log.real_rps[i], log.angle_diff[i], log.rps_diff[i],
-              log.kp_output[i], log.kd_output[i], log.ff_output[i], log.yaw_output[i], log.motor_output[i], log.motor_rx_age_ms[i]);
+            p(",%+.3f,%+.3f,%+.1f,%+.5f,%+.3f,%+.3f,%+.3f,%+.3f,%+.3f,%+.3f,%lu", log.target_rps[i], log.real_rps[i], log.motor_current_a[i], log.angle_diff[i],
+              log.rps_diff[i], log.kp_output[i], log.kd_output[i], log.ff_output[i], log.yaw_output[i], log.motor_output[i], log.motor_rx_age_ms[i]);
           }
           p(",%+.3f,%+.3f,%+.3f,%+.3f", log.real_rps[0] + log.real_rps[3], log.real_rps[1] + log.real_rps[2], log.motor_output[0] + log.motor_output[3],
             log.motor_output[1] + log.motor_output[2]);

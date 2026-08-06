@@ -206,10 +206,15 @@ typedef struct
   float accel[2];
   float yaw_rad, yaw_rate, target_yaw_rps, yaw_rps_drag;
   float target_rps[4], real_rps[4];
+  float motor_current_a[4];
   float angle_diff[4], rps_diff[4];
   float kp_output[4], kd_output[4], ff_output[4], yaw_output[4];
   float motor_output[4];
   uint32_t motor_rx_age_ms[4];
+  uint16_t angle_clear_stable_count;
+  bool angle_clear_active;
+  float rotation_angle_error;
+  float rotation_clear_step;
 } drive_log_sample_t;
 typedef struct
 {
@@ -233,6 +238,10 @@ typedef struct
   } pos_ctrl;*/
   omni_angle_t omni_angle[4];
   float omni_angle_kp, omni_angle_kd;
+  uint16_t omni_angle_clear_stable_count;
+  bool omni_angle_clear_active;
+  float omni_rotation_angle_error;
+  float omni_rotation_clear_step;
   int weak_flag;
 } target_t;
 

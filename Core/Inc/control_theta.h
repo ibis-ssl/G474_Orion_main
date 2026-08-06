@@ -3,6 +3,9 @@
 
 #include "management.h"
 #include "robot_packet.h"
+
+#define THETA_CONTROL_DEAD_ZONE_RADIAN (0.01745329251994329577f)  // 1 deg
+
 void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target);
 void yawFilter(system_t * sys, debug_t * debug, imu_t * imu, RobotCommandV2 * ai_cmd, connection_t * conn);
 
