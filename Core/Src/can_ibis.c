@@ -287,6 +287,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       uint32_t enc_id = rx_can_id - 0x200;
       motor->rps[enc_id] = uchar4_to_float(rx_data);
       motor->angle_rad[enc_id] = -uchar4_to_float(&rx_data[4]);  //エンコーダ角度とモーター回転方向は逆なのでここで吸収
+      motor->latest_rx_time_ms[enc_id] = sys->system_time_ms;
 
       can_raw->motor_feedback[enc_id] = motor->rps[enc_id];
 

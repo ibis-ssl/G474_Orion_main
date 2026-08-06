@@ -121,12 +121,31 @@ enum {
   PRINT_IDX_SYSTEM,
   PRINT_IDX_UART_RAW,
   PRINT_IDX_TUI,
+  PRINT_IDX_DRIVE_LOG,
   PRINT_IDX_MAX
 };
 
-#define PRINT_IDX_NAME_LIST_LEN (30)
+typedef struct
+{
+  const char * name;
+  uint16_t cycle_hz;
+} print_page_config_t;
 
-static char print_idx_name_list[PRINT_IDX_MAX][PRINT_IDX_NAME_LIST_LEN];
+static const print_page_config_t print_page_config[PRINT_IDX_MAX] = {
+  [PRINT_IDX_AI_CMD] = {.name = "AI_CMD", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_MOTOR] = {.name = "MOTOR", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_DRIBBLER] = {.name = "DRIBBLER", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_KICKER] = {.name = "KICKER", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_MOUSE] = {.name = "MOUSE", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_ODOM] = {.name = "ODOM", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_MOTION] = {.name = "MOTION", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_VEL] = {.name = "VEL", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_LATENCY] = {.name = "LATENCY", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_SYSTEM] = {.name = "SYSTEM", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_UART_RAW] = {.name = "UART", .cycle_hz = PRINT_LOOP_CYCLE},
+  [PRINT_IDX_TUI] = {.name = "TUI", .cycle_hz = PRINT_TUI_CYCLE},
+  [PRINT_IDX_DRIVE_LOG] = {.name = "DRIVE_LOG", .cycle_hz = 250},
+};
 
 // communication with CM4
 static uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
@@ -191,6 +210,31 @@ void checkAndRestartLPUART_IT(void)
   if ((hlpuart1.Instance->CR1 & USART_CR1_RXNEIE) == 0) {
     HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
   }
+}
+
+static void setPrintPage(int32_t index)
+{
+  while (index < 0) {
+    index += PRINT_IDX_MAX;
+  }
+  debug.print_idx = index % PRINT_IDX_MAX;
+}
+
+static bool copyDriveLogSample(drive_log_sample_t * destination)
+{
+  for (int retry = 0; retry < 3; retry++) {
+    const uint32_t sequence_before = debug.drive_log_sequence;
+    if ((sequence_before & 1U) != 0U) {
+      continue;
+    }
+
+    *destination = debug.drive_log;
+    __DMB();
+    if (sequence_before == debug.drive_log_sequence) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /* USER CODE END 0 */
@@ -321,18 +365,6 @@ int main(void)
 
   HAL_Delay(500);
   debug.print_idx = PRINT_IDX_AI_CMD;
-  sprintf(print_idx_name_list[PRINT_IDX_AI_CMD], "AI_CMD");
-  sprintf(print_idx_name_list[PRINT_IDX_MOTOR], "MOTOR");
-  sprintf(print_idx_name_list[PRINT_IDX_DRIBBLER], "DRIBBLER");
-  sprintf(print_idx_name_list[PRINT_IDX_KICKER], "KICKER");
-  sprintf(print_idx_name_list[PRINT_IDX_MOUSE], "MOUSE");
-  sprintf(print_idx_name_list[PRINT_IDX_ODOM], "ODOM");
-  sprintf(print_idx_name_list[PRINT_IDX_MOTION], "MOTION");
-  sprintf(print_idx_name_list[PRINT_IDX_VEL], "VEL");
-  sprintf(print_idx_name_list[PRINT_IDX_LATENCY], "LATENCY");
-  sprintf(print_idx_name_list[PRINT_IDX_SYSTEM], "SYSTEM");
-  sprintf(print_idx_name_list[PRINT_IDX_UART_RAW], "UART");
-  sprintf(print_idx_name_list[PRINT_IDX_TUI], "TUI");
 
   char error_str[100] = {0};
 
@@ -351,7 +383,9 @@ int main(void)
 
       // 文字列初期化
       printf_buffer[0] = 0;
-      p("\e[0m");  //初期化
+      if (debug.print_idx != PRINT_IDX_DRIVE_LOG) {
+        p("\e[0m");  //初期化
+      }
 
       // IDXリスト表示
       static uint8_t pre_print_idx = 0;
@@ -364,32 +398,39 @@ int main(void)
           } else {
             setTextNormal();
           }
-          p(" %s ", print_idx_name_list[i]);
+          p(" %s ", print_page_config[i].name);
         }
-        p("\n");
-      }
-
-      // 電圧表示
-      if (isLowVoltage(&can_raw)) {
-        setTextYellow();
-      }
-      p("Batt=%3.1f ", getBatteryRemain(&can_raw));
-      setTextNormal();
-
-      if (sys.main_mode == MAIN_MODE_ERROR) {
-        // 赤
-        setTextRed();
-        //p(" error : ID %5d / Info %5d / Value %+8.3f ", sys.current_error.id, sys.current_error.info, sys.current_error.value);
-        convertErrorDataToStr(sys.current_error.id, sys.current_error.info, error_str);
-        p("Err %s %+5.2f ", error_str, sys.current_error.value);
         setTextNormal();
-      }
-      if (isStopRequested(&sys)) {
-        //黄色
-        setTextYellow();
+        p("\n");
+        if (debug.print_idx == PRINT_IDX_DRIVE_LOG) {
+          p("DRV_HEADER,t_ms,cmd_r,cmd_th,tar_vx,tar_vy,now_vx,now_vy,acc_x,acc_y,yaw,yaw_rate,yaw_tar,yaw_drag");
+          for (int i = 0; i < 4; i++) {
+            p(",tar%d,real%d,angle_err%d,rps_err%d,kp%d,kd%d,ff%d,yaw_out%d,out%d,age%d_ms", i, i, i, i, i, i, i, i, i, i);
+          }
+          p(",real_rf_lf,real_rb_lb,out_rf_lf,out_rb_lb\n");
+        }
       }
 
-      debug.print_cycle = PRINT_LOOP_CYCLE;
+      if (debug.print_idx != PRINT_IDX_DRIVE_LOG) {
+        // 電圧表示
+        if (isLowVoltage(&can_raw)) {
+          setTextYellow();
+        }
+        p("Batt=%3.1f ", getBatteryRemain(&can_raw));
+        setTextNormal();
+
+        if (sys.main_mode == MAIN_MODE_ERROR) {
+          setTextRed();
+          convertErrorDataToStr(sys.current_error.id, sys.current_error.info, error_str);
+          p("Err %s %+5.2f ", error_str, sys.current_error.value);
+          setTextNormal();
+        }
+        if (isStopRequested(&sys)) {
+          setTextYellow();
+        }
+      }
+
+      debug.print_cycle = print_page_config[debug.print_idx].cycle_hz;
       switch (debug.print_idx) {
         case PRINT_IDX_AI_CMD:
           // 通信接続状態表示
@@ -762,8 +803,26 @@ int main(void)
           p(" ck 0x%2x , error %4d", connection.check_cnt, connection.check_sum_error_cnt);
           break;
 
+        case PRINT_IDX_DRIVE_LOG: {
+          drive_log_sample_t log;
+          if (!copyDriveLogSample(&log)) {
+            p("DRV_RETRY\n");
+            break;
+          }
+
+          p("DRV,%lu,%+.4f,%+.4f,%+.4f,%+.4f,%+.4f,%+.4f,%+.3f,%+.3f,%+.5f,%+.4f,%+.4f,%+.3f", log.time_ms, log.cmd_velocity_r,
+            log.cmd_velocity_theta, log.target_local_vel[0], log.target_local_vel[1], log.target_local_vel_now[0], log.target_local_vel_now[1], log.accel[0], log.accel[1], log.yaw_rad,
+            log.yaw_rate, log.target_yaw_rps, log.yaw_rps_drag);
+          for (int i = 0; i < 4; i++) {
+            p(",%+.3f,%+.3f,%+.5f,%+.3f,%+.3f,%+.3f,%+.3f,%+.3f,%+.3f,%lu", log.target_rps[i], log.real_rps[i], log.angle_diff[i], log.rps_diff[i],
+              log.kp_output[i], log.kd_output[i], log.ff_output[i], log.yaw_output[i], log.motor_output[i], log.motor_rx_age_ms[i]);
+          }
+          p(",%+.3f,%+.3f,%+.3f,%+.3f", log.real_rps[0] + log.real_rps[3], log.real_rps[1] + log.real_rps[2], log.motor_output[0] + log.motor_output[3],
+            log.motor_output[1] + log.motor_output[2]);
+          break;
+        }
+
         case PRINT_IDX_TUI:
-          debug.print_cycle = PRINT_TUI_CYCLE;
           p("hogehoge1\n");
           p("hogehoge2\n");
           p("hogehoge3\n");
@@ -774,11 +833,13 @@ int main(void)
           break;
       }
 
-      if (debug.sys_mnt.main_loop_cnt < 100000 || debug.print_idx == PRINT_IDX_SYSTEM) {
-        p("loop %6d", debug.sys_mnt.main_loop_cnt / 10);
-      }
-      if (debug.sys_mnt.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
-        p("cnt %4d", debug.sys_mnt.timer_itr_exit_cnt);
+      if (debug.print_idx != PRINT_IDX_DRIVE_LOG) {
+        if (debug.sys_mnt.main_loop_cnt < 100000 || debug.print_idx == PRINT_IDX_SYSTEM) {
+          p("loop %6d", debug.sys_mnt.main_loop_cnt / 10);
+        }
+        if (debug.sys_mnt.timer_itr_exit_cnt > 1500) {  // 2ms cycleのとき、max 2000cnt
+          p("cnt %4d", debug.sys_mnt.timer_itr_exit_cnt);
+        }
       }
       p("\n");
       HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)printf_buffer, strlen(printf_buffer));
@@ -1086,35 +1147,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       case 's':
         target.omni_angle_kd /= 1.1;
         break;
-
-      /*
-      case 'v':
-        debug.print_idx = PRINT_IDX_VEL;
+      case 'g':
+        setPrintPage(PRINT_IDX_DRIVE_LOG);
         break;
-      case 'w':
-        debug.print_idx = PRINT_IDX_MOTOR;
-        break;
-      case 'm':
-        debug.print_idx = PRINT_IDX_MOUSE;
-        break;
-      case 'p':
-        debug.print_idx = PRINT_IDX_MOTION;
-        break;
-      case 's':
-        debug.print_idx = PRINT_IDX_SYSTEM;
-        break;
-      case 'd':
-        debug.print_idx = PRINT_IDX_DRIBBLER;
-        break;
-      case 'o':
-        debug.print_idx = PRINT_IDX_ODOM;
-        break;
-      case 'l':
-        debug.print_idx = PRINT_IDX_LATENCY;
-        break;
-      case 'u':
-        debug.print_idx = PRINT_IDX_UART_RAW;
-        break;*/
       case '0':
       case '1':
       case '2':
@@ -1125,21 +1160,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       case '7':
       case '8':
       case '9':
-        debug.print_idx = lpuart1_rx_buf - '0';
+        setPrintPage(lpuart1_rx_buf - '0');
         break;
       case 0x7f:  // del
-        debug.print_idx = 0;
+        setPrintPage(PRINT_IDX_AI_CMD);
         break;
       case '\n':
       case '\r':
-        debug.print_idx++;
+        setPrintPage(debug.print_idx + 1);
         break;
       default:
-        debug.print_idx--;
+        setPrintPage(debug.print_idx - 1);
         break;
-    }
-    if (debug.print_idx < 0) {
-      debug.print_idx = PRINT_IDX_MAX - 1;
     }
     HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
   }

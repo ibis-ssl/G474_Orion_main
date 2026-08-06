@@ -116,3 +116,16 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - CAN送信ヘッダーは送信関数ごとのローカル変数とし、TIM7とFDCAN割り込みがネストした場合のCAN1/CAN2間共有競合を防止する。
 - 2026-08-04の実機計測では、右前CAN1送信関数から左後CAN2送信関数までの呼び出し差は変更前が平均3us・最大14us、FIFO化後が平均3us・最大14usだった。FIFO化後の連続監視ではHAL登録エラーとソフトウェアFIFO破棄はいずれも両バス0だった。
 - 同計測時は右・左モータードライバーの受信タイムアウト値がともに上限だったため、上記はMCU内部の関数呼び出し時刻差であり、CAN配線上のフレーム到達時刻差や実モーター応答差ではない。
+
+## 直進加速診断ログ
+- デバッグLPUARTで `g` を入力すると、`DRIVE_LOG` ページを250Hzで出力する。ページ選択後に `DRV_HEADER`、以後はCSV形式の `DRV` 行を出力する。
+- 制御割り込み内でシーケンス番号付きスナップショットを作成し、UART側では同一制御周期の値だけをコピーする。更新と競合した場合は `DRV_RETRY` を出力する。
+- 共通列は時刻、cmd_v2速度指令、ローカル最終速度目標、加速度制限中の速度目標、加速度、yaw角、yaw実角速度、yaw目標角速度、yaw減衰値。
+- 各モーター0～3について、目標rps、実rps、角度誤差、rps誤差、Kp項、Kd項、FF項、yaw項、最終出力、最終CAN受信からの経過時間を出力する。
+- 末尾の `real_rf_lf` は `real_rps[0] + real_rps[3]`、`real_rb_lb` は `real_rps[1] + real_rps[2]`。前進時は左輪が負回転なので、正値は右側が速く、負値は左側が速いことを示す。`out_rf_lf` と `out_rb_lb` も同じ符号規則の出力差。
+- ログ保存例: `powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM167 -BaudRate 2000000 -LogPath .\drive_log.txt`
+
+## デバッグUART表示ページ
+- 表示ページ名と表示周期は `Core/Src/main.c` の `print_page_config[]` に集約している。
+- `0`～`9` は従来どおり対応するページを直接選択し、Enterで次ページ、その他の未割当キーで前ページへ移動する。Deleteは `AI_CMD`、`g`は `DRIVE_LOG`へ移動する。
+- `q`/`a`はオムニ角度Kp、`w`/`s`はKdを増減するため、ページ移動には使用しない。

@@ -75,12 +75,13 @@ void omniAngleControl(target_t * target, output_t * output, motor_t * motor)
 
     // diff 30:0.3, 0.3x50
     // だいたいピークで15ぐらいなのでいい感じっぽい
-    output->motor_voltage[i] = clampSize(angle_diff * target->omni_angle_kp * gain_cofe, 15);  //速度次元ではI項
+    target->omni_angle[i].rps_diff = rps_diff;
+    target->omni_angle[i].kp_output = clampSize(angle_diff * target->omni_angle_kp * gain_cofe, 15);  //速度次元ではI項
+    target->omni_angle[i].kd_output = -rps_diff * target->omni_angle_kd;                              //速度次元ではP項
+    target->omni_angle[i].yaw_output = ROBOT_RADIUS * target->yaw_rps_drag;                           //速度次元ではD項
+    target->omni_angle[i].ff_output = target->omni_angle[i].current_tar_rps;
 
-    // 通常D､微分先行はFFと打ち消し合うのでNG
-    output->motor_voltage[i] -= rps_diff * target->omni_angle_kd;  //速度次元ではP項
-
-    output->motor_voltage[i] += ROBOT_RADIUS * target->yaw_rps_drag;    //速度次元ではD項､機体の回転方向の慣性を打ち消す
-    output->motor_voltage[i] += target->omni_angle[i].current_tar_rps;  // FF項目
+    // 各項を保持し、直進加速ログで左右輪の出力差を確認できるようにする。
+    output->motor_voltage[i] = target->omni_angle[i].kp_output + target->omni_angle[i].kd_output + target->omni_angle[i].yaw_output + target->omni_angle[i].ff_output;
   }
 }
