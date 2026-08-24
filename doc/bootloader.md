@@ -51,6 +51,27 @@ metadataの次の項目を全て検証した場合だけSlot Aへjumpする。
 
 PA11/PA12、PB12/PB13のFDCANとPB3/PB4のUSART2はM1ではanalogであり、M2以降で安全IO設定後にalternate functionへ切り替える。
 
+更新開始から通常アプリへjumpするまで、TIM5は強制reset後にclock disableし、PC12はGPIO Output Lowを維持する。G474自身の更新中だけでなく、G474がF303更新を中継している間もブザーPWMを開始してはならない。
+
+## 2026-08-24 実機導入結果
+
+- bootloader、Slot A、metadataの書込み・verifyに成功
+- 実Flash readbackは3成果物すべてSHA-256一致
+- VTOR=`0x08008000`、10回連続reset後もSlot A内でrunning
+- TIM5明示停止版ではmetadata消去時にPC=`0x08000260`でbootloader待機
+- 同待機中、PC12=`GPIO Output Low`、TIM5 CR1.CEN=`0`
+- metadata復元後、Slot Aへ正常復帰
+
+## Slot A jump時のCPU状態
+
+bootloaderはjump準備中に全割り込みを禁止するが、その状態を通常アプリへ引き継いではならない。NVIC pending/enableとSysTickを消去した後、`CONTROL`、`BASEPRI`、`FAULTMASK`、`PRIMASK`を0へ戻し、Slot AのMSPとVTORを設定してReset_Handlerへ分岐する。
+
+2026-08-24の初回実機導入では、当初`PRIMASK=1`を引き継いだためTIM7、USART2受信、UART DMA送信が動作しなかった。修正後は4レジスタがすべて0で、次を確認した。
+
+- CM4 USART2: 1 Mbps、128-byte frame、約124 Hz
+- 3秒取得の372 frameで`AB EA`同期、checksum、送信連番が全て正常
+- LPUART1: 2 Mbpsで`orion main start`、IMU初期化完了、CAN1/CAN2開始を確認
+
 回路図で用途未確認のPA15、PB2、PB10、PB14、PC0は、現行`MX_GPIO_Init()`と同じLowを暫定安全値としている。実機書込み前に回路図でactive levelを確定する。
 
 ## ビルド
@@ -85,4 +106,3 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\flash.ps1 -Configur
 ```
 
 WRPはM1では設定しない。UART更新、rollback、SWD復旧の実機試験完了後にbootloader領域だけを保護する。
-

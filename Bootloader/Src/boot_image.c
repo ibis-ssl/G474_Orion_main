@@ -61,8 +61,15 @@ bool boot_slot_a_is_valid(void)
 static void boot_branch(uint32_t stack_pointer, uint32_t reset_handler) __attribute__((naked, noreturn));
 static void boot_branch(uint32_t stack_pointer __attribute__((unused)), uint32_t reset_handler __attribute__((unused)))
 {
+  /* Reset_Handlerへ渡す前に、bootloaderが変更した例外maskと実行権限をreset相当へ戻す。 */
   __asm volatile(
+    "movs r2, #0\n"
+    "msr control, r2\n"
+    "msr basepri, r2\n"
+    "msr faultmask, r2\n"
+    "isb\n"
     "msr msp, r0\n"
+    "msr primask, r2\n"
     "bx r1\n");
 }
 

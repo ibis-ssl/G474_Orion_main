@@ -118,6 +118,11 @@ static void configure_port(GPIO_TypeDef * port, uint32_t package_mask, uint32_t 
 
 void board_io_init_safe(void)
 {
+  /* 更新中はbuzzer PWMを禁止する。reset直後だけでなくdebug遷移時もTIM5を強制停止する。 */
+  RCC->APB1RSTR1 |= RCC_APB1RSTR1_TIM5RST;
+  RCC->APB1RSTR1 &= ~RCC_APB1RSTR1_TIM5RST;
+  RCC->APB1ENR1 &= ~RCC_APB1ENR1_TIM5EN;
+
   RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN | RCC_AHB2ENR_GPIOCEN | RCC_AHB2ENR_GPIODEN | RCC_AHB2ENR_GPIOFEN;
   (void)RCC->AHB2ENR;
 
@@ -144,4 +149,3 @@ void board_delay_cycles(unsigned int cycles)
     __NOP();
   }
 }
-
