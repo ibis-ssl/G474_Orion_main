@@ -19,7 +19,7 @@ typedef struct
   uint8_t low;
 } TwoByte;
 
-inline TwoByte convertFloatToTwoByte(float val, float range)
+static inline TwoByte convertFloatToTwoByte(float val, float range)
 {
   TwoByte result;
   uint16_t uint16 = (uint16_t)(32767.f * (float)(val / range) + 32767.f);
@@ -28,13 +28,13 @@ inline TwoByte convertFloatToTwoByte(float val, float range)
   return result;
 }
 
-inline float convertTwoByteToFloat(uint8_t byte_high, uint8_t byte_low, float range)
+static inline float convertTwoByteToFloat(uint8_t byte_high, uint8_t byte_low, float range)
 {
   uint16_t two_byte = (byte_high << 8) | byte_low;
   return (float)(two_byte - 32767.f) / 32767.f * range;
 }
 
-inline TwoByte convertUInt16ToTwoByte(uint16_t val)
+static inline TwoByte convertUInt16ToTwoByte(uint16_t val)
 {
   TwoByte result;
   result.high = (val & 0xFF00) >> 8;
@@ -42,12 +42,12 @@ inline TwoByte convertUInt16ToTwoByte(uint16_t val)
   return result;
 }
 
-inline uint16_t convertTwoByteToUInt16(uint8_t byte_high, uint8_t byte_low)
+static inline uint16_t convertTwoByteToUInt16(uint8_t byte_high, uint8_t byte_low)
 {
   return (byte_high << 8) | byte_low;
 }
 
-inline void forward(uint8_t * arg1, uint8_t * arg2, float val, float range)
+static inline void forward(uint8_t * arg1, uint8_t * arg2, float val, float range)
 {
   TwoByte two_byte = convertFloatToTwoByte(val, range);
   *arg1 = two_byte.high;
@@ -62,13 +62,13 @@ typedef struct
   float target_global_velocity_theta;
 } PolarVelocityModeArgs;
 
-inline void PolarVelocityModeArgs_init(PolarVelocityModeArgs * args, const uint8_t * data)
+static inline void PolarVelocityModeArgs_init(PolarVelocityModeArgs * args, const uint8_t * data)
 {
   args->target_global_velocity_r = convertTwoByteToFloat(data[0], data[1], 32.767);
   args->target_global_velocity_theta = convertTwoByteToFloat(data[2], data[3], 32.767);
 }
 
-inline void PolarVelocityModeArgs_serialize(const PolarVelocityModeArgs * args, uint8_t * data)
+static inline void PolarVelocityModeArgs_serialize(const PolarVelocityModeArgs * args, uint8_t * data)
 {
   forward(&data[0], &data[1], args->target_global_velocity_r, 32.767);
   forward(&data[2], &data[3], args->target_global_velocity_theta, 32.767);
@@ -142,7 +142,7 @@ enum FlagAddress {
   STOP_EMERGENCY = 3,
 };
 
-inline void RobotCommandSerializedV2_serialize(RobotCommandSerializedV2 * serialized, const RobotCommandV2 * command)
+static inline void RobotCommandSerializedV2_serialize(RobotCommandSerializedV2 * serialized, const RobotCommandV2 * command)
 {
   serialized->data[HEADER] = command->header;
   serialized->data[CHECK_COUNTER] = command->check_counter;
@@ -174,7 +174,7 @@ inline void RobotCommandSerializedV2_serialize(RobotCommandSerializedV2 * serial
   }
 }
 
-inline RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSerializedV2 * serialized)
+static inline RobotCommandV2 RobotCommandSerializedV2_deserialize(const RobotCommandSerializedV2 * serialized)
 {
   RobotCommandV2 command;
   command.header = serialized->data[HEADER];

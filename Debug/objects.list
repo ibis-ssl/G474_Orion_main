@@ -9,6 +9,7 @@
 "./Core/Src/dma.o"
 "./Core/Src/error.o"
 "./Core/Src/fdcan.o"
+"./Core/Src/fw_update_gateway.o"
 "./Core/Src/gpio.o"
 "./Core/Src/icm20602_spi.o"
 "./Core/Src/keeper.o"

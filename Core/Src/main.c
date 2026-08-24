@@ -43,6 +43,7 @@
 #include "can_ibis.h"
 #include "control_theta.h"
 #include "error.h"
+#include "fw_update_gateway.h"
 #include "icm20602_spi.h"
 #include "odom.h"
 #include "omni_wheel.h"
@@ -150,6 +151,28 @@ static const print_page_config_t print_page_config[PRINT_IDX_MAX] = {
 // communication with CM4
 static uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
 static uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_buf = 0;
+volatile bool fw_gateway_active = false;
+volatile uint8_t fw_gateway_reply[8] = {0};
+volatile uint8_t fw_gateway_reply_counter = 0;
+static volatile bool fw_gateway_reply_pending = false;
+
+static void fw_gateway_send_uart_reply(void)
+{
+  if (!fw_gateway_reply_pending || huart2.gState != HAL_UART_STATE_READY) return;
+
+  uint8_t frame[16] = {'F', 'W', 'R', 'P'};
+  __disable_irq();
+  memcpy(&frame[4], (const void *)fw_gateway_reply, 8U);
+  frame[12] = fw_gateway_reply_counter;
+  fw_gateway_reply_pending = false;
+  __enable_irq();
+  frame[13] = 0U;
+  for (uint32_t i = 0; i < 13U; i++) frame[13] = (uint8_t)(frame[13] + frame[i]);
+  frame[14] = '\r'; frame[15] = '\n';
+  if (HAL_UART_Transmit(&huart2, frame, sizeof(frame), 10U) != HAL_OK) {
+    fw_gateway_reply_pending = true;
+  }
+}
 
 /* USER CODE END PFP */
 
@@ -376,6 +399,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    fw_gateway_send_uart_reply();
+    fw_update_gateway_process();
 
     debug.sys_mnt.main_loop_cnt++;
     if (debug.print_flag /* && fabsf(omni.local_odom_speed_mvf[0]) > 0.01*/) {
@@ -922,11 +948,20 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
   uint8_t RxData[CAN_RX_DATA_SIZE];
   FDCAN_RxHeaderTypeDef RxHeader;
 
-  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+  while ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET && HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0U) {
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK) {
       Error_Handler();
     }
 
+    if (fw_update_gateway_can_rx(hfdcan, RxHeader.Identifier, RxData)) {
+      continue;
+    }
+    if (fw_gateway_active && hfdcan->Instance == FDCAN1 && RxHeader.Identifier == 0x634U) {
+      memcpy((void *)fw_gateway_reply, RxData, 8U);
+      fw_gateway_reply_counter++;
+      fw_gateway_reply_pending = true;
+      return;
+    }
     parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
     // 関数のネストを浅くするためにparseCanCmd()の中から移動
     if (RxHeader.Identifier == 0x241) {
@@ -943,6 +978,11 @@ void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
+  if (fw_gateway_active) {
+    maintaskStop(&output);
+    actuator_buzzer_off();
+    return;
+  }
   // TIM interrupt is TIM7 only.
 
   debug.sys_mnt.tim_cnt_now[0] = htim7.Instance->CNT;  // パフォーマンス計測用
@@ -1098,6 +1138,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     rx_data_tmp = uart2_rx_it_buffer;
     HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
 
+    if (fw_gateway_active) {
+      fw_update_gateway_uart_rx_byte(rx_data_tmp);
+      return;
+    }
+
     if (uart_rx_cmd_idx >= 0 && uart_rx_cmd_idx < RX_BUF_SIZE_CM4) {
       data_from_cm4[uart_rx_cmd_idx] = rx_data_tmp;
     }
@@ -1119,7 +1164,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
       //sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
       debug.sys_mnt.robot_info_tx_cnt++;
       uart_rx_cmd_idx = -1;
-      if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
+      if (checkCM4CmdCheckSun(&connection, data_from_cm4) && memcmp(&data_from_cm4[1], "FWUP", 4U) == 0) {
+        const uint8_t gateway_command = data_from_cm4[5];
+        if (gateway_command == 1U) {
+          fw_gateway_active = true;
+          fw_update_gateway_start(data_from_cm4[17]);
+          HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_2);
+          actuator_buzzer_off();
+          const uint8_t reply[8] = {0xF1U, 0U, 0U, 0U, 0U, 0U, 0U, data_from_cm4[17]};
+          memcpy((void *)fw_gateway_reply, reply, sizeof(reply));
+          fw_gateway_reply_counter++;
+          fw_gateway_reply_pending = true;
+        } else if (gateway_command == 2U && fw_gateway_active) {
+          const uint32_t can_id = (uint32_t)data_from_cm4[6] | ((uint32_t)data_from_cm4[7] << 8U);
+          can1_send((int)can_id, &data_from_cm4[8]);
+        } else if (gateway_command == 3U) {
+          fw_gateway_active = false;
+          NVIC_SystemReset();
+        }
+      } else if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
         memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
         cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
         updateCM4CmdTimeStamp(&connection, &sys);

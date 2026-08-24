@@ -62,6 +62,20 @@ PA11/PA12、PB12/PB13のFDCANとPB3/PB4のUSART2はM1ではanalogであり、M2�
 - 同待機中、PC12=`GPIO Output Low`、TIM5 CR1.CEN=`0`
 - metadata復元後、Slot Aへ正常復帰
 
+## Sub高速更新ゲートウェイ
+
+通常アプリに`fw_update_gateway.c`を追加し、CM4から受けた最大896 byteのchunkをFDCAN1へ展開する。更新中はTIM7周期処理を停止し、TIM5 buzzer PWM停止と`actuator_buzzer_off()`を維持する。
+
+- UART frame: magic `OFW2`、version、type、sequence、length、header CRC16、payload、CRC32C
+- payload最大907 byte、同一sequence再受信時は前回応答を返す
+- 更新モード中のUSART2 RXはIRQでRX registerを直接drainし、長いframeでのHAL 1-byte再登録による欠落を抑える
+- CAN dataは`0x480`～`0x4FF`、Sub commandは`0x610`、responseは`0x654`
+- FDCAN TX FIFOに空きができるまで待ち、更新frameを破棄しない
+- CAN応答timeout時はHELLOでcommit offsetを照会し、書込み済みchunkを二重programしない
+- 故障注入用にCAN frameの欠落、重複、逆順、payload破損を最初のchunkへ適用できる
+
+2026-08-25、CM4→Main→Subの65,168 byte更新を実機確認した。正常時は8.287～10.437秒、全故障複合注入時は14.186秒で、全体CRC32C `0xF692FBA9`まで一致した。
+
 ## Slot A jump時のCPU状態
 
 bootloaderはjump準備中に全割り込みを禁止するが、その状態を通常アプリへ引き継いではならない。NVIC pending/enableとSysTickを消去した後、`CONTROL`、`BASEPRI`、`FAULTMASK`、`PRIMASK`を0へ戻し、Slot AのMSPとVTORを設定してReset_Handlerへ分岐する。
@@ -71,6 +85,8 @@ bootloaderはjump準備中に全割り込みを禁止するが、その状態を
 - CM4 USART2: 1 Mbps、128-byte frame、約124 Hz
 - 3秒取得の372 frameで`AB EA`同期、checksum、送信連番が全て正常
 - LPUART1: 2 Mbpsで`orion main start`、IMU初期化完了、CAN1/CAN2開始を確認
+
+2026-08-25に導入後のSlot A更新を10回連続実行し、全10回でapplication/metadata verify、Slot A起動、例外mask 0、CM4 USART2のchecksum・送信連番を確認した。
 
 回路図で用途未確認のPA15、PB2、PB10、PB14、PC0は、現行`MX_GPIO_Init()`と同じLowを暫定安全値としている。実機書込み前に回路図でactive levelを確定する。
 

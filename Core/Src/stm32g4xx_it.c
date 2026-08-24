@@ -23,6 +23,7 @@
 #include "stm32g4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "fw_update_gateway.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,6 +69,7 @@ extern UART_HandleTypeDef hlpuart1;
 extern UART_HandleTypeDef huart2;
 extern TIM_HandleTypeDef htim7;
 /* USER CODE BEGIN EV */
+extern volatile bool fw_gateway_active;
 
 /* USER CODE END EV */
 
@@ -311,6 +313,14 @@ void FDCAN1_IT1_IRQHandler(void)
 void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
+
+  if (fw_gateway_active) {
+    while ((huart2.Instance->ISR & USART_ISR_RXNE_RXFNE) != 0U) {
+      fw_update_gateway_uart_rx_byte((uint8_t)huart2.Instance->RDR);
+    }
+    huart2.Instance->ICR = USART_ICR_PECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_ORECF;
+    return;
+  }
 
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
