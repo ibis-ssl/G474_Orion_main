@@ -11,7 +11,6 @@
 #include "omni_wheel.h"
 #include "util.h"
 
-FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_FilterTypeDef sFilterConfig;
 
 /******************* can送信バッファ ***************** */
@@ -25,41 +24,59 @@ typedef struct
 typedef struct
 {
   buffer_data_t * buffer;
-  int size;   // バッファのサイズ
-  int count;  // データの数
-} stack_buffer_t;
+  uint8_t size;
+  volatile uint8_t head;
+  volatile uint8_t tail;
+} fifo_buffer_t;
 
-#define CAN_BUF_SIZE (20)
-buffer_data_t can1_buf_data[CAN_BUF_SIZE], can2_buf_data[CAN_BUF_SIZE];
-stack_buffer_t can_buf[2];
+#define CAN_BUF_CAPACITY (20U)
+#define CAN_BUF_STORAGE_SIZE (CAN_BUF_CAPACITY + 1U)
+buffer_data_t can1_buf_data[CAN_BUF_STORAGE_SIZE], can2_buf_data[CAN_BUF_STORAGE_SIZE];
+fifo_buffer_t can_buf[2];
 
 uint32_t can_resend_cnt = 0;
+volatile can_tx_debug_t can_tx_debug = {0};
+static uint16_t motor_right_call_time_us = 0;
 
-inline bool canBufferStackable(stack_buffer_t * buf)
+static inline uint16_t elapsedTim7Us(uint16_t start, uint16_t end)
 {
-  return buf->count + 1 <= buf->size;
-}
-inline void canBufferStack(stack_buffer_t * buf, buffer_data_t * data)
-{
-  if (!canBufferStackable(buf)) return;  //
-
-  buf->buffer[buf->count].id = data->id;
-  memcpy(buf->buffer[buf->count].data, data->data, 8);
-  buf->count++;
+  const uint16_t period = (uint16_t)(htim7.Init.Period + 1U);
+  return (end >= start) ? (end - start) : (uint16_t)(period - start + end);
 }
 
-inline bool canBufferAvailable(stack_buffer_t * buf)
+static inline bool canBufferEmpty(const fifo_buffer_t * buf)
 {
-  return buf->count != 0;
+  return buf->head == buf->tail;
 }
 
-inline void canBufferDeque(stack_buffer_t * buf, buffer_data_t * ret)
+static inline uint8_t canBufferNextIndex(const fifo_buffer_t * buf, uint8_t index)
 {
-  ret->id = buf->buffer[buf->count - 1].id;
-  memcpy(ret->data, buf->buffer[buf->count - 1].data, 8);
-  if (buf->count >= 1) {
-    buf->count--;
+  index++;
+  return index < buf->size ? index : 0U;
+}
+
+static inline bool canBufferEnqueue(fifo_buffer_t * buf, const buffer_data_t * data)
+{
+  const uint8_t next_head = canBufferNextIndex(buf, buf->head);
+  if (next_head == buf->tail) {
+    return false;
   }
+
+  buf->buffer[buf->head] = *data;
+  __DMB();
+  buf->head = next_head;
+  return true;
+}
+
+static inline const buffer_data_t * canBufferFront(const fifo_buffer_t * buf)
+{
+  return &buf->buffer[buf->tail];
+}
+
+static inline void canBufferPop(fifo_buffer_t * buf)
+{
+  __DMB();
+  buf->tail = canBufferNextIndex(buf, buf->tail);
 }
 
 /******************* can送信バッファ ***************** */
@@ -68,7 +85,9 @@ inline void canBufferDeque(stack_buffer_t * buf, buffer_data_t * ret)
 void can1_init_ibis(FDCAN_HandleTypeDef * handler)
 {
   can_buf[0].buffer = can1_buf_data;
-  can_buf[0].size = CAN_BUF_SIZE;
+  can_buf[0].size = CAN_BUF_STORAGE_SIZE;
+  can_buf[0].head = 0;
+  can_buf[0].tail = 0;
 
   FDCAN_FilterTypeDef sFilterConfig;
   sFilterConfig.IdType = FDCAN_STANDARD_ID;
@@ -100,7 +119,9 @@ void can1_init_ibis(FDCAN_HandleTypeDef * handler)
 void can2_init_ibis(FDCAN_HandleTypeDef * handler)
 {
   can_buf[1].buffer = can2_buf_data;
-  can_buf[1].size = CAN_BUF_SIZE;
+  can_buf[1].size = CAN_BUF_STORAGE_SIZE;
+  can_buf[1].head = 0;
+  can_buf[1].tail = 0;
 
   FDCAN_FilterTypeDef sFilterConfig;
   sFilterConfig.IdType = FDCAN_STANDARD_ID;
@@ -131,69 +152,110 @@ void can2_init_ibis(FDCAN_HandleTypeDef * handler)
 
 inline void can1_send(int id, uint8_t senddata[])
 {
-  TxHeader.Identifier = id;
-  TxHeader.IdType = FDCAN_STANDARD_ID;
-  TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-  TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-  TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-  TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-  TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-  TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-  TxHeader.MessageMarker = 0;
+  if (id == 0x100) {
+    motor_right_call_time_us = (uint16_t)htim7.Instance->CNT;
+  }
+  FDCAN_TxHeaderTypeDef tx_header = {
+    .Identifier = (uint32_t)id,
+    .IdType = FDCAN_STANDARD_ID,
+    .TxFrameType = FDCAN_DATA_FRAME,
+    .DataLength = FDCAN_DLC_BYTES_8,
+    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+    .BitRateSwitch = FDCAN_BRS_OFF,
+    .FDFormat = FDCAN_CLASSIC_CAN,
+    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+    .MessageMarker = 0,
+  };
 
   buffer_data_t data;
   /* Request transmission */
   //if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 3) return;
-  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 0) {
-    if (canBufferStackable(&(can_buf[0]))) {
-      data.id = id;
-      memcpy(data.data, senddata, 8);
-      canBufferStack(&(can_buf[0]), &data);
+  if (!canBufferEmpty(&can_buf[0]) || HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 0) {
+    data.id = id;
+    memcpy(data.data, senddata, 8);
+    if (canBufferEnqueue(&can_buf[0], &data)) {
+      can_tx_debug.sw_buffered[0]++;
+    } else {
+      can_tx_debug.sw_dropped[0]++;
     }
   } else {
-    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, senddata);
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &tx_header, senddata) == HAL_OK) {
+      can_tx_debug.tx_add_ok[0]++;
+    } else {
+      can_tx_debug.tx_add_error[0]++;
+    }
   }
 }
 
 inline void can2_send(int id, uint8_t senddata[])
 {
-  TxHeader.Identifier = id;
-  TxHeader.IdType = FDCAN_STANDARD_ID;
-  TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-  TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-  TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-  TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-  TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-  TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-  TxHeader.MessageMarker = 0;
+  if (id == 0x102) {
+    const uint16_t delta_us = elapsedTim7Us(motor_right_call_time_us, (uint16_t)htim7.Instance->CNT);
+    can_tx_debug.motor_call_delta_last_us = delta_us;
+    can_tx_debug.motor_call_delta_sum_us += delta_us;
+    can_tx_debug.motor_call_samples++;
+    if (delta_us > can_tx_debug.motor_call_delta_max_us) {
+      can_tx_debug.motor_call_delta_max_us = delta_us;
+    }
+  }
+  FDCAN_TxHeaderTypeDef tx_header = {
+    .Identifier = (uint32_t)id,
+    .IdType = FDCAN_STANDARD_ID,
+    .TxFrameType = FDCAN_DATA_FRAME,
+    .DataLength = FDCAN_DLC_BYTES_8,
+    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+    .BitRateSwitch = FDCAN_BRS_OFF,
+    .FDFormat = FDCAN_CLASSIC_CAN,
+    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+    .MessageMarker = 0,
+  };
 
   buffer_data_t data;
   /* Request transmission */
   //if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 3) return;
-  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 0) {
-    if (canBufferStackable(&(can_buf[1]))) {
-      data.id = id;
-      memcpy(data.data, senddata, 8);
-      canBufferStack(&(can_buf[1]), &data);
+  if (!canBufferEmpty(&can_buf[1]) || HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) == 0) {
+    data.id = id;
+    memcpy(data.data, senddata, 8);
+    if (canBufferEnqueue(&can_buf[1], &data)) {
+      can_tx_debug.sw_buffered[1]++;
+    } else {
+      can_tx_debug.sw_dropped[1]++;
     }
   } else {
-    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &TxHeader, senddata);
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &tx_header, senddata) == HAL_OK) {
+      can_tx_debug.tx_add_ok[1]++;
+    } else {
+      can_tx_debug.tx_add_error[1]++;
+    }
   }
 }
 
 inline void canTxEmptyInterrupt(FDCAN_HandleTypeDef * hfdcan)
 {
-  buffer_data_t data;
-  if (hfdcan->Instance == FDCAN1) {
-    if (canBufferAvailable(&(can_buf[0]))) {
-      canBufferDeque(&(can_buf[0]), &data);
-      can1_send(data.id, data.data);
+  const uint8_t bus_index = hfdcan->Instance == FDCAN1 ? 0U : 1U;
+  fifo_buffer_t * const fifo = &can_buf[bus_index];
+
+  while (!canBufferEmpty(fifo) && HAL_FDCAN_GetTxFifoFreeLevel(hfdcan) > 0U) {
+    const buffer_data_t * const data = canBufferFront(fifo);
+    FDCAN_TxHeaderTypeDef tx_header = {
+      .Identifier = data->id,
+      .IdType = FDCAN_STANDARD_ID,
+      .TxFrameType = FDCAN_DATA_FRAME,
+      .DataLength = FDCAN_DLC_BYTES_8,
+      .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+      .BitRateSwitch = FDCAN_BRS_OFF,
+      .FDFormat = FDCAN_CLASSIC_CAN,
+      .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+      .MessageMarker = 0,
+    };
+
+    if (HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_header, (uint8_t *)data->data) != HAL_OK) {
+      can_tx_debug.tx_add_error[bus_index]++;
+      break;
     }
-  } else if (hfdcan->Instance == FDCAN2) {
-    if (canBufferAvailable(&(can_buf[1]))) {
-      canBufferDeque(&(can_buf[1]), &data);
-      can2_send(data.id, data.data);
-    }
+
+    can_tx_debug.tx_add_ok[bus_index]++;
+    canBufferPop(fifo);
   }
 }
 
@@ -225,6 +287,7 @@ inline void parseCanCmd(uint16_t rx_can_id, uint8_t rx_data[], can_raw_t * can_r
       uint32_t enc_id = rx_can_id - 0x200;
       motor->rps[enc_id] = uchar4_to_float(rx_data);
       motor->angle_rad[enc_id] = -uchar4_to_float(&rx_data[4]);  //エンコーダ角度とモーター回転方向は逆なのでここで吸収
+      motor->latest_rx_time_ms[enc_id] = sys->system_time_ms;
 
       can_raw->motor_feedback[enc_id] = motor->rps[enc_id];
 

@@ -23,14 +23,13 @@ void thetaControl(RobotCommandV2 * ai_cmd, imu_t * imu, target_t * target)
   }
 
   // 不感帯設定
-  const float DEAD_ZONE_RADIAN = 1 * M_PI / 180;  // deg -> rad
-  if (fabsf(angle_diff) < DEAD_ZONE_RADIAN) {
+  if (fabsf(angle_diff) < THETA_CONTROL_DEAD_ZONE_RADIAN) {
     angle_diff = 0;
   } else {
     if (angle_diff > 0) {
-      angle_diff -= DEAD_ZONE_RADIAN;
+      angle_diff -= THETA_CONTROL_DEAD_ZONE_RADIAN;
     } else {
-      angle_diff += DEAD_ZONE_RADIAN;
+      angle_diff += THETA_CONTROL_DEAD_ZONE_RADIAN;
     }
   }
 

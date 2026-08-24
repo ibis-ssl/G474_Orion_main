@@ -14,6 +14,57 @@ static const float OMNI_OUTPUT_VOLTAGE_LIMIT = 60.0;  // ドライバ側で80に
 // 80だと10m/sまで出せる
 // 速度制限にはrobot_controlのSPEED_SCALAR_LIMITを使用する｡
 
+static void captureDriveLog(
+  debug_t * debug, const system_t * sys, const RobotCommandV2 * ai_cmd, const imu_t * imu, const accel_vector_t * acc_vel, const target_t * target, const output_t * output,
+  const motor_t * motor, const can_raw_t * can_raw)
+{
+  drive_log_sample_t * const log = &debug->drive_log;
+
+  debug->drive_log_sequence++;
+  __DMB();
+
+  log->time_ms = sys->system_time_ms;
+  if (ai_cmd->control_mode == POLAR_VELOCITY_TARGET_MODE) {
+    log->cmd_velocity_r = ai_cmd->mode_args.polar_velocity.target_global_velocity_r;
+    log->cmd_velocity_theta = ai_cmd->mode_args.polar_velocity.target_global_velocity_theta;
+  } else {
+    log->cmd_velocity_r = 0.0f;
+    log->cmd_velocity_theta = 0.0f;
+  }
+
+  for (int i = 0; i < 2; i++) {
+    log->target_local_vel[i] = target->local_vel[i];
+    log->target_local_vel_now[i] = target->local_vel_now[i];
+    log->accel[i] = acc_vel->accel[i];
+  }
+
+  log->yaw_rad = imu->yaw_rad;
+  log->yaw_rate = getAngleDiff(imu->yaw_rad, imu->pre_yaw_rad) * MAIN_LOOP_CYCLE;
+  log->target_yaw_rps = target->yaw_rps;
+  log->yaw_rps_drag = target->yaw_rps_drag;
+  log->angle_clear_stable_count = target->omni_angle_clear_stable_count;
+  log->angle_clear_active = target->omni_angle_clear_active;
+  log->rotation_angle_error = target->omni_rotation_angle_error;
+  log->rotation_clear_step = target->omni_rotation_clear_step;
+
+  for (int i = 0; i < 4; i++) {
+    log->target_rps[i] = target->omni_angle[i].current_tar_rps;
+    log->real_rps[i] = target->omni_angle[i].real_rps;
+    log->motor_current_a[i] = can_raw->current[i];
+    log->angle_diff[i] = target->omni_angle[i].diff;
+    log->rps_diff[i] = target->omni_angle[i].rps_diff;
+    log->kp_output[i] = target->omni_angle[i].kp_output;
+    log->kd_output[i] = target->omni_angle[i].kd_output;
+    log->ff_output[i] = target->omni_angle[i].ff_output;
+    log->yaw_output[i] = target->omni_angle[i].yaw_output;
+    log->motor_output[i] = output->motor_voltage[i];
+    log->motor_rx_age_ms[i] = sys->system_time_ms - motor->latest_rx_time_ms[i];
+  }
+
+  __DMB();
+  debug->drive_log_sequence++;
+}
+
 void motorTest(system_t * sys, output_t * output, omni_t * omni)
 {
   const float OUT_MOVE_VEL = 5.0;
@@ -253,6 +304,7 @@ void maintaskRun(
   thetaControl(ai_cmd, imu, target);
 
   setTargetOmniAngle(target);
+  clearOmniRotationAngleErrorIfStopped(ai_cmd, imu, sys, target, motor);
   omniAngleControl(target, output, motor);
 
   // いまのところvision lostしたら止める
@@ -264,6 +316,8 @@ void maintaskRun(
   } else {
     omniMoveIndiv(output, OMNI_OUTPUT_VOLTAGE_LIMIT);
   }
+
+  captureDriveLog(debug, sys, ai_cmd, imu, acc_vel, target, output, motor, can_raw);
 
   sendActuatorCanCmdRun(ai_cmd, sys, can_raw);
 }

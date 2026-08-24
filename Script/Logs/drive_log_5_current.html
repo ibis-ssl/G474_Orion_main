@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Motor Current</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Motor Current" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Motor Current&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;motor-current-plot&quot; style=&quot;width:100%; position:relative; color:var(--foreground);&quot;&gt;
+  &lt;div class=&quot;viz-row text-small&quot; aria-label=&quot;系列凡例&quot; style=&quot;gap:14px; margin-bottom:8px;&quot;&gt;
+    &lt;span&gt;&lt;span class=&quot;mc-swatch&quot; style=&quot;background:var(--viz-series-1)&quot;&gt;&lt;/span&gt;M0 右前&lt;/span&gt;
+    &lt;span&gt;&lt;span class=&quot;mc-swatch&quot; style=&quot;background:var(--viz-series-2)&quot;&gt;&lt;/span&gt;M1 右後&lt;/span&gt;
+    &lt;span&gt;&lt;span class=&quot;mc-swatch&quot; style=&quot;background:var(--viz-series-3)&quot;&gt;&lt;/span&gt;M2 左後&lt;/span&gt;
+    &lt;span&gt;&lt;span class=&quot;mc-swatch&quot; style=&quot;background:var(--viz-series-4)&quot;&gt;&lt;/span&gt;M3 左前&lt;/span&gt;
+    &lt;span&gt;&lt;span class=&quot;mc-swatch&quot; style=&quot;background:var(--viz-series-5)&quot;&gt;&lt;/span&gt;機体角度&lt;/span&gt;
+    &lt;span&gt;&lt;span class=&quot;mc-swatch&quot; style=&quot;background:var(--viz-series-6)&quot;&gt;&lt;/span&gt;yaw補正出力&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;svg class=&quot;mc-chart&quot; viewBox=&quot;0 0 720 900&quot; role=&quot;img&quot; aria-labelledby=&quot;mc-title mc-desc&quot;&gt;
+    &lt;title id=&quot;mc-title&quot;&gt;走行中のモーター電源ライン電流&lt;/title&gt;
+    &lt;desc id=&quot;mc-desc&quot;&gt;前進加速、前進減速、後退加速、後退減速時の4モーター個別電流と、左右合計電流の時系列グラフ。時間ゼロは前進指令開始。&lt;/desc&gt;
+  &lt;/svg&gt;
+  &lt;div id=&quot;mc-detail&quot; class=&quot;text-small text-muted&quot; aria-live=&quot;polite&quot;&gt;グラフ上を移動すると、その時刻の電流を表示します。&lt;/div&gt;
+  &lt;div id=&quot;mc-tooltip&quot; class=&quot;tooltip text-small&quot; style=&quot;position:absolute; display:none; pointer-events:none;&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+  #motor-current-plot .mc-chart { width:100%; height:auto; display:block; }
+  #motor-current-plot .mc-swatch { display:inline-block; width:12px; height:3px; margin-right:5px; vertical-align:middle; }
+  #motor-current-plot .mc-grid { stroke:var(--border); stroke-width:1; }
+  #motor-current-plot .mc-axis { stroke:var(--muted-foreground); stroke-width:1; }
+  #motor-current-plot .mc-label { fill:var(--muted-foreground); font-size:11px; }
+  #motor-current-plot .mc-heading { fill:var(--foreground); font-size:13px; font-weight:500; }
+  #motor-current-plot .mc-phase { fill:var(--muted); opacity:.45; }
+  #motor-current-plot .mc-decel { fill:var(--accent); opacity:.24; }
+  #motor-current-plot .mc-phase-label { fill:var(--muted-foreground); font-size:11px; }
+  #motor-current-plot .mc-line { fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+  #motor-current-plot .mc-crosshair { stroke:var(--muted-foreground); stroke-width:1; stroke-dasharray:3 3; }
+&lt;/style&gt;
+&lt;script&gt;
+(() =&gt; {
+  const root = document.getElementById(&#x27;motor-current-plot&#x27;);
+  const svg = root.querySelector(&#x27;.mc-chart&#x27;);
+  const detail = document.getElementById(&#x27;mc-detail&#x27;);
+  const tooltip = document.getElementById(&#x27;mc-tooltip&#x27;);
+  const data = [{&quot;t&quot;:-0.092,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:-0.072,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:-0.052,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:-0.032,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:-0.012,&quot;i&quot;:[0,0,0,0.04]},{&quot;t&quot;:0.008,&quot;i&quot;:[0,0,0,0.1]},{&quot;t&quot;:0.028,&quot;i&quot;:[0,0,0,0.1]},{&quot;t&quot;:0.048,&quot;i&quot;:[0.24,0.16,0.08,0.1]},{&quot;t&quot;:0.068,&quot;i&quot;:[0.3,0.2,0.1,0.1]},{&quot;t&quot;:0.088,&quot;i&quot;:[0.32,0.22,0.18,0.1]},{&quot;t&quot;:0.108,&quot;i&quot;:[0.4,0.3,0.5,0.1]},{&quot;t&quot;:0.128,&quot;i&quot;:[0.4,0.3,0.5,0.1]},{&quot;t&quot;:0.148,&quot;i&quot;:[0.28,0.24,0.62,0.1]},{&quot;t&quot;:0.168,&quot;i&quot;:[0.2,0.2,0.7,0.1]},{&quot;t&quot;:0.188,&quot;i&quot;:[0.2,0.2,0.7,0.1]},{&quot;t&quot;:0.208,&quot;i&quot;:[0.7,0.5,0.3,0.1]},{&quot;t&quot;:0.228,&quot;i&quot;:[0.7,0.5,0.3,0.1]},{&quot;t&quot;:0.248,&quot;i&quot;:[0.58,0.5,0.38,0.14]},{&quot;t&quot;:0.268,&quot;i&quot;:[0.4,0.5,0.5,0.3]},{&quot;t&quot;:0.288,&quot;i&quot;:[0.4,0.5,0.5,0.3]},{&quot;t&quot;:0.308,&quot;i&quot;:[0.88,0.86,0.42,0.24]},{&quot;t&quot;:0.328,&quot;i&quot;:[1,1.1,0.4,0.2]},{&quot;t&quot;:0.348,&quot;i&quot;:[0.92,1.1,0.42,0.2]},{&quot;t&quot;:0.368,&quot;i&quot;:[0.6,0.7,0.5,0.2]},{&quot;t&quot;:0.388,&quot;i&quot;:[0.6,0.7,0.5,0.2]},{&quot;t&quot;:0.408,&quot;i&quot;:[0.66,0.74,0.44,0.2]},{&quot;t&quot;:0.428,&quot;i&quot;:[0.7,0.8,0.4,0.2]},{&quot;t&quot;:0.448,&quot;i&quot;:[0.7,0.8,0.4,0.2]},{&quot;t&quot;:0.468,&quot;i&quot;:[0.8,1.28,0.72,0.12]},{&quot;t&quot;:0.488,&quot;i&quot;:[0.8,1.4,0.8,0.1]},{&quot;t&quot;:0.508,&quot;i&quot;:[0.72,1.4,0.78,0.12]},{&quot;t&quot;:0.528,&quot;i&quot;:[0.4,1.4,0.7,0.2]},{&quot;t&quot;:0.548,&quot;i&quot;:[0.4,1.4,0.7,0.2]},{&quot;t&quot;:0.568,&quot;i&quot;:[0.7,1.04,0.46,0.14]},{&quot;t&quot;:0.588,&quot;i&quot;:[0.9,0.8,0.3,0.1]},{&quot;t&quot;:0.608,&quot;i&quot;:[0.9,0.8,0.3,0.1]},{&quot;t&quot;:0.628,&quot;i&quot;:[0.1,0.3,0.2,0.3]},{&quot;t&quot;:0.644,&quot;i&quot;:[0.1,0.3,0.2,0.3]},{&quot;t&quot;:1.154,&quot;i&quot;:[0,0.1,0.1,0]},{&quot;t&quot;:1.168,&quot;i&quot;:[0,0.1,0.1,0]},{&quot;t&quot;:1.188,&quot;i&quot;:[0,0.08,0.1,0]},{&quot;t&quot;:1.208,&quot;i&quot;:[0,0,0.1,0]},{&quot;t&quot;:1.228,&quot;i&quot;:[0,0,0.1,0]},{&quot;t&quot;:1.248,&quot;i&quot;:[0,0,0.04,0.04]},{&quot;t&quot;:1.268,&quot;i&quot;:[0,0,0,0.1]},{&quot;t&quot;:1.288,&quot;i&quot;:[0,0,0,0.1]},{&quot;t&quot;:1.308,&quot;i&quot;:[0.5,0,0,0.18]},{&quot;t&quot;:1.328,&quot;i&quot;:[0.5,0,0,0.2]},{&quot;t&quot;:1.348,&quot;i&quot;:[0.66,0,0.04,0.24]},{&quot;t&quot;:1.368,&quot;i&quot;:[0.9,0,0.1,0.4]},{&quot;t&quot;:1.388,&quot;i&quot;:[0.9,0,0.1,0.4]},{&quot;t&quot;:1.408,&quot;i&quot;:[0.58,0.06,0.1,0.34]},{&quot;t&quot;:1.428,&quot;i&quot;:[0.5,0.1,0.1,0.3]},{&quot;t&quot;:1.448,&quot;i&quot;:[0.62,0.1,0.1,0.3]},{&quot;t&quot;:1.468,&quot;i&quot;:[1.1,0.2,0.1,0.2]},{&quot;t&quot;:1.488,&quot;i&quot;:[1.1,0.2,0.1,0.2]},{&quot;t&quot;:1.508,&quot;i&quot;:[0.86,0.16,0.1,0.24]},{&quot;t&quot;:1.528,&quot;i&quot;:[0.7,0.1,0.1,0.3]},{&quot;t&quot;:1.548,&quot;i&quot;:[0.7,0.1,0.1,0.3]},{&quot;t&quot;:1.568,&quot;i&quot;:[0.62,0.26,0.1,0.22]},{&quot;t&quot;:1.588,&quot;i&quot;:[0.6,0.3,0.1,0.2]},{&quot;t&quot;:1.608,&quot;i&quot;:[0.66,0.28,0.1,0.22]},{&quot;t&quot;:1.628,&quot;i&quot;:[0.9,0.2,0.1,0.3]},{&quot;t&quot;:1.648,&quot;i&quot;:[0.9,0.2,0.1,0.3]},{&quot;t&quot;:1.668,&quot;i&quot;:[1.14,0.14,0.1,0.3]},{&quot;t&quot;:1.688,&quot;i&quot;:[1.3,0.1,0.1,0.3]},{&quot;t&quot;:1.708,&quot;i&quot;:[1.3,0.1,0.1,0.3]},{&quot;t&quot;:1.728,&quot;i&quot;:[1.1,0.2,0.2,0.5]},{&quot;t&quot;:1.748,&quot;i&quot;:[1.1,0.2,0.2,0.5]},{&quot;t&quot;:1.768,&quot;i&quot;:[1.18,0.24,0.16,0.48]},{&quot;t&quot;:1.788,&quot;i&quot;:[1.3,0.3,0.1,0.4]},{&quot;t&quot;:1.808,&quot;i&quot;:[1.3,0.3,0.1,0.4]},{&quot;t&quot;:1.828,&quot;i&quot;:[1.54,0.48,0.1,0.46]},{&quot;t&quot;:1.848,&quot;i&quot;:[1.6,0.6,0.1,0.5]},{&quot;t&quot;:1.868,&quot;i&quot;:[1.48,0.6,0.12,0.5]},{&quot;t&quot;:1.888,&quot;i&quot;:[1,0.2,0.2,0.6]},{&quot;t&quot;:1.908,&quot;i&quot;:[1,0.2,0.2,0.6]},{&quot;t&quot;:1.928,&quot;i&quot;:[1.48,0.24,0.2,0.52]},{&quot;t&quot;:1.948,&quot;i&quot;:[1.8,0.3,0.2,0.4]},{&quot;t&quot;:1.968,&quot;i&quot;:[1.8,0.3,0.2,0.4]},{&quot;t&quot;:1.988,&quot;i&quot;:[3.3,0.86,0.2,0.56]},{&quot;t&quot;:2.008,&quot;i&quot;:[3.3,1,0.2,0.6]},{&quot;t&quot;:2.028,&quot;i&quot;:[2.7,0.84,0.2,0.64]},{&quot;t&quot;:2.048,&quot;i&quot;:[1.8,0.2,0.2,0.8]},{&quot;t&quot;:2.068,&quot;i&quot;:[1.8,0.2,0.2,0.8]},{&quot;t&quot;:2.088,&quot;i&quot;:[1.8,0.92,0.14,0.56]},{&quot;t&quot;:2.108,&quot;i&quot;:[1.8,1.4,0.1,0.4]},{&quot;t&quot;:2.128,&quot;i&quot;:[1.8,1.4,0.1,0.4]},{&quot;t&quot;:2.144,&quot;i&quot;:[0,0.1,0,0.1]}];
+  data.push(...[{&quot;t&quot;:0.652,&quot;i&quot;:[0.1,0.3,0.2,0.3]},{&quot;t&quot;:0.668,&quot;i&quot;:[0.06,0.34,0.12,0.26]},{&quot;t&quot;:0.688,&quot;i&quot;:[0,0.4,0,0.2]},{&quot;t&quot;:0.708,&quot;i&quot;:[0,0.4,0,0.2]},{&quot;t&quot;:0.728,&quot;i&quot;:[-0.16,0.08,0,0.14]},{&quot;t&quot;:0.748,&quot;i&quot;:[-0.2,0,0,0.1]},{&quot;t&quot;:0.768,&quot;i&quot;:[-0.18,0,0,0.1]},{&quot;t&quot;:0.788,&quot;i&quot;:[-0.1,0,0,0]},{&quot;t&quot;:0.808,&quot;i&quot;:[-0.1,0,0,0]},{&quot;t&quot;:0.828,&quot;i&quot;:[0.02,0,0,0]},{&quot;t&quot;:0.848,&quot;i&quot;:[0.1,0,0,0]},{&quot;t&quot;:0.868,&quot;i&quot;:[0.1,0,0,0]},{&quot;t&quot;:0.888,&quot;i&quot;:[0.1,0,0,0.16]},{&quot;t&quot;:0.908,&quot;i&quot;:[0.1,0,0,0.2]},{&quot;t&quot;:0.928,&quot;i&quot;:[0.46,0,0.04,0.22]},{&quot;t&quot;:0.948,&quot;i&quot;:[1,0,0.1,0.3]},{&quot;t&quot;:0.968,&quot;i&quot;:[1,0,0.1,0.3]},{&quot;t&quot;:0.988,&quot;i&quot;:[1.88,0.06,0.04,0.54]},{&quot;t&quot;:1.008,&quot;i&quot;:[2.1,0.1,0,0.7]},{&quot;t&quot;:1.028,&quot;i&quot;:[2.1,0.1,0,0.7]},{&quot;t&quot;:1.048,&quot;i&quot;:[1.1,0,0,0.5]},{&quot;t&quot;:1.068,&quot;i&quot;:[1.1,0,0,0.5]},{&quot;t&quot;:1.088,&quot;i&quot;:[0.74,0,0,0.34]},{&quot;t&quot;:1.108,&quot;i&quot;:[0.2,0,0,0.1]},{&quot;t&quot;:1.128,&quot;i&quot;:[0.2,0,0,0.1]},{&quot;t&quot;:1.146,&quot;i&quot;:[0.05,0.08,0.08,0.02]},{&quot;t&quot;:2.152,&quot;i&quot;:[0,0.1,0,0.1]},{&quot;t&quot;:2.168,&quot;i&quot;:[0,0.1,0,0.1]},{&quot;t&quot;:2.188,&quot;i&quot;:[-0.08,0.06,0,0.1]},{&quot;t&quot;:2.208,&quot;i&quot;:[-0.2,0,0,0.1]},{&quot;t&quot;:2.228,&quot;i&quot;:[-0.2,0,0,0.1]},{&quot;t&quot;:2.248,&quot;i&quot;:[-0.12,-0.08,0.08,0.02]},{&quot;t&quot;:2.268,&quot;i&quot;:[-0.1,-0.1,0.1,0]},{&quot;t&quot;:2.288,&quot;i&quot;:[-0.06,-0.1,0.14,0]},{&quot;t&quot;:2.308,&quot;i&quot;:[0.1,0,0.3,0]},{&quot;t&quot;:2.328,&quot;i&quot;:[0.1,0,0.3,0]},{&quot;t&quot;:2.348,&quot;i&quot;:[0.04,0.08,0.48,0]},{&quot;t&quot;:2.368,&quot;i&quot;:[0,0.2,0.6,0]},{&quot;t&quot;:2.388,&quot;i&quot;:[0,0.2,0.6,0]},{&quot;t&quot;:2.408,&quot;i&quot;:[0,0.92,0.5,0.08]},{&quot;t&quot;:2.428,&quot;i&quot;:[0,1.1,0.5,0.1]},{&quot;t&quot;:2.448,&quot;i&quot;:[0,1.26,0.54,0.1]},{&quot;t&quot;:2.468,&quot;i&quot;:[0,1.9,0.6,0.1]},{&quot;t&quot;:2.488,&quot;i&quot;:[0,1.9,0.6,0.1]},{&quot;t&quot;:2.508,&quot;i&quot;:[0.32,0.76,0.6,0.1]},{&quot;t&quot;:2.528,&quot;i&quot;:[0.4,0,0.6,0.1]},{&quot;t&quot;:2.548,&quot;i&quot;:[0.4,0,0.6,0.1]},{&quot;t&quot;:2.568,&quot;i&quot;:[0.6,0.1,0.4,0]},{&quot;t&quot;:2.588,&quot;i&quot;:[0.6,0.1,0.4,0]},{&quot;t&quot;:2.608,&quot;i&quot;:[0.36,0.06,0.32,0]},{&quot;t&quot;:2.628,&quot;i&quot;:[0,0,0.2,0]},{&quot;t&quot;:2.648,&quot;i&quot;:[0,0,0.2,0]},{&quot;t&quot;:2.668,&quot;i&quot;:[0,0,0.04,0]},{&quot;t&quot;:2.688,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.708,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.728,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.748,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.768,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.788,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.808,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.828,&quot;i&quot;:[0,0,0,0]},{&quot;t&quot;:2.844,&quot;i&quot;:[0,0,0,0]}]);
+  data.sort((a,b) =&gt; a.t-b.t);
+  const motionData = [{&quot;t&quot;:-0.092,&quot;y&quot;:-0.028,&quot;c&quot;:0.012},{&quot;t&quot;:-0.062,&quot;y&quot;:-0.025,&quot;c&quot;:-0.003},{&quot;t&quot;:-0.022,&quot;y&quot;:-0.026,&quot;c&quot;:-0.005},{&quot;t&quot;:0.018,&quot;y&quot;:-0.026,&quot;c&quot;:-0.002},{&quot;t&quot;:0.058,&quot;y&quot;:0.031,&quot;c&quot;:-0.234},{&quot;t&quot;:0.098,&quot;y&quot;:0.703,&quot;c&quot;:-1.842},{&quot;t&quot;:0.138,&quot;y&quot;:1.949,&quot;c&quot;:-4.86},{&quot;t&quot;:0.178,&quot;y&quot;:1.737,&quot;c&quot;:-2.108},{&quot;t&quot;:0.218,&quot;y&quot;:1.482,&quot;c&quot;:-3.675},{&quot;t&quot;:0.258,&quot;y&quot;:1.962,&quot;c&quot;:-4.1},{&quot;t&quot;:0.298,&quot;y&quot;:1.535,&quot;c&quot;:-2.31},{&quot;t&quot;:0.338,&quot;y&quot;:1.353,&quot;c&quot;:-2.863},{&quot;t&quot;:0.378,&quot;y&quot;:1.957,&quot;c&quot;:-5.071},{&quot;t&quot;:0.418,&quot;y&quot;:2.278,&quot;c&quot;:-5.138},{&quot;t&quot;:0.458,&quot;y&quot;:2.768,&quot;c&quot;:-6.648},{&quot;t&quot;:0.498,&quot;y&quot;:3.558,&quot;c&quot;:-7.341},{&quot;t&quot;:0.538,&quot;y&quot;:3.601,&quot;c&quot;:-6.535},{&quot;t&quot;:0.578,&quot;y&quot;:3.403,&quot;c&quot;:-6.588},{&quot;t&quot;:0.618,&quot;y&quot;:3.258,&quot;c&quot;:-6.028},{&quot;t&quot;:0.658,&quot;y&quot;:2.389,&quot;c&quot;:-3.129},{&quot;t&quot;:0.698,&quot;y&quot;:1.258,&quot;c&quot;:-0.368},{&quot;t&quot;:0.738,&quot;y&quot;:0.738,&quot;c&quot;:0.053},{&quot;t&quot;:0.778,&quot;y&quot;:0.52,&quot;c&quot;:0.981},{&quot;t&quot;:0.818,&quot;y&quot;:-0.339,&quot;c&quot;:1.049},{&quot;t&quot;:0.858,&quot;y&quot;:-1.156,&quot;c&quot;:2.325},{&quot;t&quot;:0.898,&quot;y&quot;:-1.955,&quot;c&quot;:4.626},{&quot;t&quot;:0.938,&quot;y&quot;:-1.693,&quot;c&quot;:2.717},{&quot;t&quot;:0.978,&quot;y&quot;:-1.461,&quot;c&quot;:3.003},{&quot;t&quot;:1.018,&quot;y&quot;:-1.351,&quot;c&quot;:1.823},{&quot;t&quot;:1.058,&quot;y&quot;:-1.04,&quot;c&quot;:0.726},{&quot;t&quot;:1.098,&quot;y&quot;:-1.116,&quot;c&quot;:1.378},{&quot;t&quot;:1.138,&quot;y&quot;:-0.409,&quot;c&quot;:-0.994},{&quot;t&quot;:1.178,&quot;y&quot;:-0.585,&quot;c&quot;:0.344},{&quot;t&quot;:1.218,&quot;y&quot;:-0.538,&quot;c&quot;:0.094},{&quot;t&quot;:1.258,&quot;y&quot;:-0.566,&quot;c&quot;:-0.147},{&quot;t&quot;:1.298,&quot;y&quot;:-0.505,&quot;c&quot;:0.001},{&quot;t&quot;:1.338,&quot;y&quot;:-0.44,&quot;c&quot;:-0.29},{&quot;t&quot;:1.378,&quot;y&quot;:-0.069,&quot;c&quot;:-0.574},{&quot;t&quot;:1.418,&quot;y&quot;:0.142,&quot;c&quot;:-0.182},{&quot;t&quot;:1.458,&quot;y&quot;:0.343,&quot;c&quot;:-0.374},{&quot;t&quot;:1.498,&quot;y&quot;:0.621,&quot;c&quot;:-0.408},{&quot;t&quot;:1.538,&quot;y&quot;:0.978,&quot;c&quot;:-0.934},{&quot;t&quot;:1.578,&quot;y&quot;:1.117,&quot;c&quot;:-0.92},{&quot;t&quot;:1.618,&quot;y&quot;:0.812,&quot;c&quot;:-0.05},{&quot;t&quot;:1.658,&quot;y&quot;:1.099,&quot;c&quot;:-1.572},{&quot;t&quot;:1.698,&quot;y&quot;:1.08,&quot;c&quot;:-0.564},{&quot;t&quot;:1.738,&quot;y&quot;:1.022,&quot;c&quot;:-1.051},{&quot;t&quot;:1.778,&quot;y&quot;:1.169,&quot;c&quot;:-1.245},{&quot;t&quot;:1.818,&quot;y&quot;:0.884,&quot;c&quot;:-0.25},{&quot;t&quot;:1.858,&quot;y&quot;:1.208,&quot;c&quot;:-2.092},{&quot;t&quot;:1.898,&quot;y&quot;:1.03,&quot;c&quot;:-0.354},{&quot;t&quot;:1.938,&quot;y&quot;:1.184,&quot;c&quot;:-2.042},{&quot;t&quot;:1.978,&quot;y&quot;:1.394,&quot;c&quot;:-2.793},{&quot;t&quot;:2.018,&quot;y&quot;:1.297,&quot;c&quot;:-2.226},{&quot;t&quot;:2.058,&quot;y&quot;:1.529,&quot;c&quot;:-3.477},{&quot;t&quot;:2.098,&quot;y&quot;:1.614,&quot;c&quot;:-2.911},{&quot;t&quot;:2.138,&quot;y&quot;:1.276,&quot;c&quot;:-1.882},{&quot;t&quot;:2.178,&quot;y&quot;:0.955,&quot;c&quot;:0.053},{&quot;t&quot;:2.218,&quot;y&quot;:0.903,&quot;c&quot;:-0.323},{&quot;t&quot;:2.258,&quot;y&quot;:1.305,&quot;c&quot;:-2.658},{&quot;t&quot;:2.298,&quot;y&quot;:1.504,&quot;c&quot;:-3.312},{&quot;t&quot;:2.338,&quot;y&quot;:1.784,&quot;c&quot;:-4.262},{&quot;t&quot;:2.378,&quot;y&quot;:2.128,&quot;c&quot;:-4.543},{&quot;t&quot;:2.418,&quot;y&quot;:2.124,&quot;c&quot;:-4.624},{&quot;t&quot;:2.458,&quot;y&quot;:1.383,&quot;c&quot;:-0.488},{&quot;t&quot;:2.498,&quot;y&quot;:2.06,&quot;c&quot;:-4.366},{&quot;t&quot;:2.538,&quot;y&quot;:2.853,&quot;c&quot;:-4.769},{&quot;t&quot;:2.578,&quot;y&quot;:0.552,&quot;c&quot;:1.871},{&quot;t&quot;:2.618,&quot;y&quot;:0.705,&quot;c&quot;:-0.623},{&quot;t&quot;:2.658,&quot;y&quot;:0.513,&quot;c&quot;:-0.014},{&quot;t&quot;:2.698,&quot;y&quot;:0.542,&quot;c&quot;:0.399},{&quot;t&quot;:2.738,&quot;y&quot;:0.324,&quot;c&quot;:0.018},{&quot;t&quot;:2.778,&quot;y&quot;:0.241,&quot;c&quot;:0.164},{&quot;t&quot;:2.818,&quot;y&quot;:0.216,&quot;c&quot;:0.041},{&quot;t&quot;:2.844,&quot;y&quot;:0.173,&quot;c&quot;:0.077}];
+  const NS = &#x27;http://www.w3.org/2000/svg&#x27;;
+  const W = 720, left = 48, right = 16, plotW = W - left - right;
+  const xMin = -0.1, xMax = 2.85, yMin = -0.5, yMax = 4.5;
+  const panels = [{top:34,bottom:226,label:&#x27;各モーター電流&#x27;}, {top:278,bottom:470,label:&#x27;左右合計電流&#x27;}];
+  const yawPanel = {top:522,bottom:676,label:&#x27;機体角度&#x27;};
+  const correctionPanel = {top:728,bottom:872,label:&#x27;yaw補正出力&#x27;};
+  const colors = [&#x27;var(--viz-series-1)&#x27;,&#x27;var(--viz-series-2)&#x27;,&#x27;var(--viz-series-3)&#x27;,&#x27;var(--viz-series-4)&#x27;];
+  const x = t =&gt; left + (t-xMin)/(xMax-xMin)*plotW;
+  const y = (v,p) =&gt; p.bottom - (v-yMin)/(yMax-yMin)*(p.bottom-p.top);
+  const add = (tag, attrs, text) =&gt; { const el=document.createElementNS(NS,tag); Object.entries(attrs||{}).forEach(([k,v])=&gt;el.setAttribute(k,v)); if(text!==undefined)el.textContent=text; svg.appendChild(el); return el; };
+  panels.forEach((p,pi) =&gt; {
+    add(&#x27;text&#x27;,{x:left,y:p.top-12,class:&#x27;mc-heading&#x27;},p.label);
+    [[0,0.548,&#x27;前進&#x27;,&#x27;mc-phase&#x27;],[0.548,1.236,&#x27;前進減速&#x27;,&#x27;mc-decel&#x27;],[1.236,2.064,&#x27;後退&#x27;,&#x27;mc-phase&#x27;],[2.064,2.8,&#x27;後退減速&#x27;,&#x27;mc-decel&#x27;]].forEach(([a,b,label,klass])=&gt;{add(&#x27;rect&#x27;,{x:x(a),y:p.top,width:x(b)-x(a),height:p.bottom-p.top,class:klass});add(&#x27;text&#x27;,{x:x(a)+5,y:p.top+14,class:&#x27;mc-phase-label&#x27;},label);});
+    [-0.5,0,1,2,3,4].forEach(v=&gt;{add(&#x27;line&#x27;,{x1:left,x2:W-right,y1:y(v,p),y2:y(v,p),class:&#x27;mc-grid&#x27;});add(&#x27;text&#x27;,{x:left-8,y:y(v,p)+4,&#x27;text-anchor&#x27;:&#x27;end&#x27;,class:&#x27;mc-label&#x27;},String(v));});
+    add(&#x27;line&#x27;,{x1:left,x2:left,y1:p.top,y2:p.bottom,class:&#x27;mc-axis&#x27;}); add(&#x27;line&#x27;,{x1:left,x2:W-right,y1:p.bottom,y2:p.bottom,class:&#x27;mc-axis&#x27;});
+    add(&#x27;text&#x27;,{x:12,y:(p.top+p.bottom)/2,transform:`rotate(-90 12 ${(p.top+p.bottom)/2})`,&#x27;text-anchor&#x27;:&#x27;middle&#x27;,class:&#x27;mc-label&#x27;},&#x27;電流 (A)&#x27;);
+  });
+  const drawMotionPanel = (p,ticks,scale,unit) =&gt; {
+    add(&#x27;text&#x27;,{x:left,y:p.top-12,class:&#x27;mc-heading&#x27;},p.label);
+    [[0,0.548,&#x27;前進&#x27;,&#x27;mc-phase&#x27;],[0.548,1.236,&#x27;前進減速&#x27;,&#x27;mc-decel&#x27;],[1.236,2.064,&#x27;後退&#x27;,&#x27;mc-phase&#x27;],[2.064,2.8,&#x27;後退減速&#x27;,&#x27;mc-decel&#x27;]].forEach(([a,b,label,klass])=&gt;{add(&#x27;rect&#x27;,{x:x(a),y:p.top,width:x(b)-x(a),height:p.bottom-p.top,class:klass});add(&#x27;text&#x27;,{x:x(a)+5,y:p.top+14,class:&#x27;mc-phase-label&#x27;},label);});
+    ticks.forEach(v=&gt;{add(&#x27;line&#x27;,{x1:left,x2:W-right,y1:scale(v),y2:scale(v),class:&#x27;mc-grid&#x27;});add(&#x27;text&#x27;,{x:left-8,y:scale(v)+4,&#x27;text-anchor&#x27;:&#x27;end&#x27;,class:&#x27;mc-label&#x27;},String(v));});
+    add(&#x27;line&#x27;,{x1:left,x2:left,y1:p.top,y2:p.bottom,class:&#x27;mc-axis&#x27;});add(&#x27;line&#x27;,{x1:left,x2:W-right,y1:p.bottom,y2:p.bottom,class:&#x27;mc-axis&#x27;});add(&#x27;text&#x27;,{x:12,y:(p.top+p.bottom)/2,transform:`rotate(-90 12 ${(p.top+p.bottom)/2})`,&#x27;text-anchor&#x27;:&#x27;middle&#x27;,class:&#x27;mc-label&#x27;},unit);
+  };
+  const yYaw = v =&gt; yawPanel.bottom-(v+2.5)/6.5*(yawPanel.bottom-yawPanel.top);
+  const yCorrection = v =&gt; correctionPanel.bottom-(v+8.5)/14*(correctionPanel.bottom-correctionPanel.top);
+  drawMotionPanel(yawPanel,[-2,0,2,4],yYaw,&#x27;角度 (deg)&#x27;);
+  drawMotionPanel(correctionPanel,[-8,-4,0,4],yCorrection,&#x27;補正出力&#x27;);
+  [0,0.5,1.0,1.5,2.0,2.5].forEach(v=&gt;add(&#x27;text&#x27;,{x:x(v),y:correctionPanel.bottom+18,&#x27;text-anchor&#x27;:&#x27;middle&#x27;,class:&#x27;mc-label&#x27;},v.toFixed(1)));
+  add(&#x27;text&#x27;,{x:left+plotW/2,y:correctionPanel.bottom+28,&#x27;text-anchor&#x27;:&#x27;middle&#x27;,class:&#x27;mc-label&#x27;},&#x27;前進開始からの時間 (s)&#x27;);
+  const pathFor = (values,p,source=data,scale=y) =&gt; { let d=&#x27;&#x27;,prev=null; source.forEach((row,n)=&gt;{const v=values(row);const gap=prev!==null&amp;&amp;row.t-prev&gt;0.1;d+=(n===0||gap?&#x27;M&#x27;:&#x27;L&#x27;)+x(row.t).toFixed(1)+&#x27;,&#x27;+scale(v,p).toFixed(1);prev=row.t;});return d; };
+  for(let i=0;i&lt;4;i++) add(&#x27;path&#x27;,{d:pathFor(r=&gt;r.i[i],panels[0]),class:&#x27;mc-line&#x27;,stroke:colors[i]});
+  add(&#x27;path&#x27;,{d:pathFor(r=&gt;r.i[0]+r.i[1],panels[1]),class:&#x27;mc-line&#x27;,stroke:&#x27;var(--viz-series-1)&#x27;});
+  add(&#x27;path&#x27;,{d:pathFor(r=&gt;r.i[2]+r.i[3],panels[1]),class:&#x27;mc-line&#x27;,stroke:&#x27;var(--viz-series-3)&#x27;});
+  add(&#x27;path&#x27;,{d:pathFor(r=&gt;r.y,yawPanel,motionData,yYaw),class:&#x27;mc-line&#x27;,stroke:&#x27;var(--viz-series-5)&#x27;});
+  add(&#x27;path&#x27;,{d:pathFor(r=&gt;r.c,correctionPanel,motionData,yCorrection),class:&#x27;mc-line&#x27;,stroke:&#x27;var(--viz-series-6)&#x27;});
+  add(&#x27;text&#x27;,{x:W-right-4,y:panels[1].top+32,&#x27;text-anchor&#x27;:&#x27;end&#x27;,class:&#x27;mc-label&#x27;},&#x27;右=M0+M1　左=M2+M3&#x27;);
+  const cross = add(&#x27;line&#x27;,{y1:panels[0].top,y2:correctionPanel.bottom,class:&#x27;mc-crosshair&#x27;,visibility:&#x27;hidden&#x27;});
+  const overlay = add(&#x27;rect&#x27;,{x:left,y:panels[0].top,width:plotW,height:correctionPanel.bottom-panels[0].top,fill:&#x27;transparent&#x27;});
+  overlay.addEventListener(&#x27;pointermove&#x27;,e=&gt;{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const q=pt.matrixTransform(svg.getScreenCTM().inverse());const target=xMin+(q.x-left)/plotW*(xMax-xMin);const row=data.reduce((a,b)=&gt;Math.abs(b.t-target)&lt;Math.abs(a.t-target)?b:a);const motion=motionData.reduce((a,b)=&gt;Math.abs(b.t-target)&lt;Math.abs(a.t-target)?b:a);cross.setAttribute(&#x27;x1&#x27;,x(row.t));cross.setAttribute(&#x27;x2&#x27;,x(row.t));cross.setAttribute(&#x27;visibility&#x27;,&#x27;visible&#x27;);const rightA=row.i[0]+row.i[1],leftA=row.i[2]+row.i[3];detail.textContent=`${row.t.toFixed(3)} s｜M0 ${row.i[0].toFixed(2)} A・M1 ${row.i[1].toFixed(2)} A・M2 ${row.i[2].toFixed(2)} A・M3 ${row.i[3].toFixed(2)} A｜右 ${rightA.toFixed(2)} A・左 ${leftA.toFixed(2)} A｜角度 ${motion.y.toFixed(2)} deg・補正 ${motion.c.toFixed(2)}`;tooltip.textContent=`${row.t.toFixed(3)} s　角度 ${motion.y.toFixed(2)}° / 補正 ${motion.c.toFixed(2)}`;tooltip.style.display=&#x27;block&#x27;;const box=root.getBoundingClientRect(),sx=e.clientX-box.left;tooltip.style.left=Math.max(4,Math.min(sx+10,box.width-230))+&#x27;px&#x27;;tooltip.style.top=&#x27;42px&#x27;;});
+  overlay.addEventListener(&#x27;pointerleave&#x27;,()=&gt;{cross.setAttribute(&#x27;visibility&#x27;,&#x27;hidden&#x27;);tooltip.style.display=&#x27;none&#x27;;});
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>
