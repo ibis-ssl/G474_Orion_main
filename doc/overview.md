@@ -1,6 +1,10 @@
 ﻿# G474_Orion_main
 ## 全体構成（現在）
 
+- User Flash先頭32 KBに基板専用アプリケーションブートローダーを配置するM1実装を追加した。
+- 通常アプリはSlot Aの`0x08008000`へ再配置した。
+- 現段階のbootloaderは安全IO、CRC32C、Slot A検証・jumpだけを行い、UART/CAN更新はまだ実装しない。
+- 詳細は`doc/bootloader.md`を参照する。
 
 ## ビルド手順（CLI）
 ### 前提
@@ -19,27 +23,16 @@ cd Release
 & "C:\ST\STM32CubeIDE_1.17.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.make.win32_2.2.0.202409170845\tools\bin\make.exe" -B -j4 all
 ```
 
-## 書き込み手順（CLI）
+## ST-Link接続確認（CLI）
 ### 接続確認
 ```powershell
 & "C:\ST\STM32CubeCLT_1.21.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe" -l stlink
 & "C:\ST\STM32CubeCLT_1.21.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe" -c port=SWD mode=UR -rst
 ```
 
-### Debugを書き込み
-```powershell
-& "C:\ST\STM32CubeCLT_1.21.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe" -c port=SWD mode=UR -w "Debug\G474_Orion_main.elf" -v -rst
-```
-
-### Releaseを書き込み
-```powershell
-& "C:\ST\STM32CubeCLT_1.21.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe" -c port=SWD mode=UR -w "Release\G474_Orion_main.elf" -v -rst
-```
-
 ### 補足
 - `mode=UR` は Under Reset 接続。起動直後にSWDが不安定な場合に有効。
-- `-v` は書き込み後ベリファイ。
-- `-rst` は書き込み後にリセットを実行。
+- 通常アプリ単体をCLIで書き込むと、メタデータとの不整合が生じるため禁止する。書込みは下記スクリプトを使用する。
 
 ## スクリプト
 `Script` 配下に、ビルドと書き込みをまとめた PowerShell スクリプトを配置している。
@@ -48,6 +41,8 @@ cd Release
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Script\build.ps1 -Configuration Debug
 powershell -ExecutionPolicy Bypass -File .\Script\build.ps1 -Configuration Release -Rebuild
+powershell -ExecutionPolicy Bypass -File .\Script\build_bootloader.ps1 -Rebuild
+powershell -ExecutionPolicy Bypass -File .\Script\build_slot_a.ps1 -Configuration Debug -Rebuild
 ```
 
 ### 接続確認
@@ -58,15 +53,18 @@ powershell -ExecutionPolicy Bypass -File .\Script\flash.ps1 -ConnectOnly
 
 ### 書き込み
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\Script\flash.ps1 -Configuration Debug
-powershell -ExecutionPolicy Bypass -File .\Script\flash.ps1 -Configuration Release
+powershell -ExecutionPolicy Bypass -File .\Script\install_main_bootloader.ps1 -Configuration Debug
+# backupと安全IO表の確認後だけ実行する
+powershell -ExecutionPolicy Bypass -File .\Script\install_main_bootloader.ps1 -Configuration Debug -Execute
 ```
 
 ### ビルドしてから書き込み
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\Script\build_and_flash.ps1 -Configuration Debug
-powershell -ExecutionPolicy Bypass -File .\Script\build_and_flash.ps1 -Configuration Release -Rebuild
+powershell -ExecutionPolicy Bypass -File .\Script\build_and_flash.ps1 -Configuration Debug -BootloaderInstalled
+powershell -ExecutionPolicy Bypass -File .\Script\build_and_flash.ps1 -Configuration Release -Rebuild -BootloaderInstalled
 ```
+
+アプリ再配置後の`build_and_flash.ps1`は、初回導入済みの場合だけ`-BootloaderInstalled`を付ける。初回は必ず`install_main_bootloader.ps1`を使用する。
 
 ### UARTログ受信
 ```powershell

@@ -1,3 +1,4 @@
+# Writes a Slot A application and its metadata to a Main board with the bootloader installed.
 param(
   [ValidateSet("Debug", "Release")]
   [string]$Configuration = "Debug",
@@ -8,6 +9,7 @@ param(
 
   [switch]$List,
   [switch]$ConnectOnly,
+  [switch]$BootloaderInstalled,
   [switch]$NoVerify,
   [switch]$NoReset
 )
@@ -47,6 +49,15 @@ if (-not (Test-Path $elfPath)) {
   throw "ELF not found: $elfPath"
 }
 
+if (-not $BootloaderInstalled) {
+  throw "The application is linked for Slot A. Use install_main_bootloader.ps1 -Execute for first installation, or rerun with -BootloaderInstalled."
+}
+
+$metadataPath = Join-Path $repoRoot "$Configuration\G474_Orion_main_slot_a.metadata.bin"
+if (-not (Test-Path $metadataPath)) {
+  throw "Slot A metadata not found: $metadataPath. Run build_slot_a.ps1 first."
+}
+
 $args = @(
   "-c", "port=SWD mode=UR",
   "-w", $elfPath
@@ -56,12 +67,24 @@ if (-not $NoVerify) {
   $args += "-v"
 }
 
-if (-not $NoReset) {
-  $args += "-rst"
-}
-
 & $ProgrammerPath @args
 if ($LASTEXITCODE -ne 0) {
   throw "Flash failed for $Configuration"
+}
+
+$metadataArgs = @(
+  "-c", "port=SWD mode=UR",
+  "-w", $metadataPath, "0x08078000"
+)
+if (-not $NoVerify) {
+  $metadataArgs += "-v"
+}
+if (-not $NoReset) {
+  $metadataArgs += "-rst"
+}
+
+& $ProgrammerPath @metadataArgs
+if ($LASTEXITCODE -ne 0) {
+  throw "Slot A metadata Flash failed for $Configuration"
 }
 
