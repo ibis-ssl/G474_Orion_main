@@ -48,3 +48,5 @@ if ($flashUsed -gt 0x8000) {
 
 Write-Output "Bootloader Flash usage: $flashUsed / 32768 bytes"
 Write-Output "Bootloader ELF: $elfPath"
+& python (Join-Path $scriptDir "stamp_fw_version.py") --log-only --repo $repoRoot --target main_bootloader --log-dir (Join-Path $scriptDir "Logs\Build")
+if ($LASTEXITCODE) { throw "Bootloader build logging failed" }

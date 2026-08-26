@@ -52,6 +52,11 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+  .fw_version ORIGIN(FLASH) + 0x400 :
+  {
+    KEEP(*(.fw_version))
+  } >FLASH
+
   /* The program code and other data into "FLASH" Rom type memory */
   .text :
   {

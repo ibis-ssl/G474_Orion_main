@@ -132,6 +132,12 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - 通常USART2受信もIRQ内でRX FIFOを全量drainし、72-byte FWUP要求と更新モード切替直後の長いOFW frameを取りこぼさない。
 - 2026-08-27の最終往復はB→Aが9.808秒、A→Bが9.796秒。Slot A generation 8、Slot B generation 9がともにCONFIRMED、boot attempts 0を確認した。
 
+## 開発用FW識別
+
+- Slot A/Bの各アプリ先頭`+0x400`へ`FWVR` magicとUnix秒build IDを配置する。`build_slot_b.ps1`はA/Bを同じbuild IDで生成し、両slotのmetadataも必ず再生成する。
+- UARTの72 byte `FWVR`要求を受けると、両slotを直接読出し、CAN ID `0x611`でSub、左右BLDC、Powerへ同時照会する。未応答nodeだけ40 ms間隔で再照会し、250 ms後に6対象のbuild IDとimage CRC32Cを60 byte応答としてCM4へ返す。
+- 各ビルドは`Script/Logs/Build/`へGit hashとdirty状態をJSON保存する。2026-08-27にA/B更新後のUART応答と両CANバス集約を実機確認した。
+
 ## 直進加速診断ログ
 - デバッグLPUARTで `g` を入力すると、`DRIVE_LOG` ページを250Hzで出力する。ページ選択後に `DRV_HEADER`、以後はCSV形式の `DRV` 行を出力する。
 - 制御割り込み内でシーケンス番号付きスナップショットを作成し、UART側では同一制御周期の値だけをコピーする。更新と競合した場合は `DRV_RETRY` を出力する。
