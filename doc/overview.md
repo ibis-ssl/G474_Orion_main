@@ -123,6 +123,14 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - データフレームは両バスへ同時送信し、BLOCK_BEGIN、BLOCK_END、HELLOの応答、確定offset、再送対象はバスごとに管理する。片側だけ書込み済みの場合は成功側を除外し、未完了側だけをchunk再送する。
 - 63,592 byteの更新は通常13.965秒、UART CRC破損とCAN欠落・重複・逆順・payload破損の複合注入時14.047秒で完了した。
 - 更新中はTIM5のブザーPWMを停止し、全対象の確定後に再起動する。
+- 2026-08-27、左右2台の同時更新を10回連続実施し10/10成功した。14.885～19.591秒、全回CRC32C `0xC22DAE9C`一致。UART応答欠落によるchunk再送88回もすべて回復した。
+- 両BLDCはmetadata CONFIRMED、VTOR `0x08004000`、Flash設定のboard ID 0/1保持をST-Linkで確認した。
+
+## Main A/B FW更新
+
+- CM4の`main_ab_updater.py`から非稼働slotへOFW1で書込み、PENDING起動後にCONFIRMする。
+- 通常USART2受信もIRQ内でRX FIFOを全量drainし、72-byte FWUP要求と更新モード切替直後の長いOFW frameを取りこぼさない。
+- 2026-08-27の最終往復はB→Aが9.808秒、A→Bが9.796秒。Slot A generation 8、Slot B generation 9がともにCONFIRMED、boot attempts 0を確認した。
 
 ## 直進加速診断ログ
 - デバッグLPUARTで `g` を入力すると、`DRIVE_LOG` ページを250Hzで出力する。ページ選択後に `DRV_HEADER`、以後はCSV形式の `DRV` 行を出力する。

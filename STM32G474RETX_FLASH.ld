@@ -38,7 +38,7 @@ MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 128K
   /* 先頭32KBは常駐bootloader、0x08040000以降はSlot B/metadata用に予約する。 */
-  FLASH    (rx)    : ORIGIN = 0x08008000,  LENGTH = 224K
+  FLASH    (rx)    : ORIGIN = DEFINED(APP_FLASH_ORIGIN) ? APP_FLASH_ORIGIN : 0x08008000, LENGTH = 224K
 }
 
 /* Sections */

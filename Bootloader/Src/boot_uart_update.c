@@ -25,6 +25,8 @@ static uint8_t response[UART_HEADER_SIZE + 8U + UART_TRAILER_SIZE];
 static uint32_t image_size, image_crc, received, generation;
 static boot_slot_t target_slot;
 static bool begun;
+volatile uint32_t boot_uart_rx_count;
+volatile uint32_t boot_uart_last_byte;
 
 static uint16_t load_u16(const uint8_t * p) { return (uint16_t)p[0] | ((uint16_t)p[1] << 8U); }
 static uint32_t load_u32(const uint8_t * p) { return (uint32_t)p[0] | ((uint32_t)p[1] << 8U) | ((uint32_t)p[2] << 16U) | ((uint32_t)p[3] << 24U); }
@@ -40,7 +42,7 @@ static uint16_t crc16(const uint8_t * data,uint32_t length)
 
 static void uart_init(void)
 {
-  RCC->CR |= RCC_CR_HSION;
+  RCC->CR |= RCC_CR_HSION | RCC_CR_HSIKERON;
   while((RCC->CR & RCC_CR_HSIRDY)==0U){}
   RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;
   GPIOB->MODER=(GPIOB->MODER&~((UINT32_C(3)<<6U)|(UINT32_C(3)<<8U)))|(UINT32_C(2)<<6U)|(UINT32_C(2)<<8U);
@@ -51,7 +53,8 @@ static void uart_init(void)
   RCC->APB1ENR1|=RCC_APB1ENR1_USART2EN;
   RCC->APB1RSTR1|=RCC_APB1RSTR1_USART2RST;RCC->APB1RSTR1&=~RCC_APB1RSTR1_USART2RST;
   USART2->BRR=16U;
-  USART2->CR1=USART_CR1_TE|USART_CR1_RE;
+  USART2->CR2=USART_CR2_SWAP;
+  USART2->CR1=USART_CR1_TE|USART_CR1_RE|USART_CR1_FIFOEN;
   USART2->CR1|=USART_CR1_UE;
 }
 
@@ -63,8 +66,13 @@ static void uart_send(const uint8_t * data,uint32_t length)
 
 static uint8_t uart_read(void)
 {
-  while((USART2->ISR&USART_ISR_RXNE_RXFNE)==0U){}
-  return (uint8_t)USART2->RDR;
+  while((USART2->ISR&USART_ISR_RXNE_RXFNE)==0U){
+    if((USART2->ISR&(USART_ISR_ORE|USART_ISR_FE|USART_ISR_NE))!=0U)USART2->ICR=USART_ICR_ORECF|USART_ICR_FECF|USART_ICR_NECF;
+  }
+  const uint8_t value=(uint8_t)USART2->RDR;
+  boot_uart_last_byte=value;
+  boot_uart_rx_count++;
+  return value;
 }
 
 static uint16_t receive_frame(uint8_t * type,uint16_t * sequence)
@@ -126,7 +134,7 @@ static void handle(uint8_t type,uint16_t sequence,const uint8_t * payload,uint16
     metadata=(boot_image_metadata_t){BOOT_IMAGE_METADATA_MAGIC,BOOT_IMAGE_METADATA_FORMAT,sizeof(metadata),generation,BOOT_IMAGE_STATE_PENDING,(uint32_t)target_slot,base,image_size,image_crc,0U};
     metadata.record_crc32c=boot_crc32c(&metadata,offsetof(boot_image_metadata_t,record_crc32c));
     if(!boot_metadata_write(target_slot,&metadata)||!boot_control_write(target_slot,generation,0U)){send_result(type,sequence,STATUS_FLASH,(uint8_t)target_slot,0U,0U,received);return;}
-    begun=false;send_result(type,sequence,STATUS_OK,(uint8_t)target_slot,BOOT_IMAGE_STATE_PENDING,0U,received);return;
+    send_result(type,sequence,STATUS_OK,(uint8_t)target_slot,BOOT_IMAGE_STATE_PENDING,0U,received);return;
   }
   if(type==MSG_REBOOT){send_result(type,sequence,STATUS_OK,(uint8_t)target_slot,BOOT_IMAGE_STATE_PENDING,0U,received);for(volatile uint32_t i=0U;i<100000U;i++){}NVIC_SystemReset();}
   send_result(type,sequence,STATUS_FRAME,(uint8_t)target_slot,0U,0U,0U);

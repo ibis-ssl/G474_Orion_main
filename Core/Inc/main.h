@@ -55,6 +55,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void p(const char * format, ...);
+void cm4_uart_rx_byte(uint8_t value);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

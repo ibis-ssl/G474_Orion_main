@@ -34,7 +34,7 @@ typedef struct __attribute__((packed)) {
   uint32_t record_crc32c;
 } boot_control_t;
 
-_Static_assert(sizeof(boot_control_t) == 28U, "boot control layout changed");
+_Static_assert(sizeof(boot_control_t) == 24U, "boot control layout changed");
 
 uint32_t boot_slot_base(boot_slot_t slot);
 uint32_t boot_slot_metadata_base(boot_slot_t slot);

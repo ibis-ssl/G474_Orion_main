@@ -314,13 +314,12 @@ void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
 
-  if (fw_gateway_active) {
-    while ((huart2.Instance->ISR & USART_ISR_RXNE_RXFNE) != 0U) {
-      fw_update_gateway_uart_rx_byte((uint8_t)huart2.Instance->RDR);
-    }
-    huart2.Instance->ICR = USART_ICR_PECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_ORECF;
-    return;
+  while ((huart2.Instance->ISR & USART_ISR_RXNE_RXFNE) != 0U) {
+    cm4_uart_rx_byte((uint8_t)huart2.Instance->RDR);
   }
+  huart2.Instance->ICR = USART_ICR_PECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_ORECF;
+  /* RX FIFOを全量退避した後、通常テレメトリのTCなど残りの割込み要因を
+     HALへ渡す。ゲートウェイ切替時のIRQ再入ループも防ぐ。 */
 
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);

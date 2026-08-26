@@ -68,7 +68,7 @@ PA11/PA12、PB12/PB13のFDCANとPB3/PB4のUSART2はM1ではanalogであり、M2�
 
 - UART frame: magic `OFW2`、version、type、sequence、length、header CRC16、payload、CRC32C
 - payload最大907 byte、同一sequence再受信時は前回応答を返す
-- 更新モード中のUSART2 RXはIRQでRX registerを直接drainし、長いframeでのHAL 1-byte再登録による欠落を抑える
+- USART2 RXは通常モードを含めIRQでRX FIFOを全量drainし、72-byte FWUP要求と長い更新frameでのHAL 1-byte再登録による欠落を抑える
 - CAN dataは`0x480`～`0x4FF`、node commandは`0x610`、responseは`0x650 + OTA node ID`
 - `ENTER`でCAN1/CAN2のnodeを個別指定し、同一imageの左右BLDCは両バスへ並列送信する
 - FDCAN TX FIFOに空きができるまで待ち、更新frameを破棄しない
@@ -76,6 +76,8 @@ PA11/PA12、PB12/PB13のFDCANとPB3/PB4のUSART2はM1ではanalogであり、M2�
 - 故障注入用にCAN frameの欠落、重複、逆順、payload破損を最初のchunkへ適用できる
 
 2026-08-25、CM4→Main→Subの65,168 byte更新を実機確認した。正常時は8.287～10.437秒、全故障複合注入時は14.186秒で、全体CRC32C `0xF692FBA9`まで一致した。
+
+2026-08-27、CM4経由のMain A/B更新をB→A、A→Bの順で確認した。最終状態はSlot A generation 8、Slot B generation 9がともにCONFIRMED、preferred Slot B、boot attempts 0である。左右BLDC同時更新も10回連続で成功した。
 
 ## Slot A jump時のCPU状態
 

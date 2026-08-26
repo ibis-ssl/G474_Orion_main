@@ -1131,6 +1131,13 @@ uint8_t getModeSwitch()
                (HAL_GPIO_ReadPin(DIP_3_GPIO_Port, DIP_3_Pin) << 2));
 }
 
+void cm4_uart_rx_byte(uint8_t value)
+{
+  /* USART2 IRQでFIFOから取り出したbyteを既存のCM4パーサへ渡す。 */
+  uart2_rx_it_buffer = value;
+  HAL_UART_RxCpltCallback(&huart2);
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   static int32_t uart_rx_cmd_idx = -1;
