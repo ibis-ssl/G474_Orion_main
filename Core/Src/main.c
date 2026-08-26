@@ -234,6 +234,7 @@ static void fw_version_request_missing(void)
   if ((fw_version_response.present_mask & (1U << 5U)) == 0U) {
     request[0] = 100U;
     can1_send(0x611, request);
+    can2_send(0x611, request);
   }
 }
 
@@ -259,7 +260,7 @@ static bool fw_version_can_rx(FDCAN_HandleTypeDef * hfdcan, uint32_t identifier,
   if (hfdcan->Instance == FDCAN1 && identifier == 0x664U) index = 2U;
   else if (hfdcan->Instance == FDCAN1 && identifier == 0x670U) index = 3U;
   else if (hfdcan->Instance == FDCAN2 && identifier == 0x671U) index = 4U;
-  else if (hfdcan->Instance == FDCAN1 && identifier == 0x6C4U) index = 5U;
+  else if ((hfdcan->Instance == FDCAN1 || hfdcan->Instance == FDCAN2) && identifier == 0x6C4U) index = 5U;
   else return false;
   memcpy(&fw_version_response.entry[index], data, 8U);
   fw_version_response.present_mask |= (uint8_t)(1U << index);

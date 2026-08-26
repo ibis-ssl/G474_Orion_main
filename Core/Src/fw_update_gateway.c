@@ -33,6 +33,8 @@
 #define CAN_COMMAND_ID 0x610U
 #define CAN_DATA_ID_BASE 0x480U
 #define CAN_RESPONSE_BASE 0x650U
+#define POWER_NODE_ID 100U
+#define POWER_STATUS_ID 0x244U
 #define NODE_UNUSED 0xFFU
 #define CHUNK_CAPACITY 896U
 
@@ -47,6 +49,8 @@ static volatile uint32_t uart_last_byte_tick;
 
 static volatile uint8_t can_reply[2][8];
 static volatile uint32_t can_reply_counter[2];
+static volatile uint8_t power_status[2][8];
+static volatile uint32_t power_status_counter[2];
 static uint8_t update_session;
 static uint8_t update_nodes[2] = {4U, NODE_UNUSED};
 
@@ -164,6 +168,13 @@ bool fw_update_gateway_can_rx(FDCAN_HandleTypeDef * hfdcan, uint32_t identifier,
   if (hfdcan->Instance == FDCAN1) bus = 0U;
   else if (hfdcan->Instance == FDCAN2) bus = 1U;
   else return false;
+  /* Powerの実配線バスを安全停止応答から自動判別するため、選択前から両バスで監視する。 */
+  if (identifier == POWER_STATUS_ID) {
+    memcpy((void *)power_status[bus], data, 8U);
+    __DMB();
+    power_status_counter[bus]++;
+    return true;
+  }
   if (update_nodes[bus] == NODE_UNUSED || identifier != CAN_RESPONSE_BASE + update_nodes[bus]) return false;
   memcpy((void *)can_reply[bus], data, 8U);
   __DMB();
@@ -195,6 +206,46 @@ static bool fdcan_send_wait(uint32_t bus, uint32_t identifier, const uint8_t dat
     .MessageMarker = 0U,
   };
   return HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &header, data) == HAL_OK;
+}
+
+static bool power_safe_stop(void)
+{
+  uint32_t selected_bus = 2U;
+  for (uint32_t bus = 0U; bus < 2U; bus++) {
+    if (update_nodes[bus] == POWER_NODE_ID) selected_bus = bus;
+  }
+  if (selected_bus >= 2U) return true;
+  /* 通常の目標電圧コマンドで受理される最小値20.0 Vへ下げる。 */
+  const uint8_t target_safe[8] = {0U, 0U, 0U, 0U, 0x00U, 0x00U, 0xA0U, 0x41U};
+  const uint8_t charge_disable[8] = {1U, 0U, 0U, 0U, 0U, 0U, 0U, 0U};
+  const uint8_t output_disable[8] = {0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U};
+  uint32_t before[2] = {power_status_counter[0], power_status_counter[1]};
+  uint32_t safe_samples[2] = {0U, 0U};
+  for (uint32_t attempt = 0U; attempt < 5U; attempt++) {
+    for (uint32_t bus = 0U; bus < 2U; bus++) {
+      (void)fdcan_send_wait(bus, 0x110U, target_safe, 100U);
+      (void)fdcan_send_wait(bus, 0x110U, charge_disable, 100U);
+      (void)fdcan_send_wait(bus, 0x010U, output_disable, 100U);
+    }
+    const uint32_t start = HAL_GetTick();
+    while (HAL_GetTick() - start < 250U) {
+      for (uint32_t bus = 0U; bus < 2U; bus++) {
+        if (power_status_counter[bus] == before[bus]) continue;
+        __DMB();
+        before[bus] = power_status_counter[bus];
+        const uint8_t flags = power_status[bus][0];
+        safe_samples[bus] = flags == 0U ? safe_samples[bus] + 1U : 0U;
+        if (safe_samples[bus] >= 3U) {
+          if (bus != selected_bus) {
+            update_nodes[selected_bus] = NODE_UNUSED;
+            update_nodes[bus] = POWER_NODE_ID;
+          }
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 static bool can_command(uint8_t command, uint8_t token, uint32_t value, uint32_t timeout_ms, uint8_t reply[8])
@@ -293,6 +344,7 @@ static void handle_request(uint8_t type, const uint8_t * payload, uint16_t lengt
     update_nodes[0] = payload[1];
     update_nodes[1] = payload[2];
     if (update_nodes[0] == NODE_UNUSED && update_nodes[1] == NODE_UNUSED) { result[0] = GATEWAY_RANGE_ERROR; return; }
+    if (!power_safe_stop()) { result[0] = GATEWAY_NODE_ERROR; result[1] = 1U; result[2] = POWER_NODE_ID; return; }
     for (uint32_t i = 0U; i < 10U; i++) {
       for (uint32_t bus = 0U; bus < 2U; bus++) {
         if (update_nodes[bus] == NODE_UNUSED) continue;
@@ -403,9 +455,10 @@ static void handle_request(uint8_t type, const uint8_t * payload, uint16_t lengt
   }
 
   if (type == MSG_REBOOT) {
+    if (length > 1U) { result[0] = GATEWAY_RANGE_ERROR; return; }
     if (!can_command(7U, update_session, 0U, 1000U, reply)) { result[0] = GATEWAY_CAN_TIMEOUT; return; }
     set_result(result, reply[1] == 0U ? GATEWAY_OK : GATEWAY_NODE_ERROR, reply);
-    *reset_after_reply = result[0] == GATEWAY_OK;
+    *reset_after_reply = result[0] == GATEWAY_OK && (length == 0U || payload[0] == 0U);
     return;
   }
 
