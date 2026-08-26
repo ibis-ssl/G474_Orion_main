@@ -1,4 +1,4 @@
-/* CM4の可変長UART更新プロトコルを解析し、Subへ896-byte単位でCAN配信する。 */
+/* CM4の更新要求を解析し、CAN1/CAN2上の指定ノードへ896-byte単位で並列配信する。 */
 #include "fw_update_gateway.h"
 
 #include <string.h>
@@ -32,8 +32,8 @@
 
 #define CAN_COMMAND_ID 0x610U
 #define CAN_DATA_ID_BASE 0x480U
-#define CAN_RESPONSE_ID 0x654U
-#define SUB_NODE_ID 4U
+#define CAN_RESPONSE_BASE 0x650U
+#define NODE_UNUSED 0xFFU
 #define CHUNK_CAPACITY 896U
 
 extern volatile bool fw_gateway_active;
@@ -45,9 +45,10 @@ static volatile bool uart_frame_ready;
 static volatile bool uart_rx_overflow;
 static volatile uint32_t uart_last_byte_tick;
 
-static volatile uint8_t can_reply[8];
-static volatile uint32_t can_reply_counter;
+static volatile uint8_t can_reply[2][8];
+static volatile uint32_t can_reply_counter[2];
 static uint8_t update_session;
+static uint8_t update_nodes[2] = {4U, NODE_UNUSED};
 
 static bool last_response_valid;
 static uint16_t last_sequence;
@@ -158,17 +159,28 @@ void fw_update_gateway_uart_rx_byte(uint8_t value)
 
 bool fw_update_gateway_can_rx(FDCAN_HandleTypeDef * hfdcan, uint32_t identifier, const uint8_t data[8])
 {
-  if (!fw_gateway_active || hfdcan->Instance != FDCAN1 || identifier != CAN_RESPONSE_ID) return false;
-  memcpy((void *)can_reply, data, 8U);
+  uint32_t bus;
+  if (!fw_gateway_active) return false;
+  if (hfdcan->Instance == FDCAN1) bus = 0U;
+  else if (hfdcan->Instance == FDCAN2) bus = 1U;
+  else return false;
+  if (update_nodes[bus] == NODE_UNUSED || identifier != CAN_RESPONSE_BASE + update_nodes[bus]) return false;
+  memcpy((void *)can_reply[bus], data, 8U);
   __DMB();
-  can_reply_counter++;
+  can_reply_counter[bus]++;
   return true;
 }
 
-static bool fdcan_send_wait(uint32_t identifier, const uint8_t data[8], uint32_t timeout_ms)
+static FDCAN_HandleTypeDef * bus_handle(uint32_t bus)
 {
+  return bus == 0U ? &hfdcan1 : &hfdcan2;
+}
+
+static bool fdcan_send_wait(uint32_t bus, uint32_t identifier, const uint8_t data[8], uint32_t timeout_ms)
+{
+  FDCAN_HandleTypeDef * hfdcan = bus_handle(bus);
   const uint32_t start = HAL_GetTick();
-  while (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 0U) {
+  while (HAL_FDCAN_GetTxFifoFreeLevel(hfdcan) == 0U) {
     if (HAL_GetTick() - start >= timeout_ms) return false;
   }
   FDCAN_TxHeaderTypeDef header = {
@@ -182,21 +194,59 @@ static bool fdcan_send_wait(uint32_t identifier, const uint8_t data[8], uint32_t
     .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
     .MessageMarker = 0U,
   };
-  return HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &header, data) == HAL_OK;
+  return HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &header, data) == HAL_OK;
 }
 
 static bool can_command(uint8_t command, uint8_t token, uint32_t value, uint32_t timeout_ms, uint8_t reply[8])
 {
-  const uint8_t request[8] = {command, SUB_NODE_ID, token, 0U, (uint8_t)value, (uint8_t)(value >> 8U), (uint8_t)(value >> 16U), (uint8_t)(value >> 24U)};
   for (uint32_t attempt = 0U; attempt < 5U; attempt++) {
-    const uint32_t before = can_reply_counter;
-    if (!fdcan_send_wait(CAN_COMMAND_ID, request, 100U)) continue;
+    uint32_t before[2] = {can_reply_counter[0], can_reply_counter[1]};
+    bool sent = true;
+    for (uint32_t bus = 0U; bus < 2U; bus++) {
+      if (update_nodes[bus] == NODE_UNUSED) continue;
+      const uint8_t request[8] = {command, update_nodes[bus], token, 0U, (uint8_t)value, (uint8_t)(value >> 8U), (uint8_t)(value >> 16U), (uint8_t)(value >> 24U)};
+      if (!fdcan_send_wait(bus, CAN_COMMAND_ID, request, 100U)) sent = false;
+    }
+    if (!sent) continue;
     const uint32_t start = HAL_GetTick();
     while (HAL_GetTick() - start < timeout_ms) {
-      if (can_reply_counter != before) {
+      bool complete = true;
+      for (uint32_t bus = 0U; bus < 2U; bus++) if (update_nodes[bus] != NODE_UNUSED && can_reply_counter[bus] == before[bus]) complete = false;
+      if (complete) {
         __DMB();
-        memcpy(reply, (const void *)can_reply, 8U);
-        if (reply[0] == (uint8_t)(command | 0x80U) && reply[2] == SUB_NODE_ID && reply[3] == token) return true;
+        bool first = true;
+        uint8_t reference[8] = {0};
+        for (uint32_t bus = 0U; bus < 2U; bus++) {
+          if (update_nodes[bus] == NODE_UNUSED) continue;
+          uint8_t current[8]; memcpy(current, (const void *)can_reply[bus], 8U);
+          if (current[0] != (uint8_t)(command | 0x80U) || current[2] != update_nodes[bus] || current[3] != token) { complete = false; break; }
+          if (first) { memcpy(reference, current, 8U); memcpy(reply, current, 8U); first = false; }
+          else if (current[1] != reference[1]) { memcpy(reply, current, 8U); reply[1] = 3U; }
+        }
+        if (complete) return true;
+      }
+    }
+  }
+  return false;
+}
+
+static bool can_command_bus(uint32_t bus, uint8_t command, uint8_t token, uint32_t value, uint32_t timeout_ms, uint8_t reply[8])
+{
+  if (bus >= 2U || update_nodes[bus] == NODE_UNUSED) return false;
+  for (uint32_t attempt = 0U; attempt < 5U; attempt++) {
+    uint32_t before = can_reply_counter[bus];
+    const uint8_t request[8] = {command, update_nodes[bus], token, 0U, (uint8_t)value, (uint8_t)(value >> 8U), (uint8_t)(value >> 16U), (uint8_t)(value >> 24U)};
+    if (!fdcan_send_wait(bus, CAN_COMMAND_ID, request, 100U)) continue;
+    const uint32_t start = HAL_GetTick();
+    while (HAL_GetTick() - start < timeout_ms) {
+      if (can_reply_counter[bus] == before) continue;
+      __DMB();
+      uint8_t current[8];
+      memcpy(current, (const void *)can_reply[bus], 8U);
+      before = can_reply_counter[bus];
+      if (current[0] == (uint8_t)(command | 0x80U) && current[2] == update_nodes[bus] && current[3] == token) {
+        memcpy(reply, current, 8U);
+        return true;
       }
     }
   }
@@ -225,7 +275,7 @@ static void set_result(uint8_t payload[8], uint8_t gateway_status, const uint8_t
 {
   payload[0] = gateway_status;
   payload[1] = node_reply != NULL ? node_reply[1] : 0U;
-  payload[2] = SUB_NODE_ID;
+  payload[2] = node_reply != NULL ? node_reply[2] : (update_nodes[0] != NODE_UNUSED ? update_nodes[0] : update_nodes[1]);
   payload[3] = node_reply != NULL ? node_reply[3] : update_session;
   if (node_reply != NULL) memcpy(&payload[4], &node_reply[4], 4U);
   else memset(&payload[4], 0, 4U);
@@ -240,9 +290,15 @@ static void handle_request(uint8_t type, const uint8_t * payload, uint16_t lengt
   if (type == MSG_ENTER) {
     if (length != 4U) { result[0] = GATEWAY_RANGE_ERROR; return; }
     update_session = payload[0];
-    const uint8_t enter[8] = {'O', 'F', 'W', 'U', 'P', SUB_NODE_ID, 0U, update_session};
+    update_nodes[0] = payload[1];
+    update_nodes[1] = payload[2];
+    if (update_nodes[0] == NODE_UNUSED && update_nodes[1] == NODE_UNUSED) { result[0] = GATEWAY_RANGE_ERROR; return; }
     for (uint32_t i = 0U; i < 10U; i++) {
-      (void)fdcan_send_wait(0x600U, enter, 100U);
+      for (uint32_t bus = 0U; bus < 2U; bus++) {
+        if (update_nodes[bus] == NODE_UNUSED) continue;
+        const uint8_t enter[8] = {'O', 'F', 'W', 'U', 'P', update_nodes[bus], 0U, update_session};
+        (void)fdcan_send_wait(bus, 0x600U, enter, 100U);
+      }
       HAL_Delay(25U);
     }
     if (!can_command(1U, update_session, 0U, 250U, reply)) { result[0] = GATEWAY_CAN_TIMEOUT; return; }
@@ -270,13 +326,23 @@ static void handle_request(uint8_t type, const uint8_t * payload, uint16_t lengt
     const uint8_t injection = payload[10];
     if (chunk_length == 0U || chunk_length > CHUNK_CAPACITY || length != 11U + chunk_length) { result[0] = GATEWAY_RANGE_ERROR; return; }
     const uint8_t token = (uint8_t)(update_session + (offset / CHUNK_CAPACITY));
-    for (uint32_t chunk_attempt = 0U; chunk_attempt < 3U; chunk_attempt++) {
-      if (!can_command(4U, token, offset, 500U, reply)) continue;
-      if (reply[1] != 0U) {
-        if (reply[1] == 2U && load_u32(&reply[4]) == offset + chunk_length) { set_result(result, GATEWAY_OK, reply); result[1] = 0U; return; }
-        set_result(result, GATEWAY_NODE_ERROR, reply);
-        return;
+    uint8_t pending_mask = 0U;
+    bool received_node_reply = false;
+    for (uint32_t bus = 0U; bus < 2U; bus++) if (update_nodes[bus] != NODE_UNUSED) pending_mask |= (uint8_t)(1U << bus);
+    for (uint32_t chunk_attempt = 0U; chunk_attempt < 3U && pending_mask != 0U; chunk_attempt++) {
+      uint8_t active_mask = 0U;
+      for (uint32_t bus = 0U; bus < 2U; bus++) {
+        const uint8_t bus_mask = (uint8_t)(1U << bus);
+        if ((pending_mask & bus_mask) == 0U) continue;
+        uint8_t bus_reply[8];
+        if (!can_command_bus(bus, 4U, token, offset, 500U, bus_reply)) continue;
+        received_node_reply = true;
+        memcpy(reply, bus_reply, 8U);
+        if (bus_reply[1] == 0U) active_mask |= bus_mask;
+        else if (bus_reply[1] == 2U && load_u32(&bus_reply[4]) == offset + chunk_length) pending_mask &= (uint8_t)~bus_mask;
+        else { set_result(result, GATEWAY_NODE_ERROR, bus_reply); return; }
       }
+      if (active_mask == 0U) continue;
       const uint32_t frame_count = ((uint32_t)chunk_length + 6U) / 7U;
       bool send_ok = true;
       for (uint32_t order = 0U; order < frame_count; order++) {
@@ -287,24 +353,40 @@ static void handle_request(uint8_t type, const uint8_t * payload, uint16_t lengt
         const uint32_t copy_length = chunk_length - position < 7U ? chunk_length - position : 7U;
         memcpy(&data[1], &payload[11U + position], copy_length);
         if (chunk_attempt == 0U && (injection & 8U) != 0U && sequence == 6U) data[1] ^= 1U;
-        if (!fdcan_send_wait(CAN_DATA_ID_BASE + sequence, data, 100U)) { send_ok = false; break; }
-        if (chunk_attempt == 0U && (injection & 2U) != 0U && sequence == 7U && !fdcan_send_wait(CAN_DATA_ID_BASE + sequence, data, 100U)) { send_ok = false; break; }
-      }
-      if (!send_ok) { result[0] = GATEWAY_CAN_TIMEOUT; return; }
-      HAL_Delay(2U);
-      if (!can_command(5U, token, chunk_crc, 500U, reply)) {
-        if (can_command(1U, token, 0U, 250U, reply)) {
-          const uint32_t confirmed = load_u32(&reply[4]);
-          if (reply[1] == 0U && confirmed == offset + chunk_length) { set_result(result, GATEWAY_OK, reply); return; }
-          if (reply[1] == 0U && confirmed == offset) continue;
+        for (uint32_t bus = 0U; bus < 2U; bus++) {
+          if ((active_mask & (uint8_t)(1U << bus)) != 0U && !fdcan_send_wait(bus, CAN_DATA_ID_BASE + sequence, data, 100U)) { send_ok = false; break; }
         }
-        result[0] = GATEWAY_CAN_TIMEOUT;
-        return;
+        if (!send_ok) break;
+        if (chunk_attempt == 0U && (injection & 2U) != 0U && sequence == 7U) {
+          for (uint32_t bus = 0U; bus < 2U; bus++) if ((active_mask & (uint8_t)(1U << bus)) != 0U && !fdcan_send_wait(bus, CAN_DATA_ID_BASE + sequence, data, 100U)) send_ok = false;
+          if (!send_ok) break;
+        }
       }
-      if (reply[1] == 0U) { set_result(result, GATEWAY_OK, reply); return; }
-      if (reply[1] != 3U && reply[1] != 4U) { set_result(result, GATEWAY_NODE_ERROR, reply); return; }
+      if (!send_ok) continue;
+      HAL_Delay(2U);
+      for (uint32_t bus = 0U; bus < 2U; bus++) {
+        const uint8_t bus_mask = (uint8_t)(1U << bus);
+        if ((active_mask & bus_mask) == 0U) continue;
+        uint8_t bus_reply[8];
+        bool completed = false;
+        if (can_command_bus(bus, 5U, token, chunk_crc, 500U, bus_reply)) {
+          received_node_reply = true;
+          memcpy(reply, bus_reply, 8U);
+          if (bus_reply[1] == 0U) completed = true;
+          else if (bus_reply[1] != 3U && bus_reply[1] != 4U) { set_result(result, GATEWAY_NODE_ERROR, bus_reply); return; }
+        } else if (can_command_bus(bus, 1U, token, 0U, 250U, bus_reply)) {
+          received_node_reply = true;
+          memcpy(reply, bus_reply, 8U);
+          const uint32_t confirmed = load_u32(&bus_reply[4]);
+          if (bus_reply[1] == 0U && confirmed == offset + chunk_length) completed = true;
+          else if (bus_reply[1] != 0U || confirmed != offset) { set_result(result, GATEWAY_NODE_ERROR, bus_reply); return; }
+        }
+        if (completed) pending_mask &= (uint8_t)~bus_mask;
+      }
     }
-    set_result(result, GATEWAY_NODE_ERROR, reply);
+    if (pending_mask == 0U) { set_result(result, GATEWAY_OK, reply); result[1] = 0U; return; }
+    if (received_node_reply) set_result(result, GATEWAY_NODE_ERROR, reply);
+    else result[0] = GATEWAY_CAN_TIMEOUT;
     return;
   }
 

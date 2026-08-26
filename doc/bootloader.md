@@ -69,7 +69,8 @@ PA11/PA12、PB12/PB13のFDCANとPB3/PB4のUSART2はM1ではanalogであり、M2�
 - UART frame: magic `OFW2`、version、type、sequence、length、header CRC16、payload、CRC32C
 - payload最大907 byte、同一sequence再受信時は前回応答を返す
 - 更新モード中のUSART2 RXはIRQでRX registerを直接drainし、長いframeでのHAL 1-byte再登録による欠落を抑える
-- CAN dataは`0x480`～`0x4FF`、Sub commandは`0x610`、responseは`0x654`
+- CAN dataは`0x480`～`0x4FF`、node commandは`0x610`、responseは`0x650 + OTA node ID`
+- `ENTER`でCAN1/CAN2のnodeを個別指定し、同一imageの左右BLDCは両バスへ並列送信する
 - FDCAN TX FIFOに空きができるまで待ち、更新frameを破棄しない
 - CAN応答timeout時はHELLOでcommit offsetを照会し、書込み済みchunkを二重programしない
 - 故障注入用にCAN frameの欠落、重複、逆順、payload破損を最初のchunkへ適用できる

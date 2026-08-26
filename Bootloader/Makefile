@@ -19,7 +19,9 @@ OBJS := \
 	$(BUILD_DIR)/system_boot.o \
 	$(BUILD_DIR)/board_io.o \
 	$(BUILD_DIR)/boot_crc32c.o \
-	$(BUILD_DIR)/boot_image.o
+	$(BUILD_DIR)/boot_flash.o \
+	$(BUILD_DIR)/boot_image.o \
+	$(BUILD_DIR)/boot_uart_update.o
 
 .PHONY: all clean
 

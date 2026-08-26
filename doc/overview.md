@@ -3,7 +3,9 @@
 
 - User Flash先頭32 KBに基板専用アプリケーションブートローダーを配置するM1実装を追加した。
 - 通常アプリはSlot Aの`0x08008000`へ再配置した。
-- 現段階のbootloaderは安全IO、CRC32C、Slot A検証・jumpだけを行い、UART/CAN更新はまだ実装しない。
+- Main自身のbootloaderは安全IO、CRC32C、Slot A検証・jumpを担当する。通常アプリの`fw_update_gateway.c`はCM4の`OFW2`要求を受信し、CAN1/CAN2上のF303ブートローダーへ配信する。
+- Gatewayの`ENTER`ではCAN1/CAN2に別々のnode IDを指定できる。未使用バスは`0xFF`とし、左右BLDCではnode 16/17へ同じdata frameを両FDCANから並列送信する。command応答は各バスの`0x650 + node ID`で個別確認し、statusとcommit offsetが一致した場合だけ成功とする。
+- 更新中は通常制御周期とブザーPWMを停止する。全CANノード更新はCM4側で全対象を先にbootloaderへ移し、全imageの確定後にまとめて再起動する。
 - 詳細は`doc/bootloader.md`を参照する。
 
 ## ビルド手順（CLI）
@@ -114,6 +116,13 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - CAN送信ヘッダーは送信関数ごとのローカル変数とし、TIM7とFDCAN割り込みがネストした場合のCAN1/CAN2間共有競合を防止する。
 - 2026-08-04の実機計測では、右前CAN1送信関数から左後CAN2送信関数までの呼び出し差は変更前が平均3us・最大14us、FIFO化後が平均3us・最大14usだった。FIFO化後の連続監視ではHAL登録エラーとソフトウェアFIFO破棄はいずれも両バス0だった。
 - 同計測時は右・左モータードライバーの受信タイムアウト値がともに上限だったため、上記はMCU内部の関数呼び出し時刻差であり、CAN配線上のフレーム到達時刻差や実モーター応答差ではない。
+
+## BLDC並列FW更新
+
+- 2026-08-26にCM4→Main→CAN1 node 16/CAN2 node 17の実機並列更新を確認した。
+- データフレームは両バスへ同時送信し、BLOCK_BEGIN、BLOCK_END、HELLOの応答、確定offset、再送対象はバスごとに管理する。片側だけ書込み済みの場合は成功側を除外し、未完了側だけをchunk再送する。
+- 63,592 byteの更新は通常13.965秒、UART CRC破損とCAN欠落・重複・逆順・payload破損の複合注入時14.047秒で完了した。
+- 更新中はTIM5のブザーPWMを停止し、全対象の確定後に再起動する。
 
 ## 直進加速診断ログ
 - デバッグLPUARTで `g` を入力すると、`DRIVE_LOG` ページを250Hzで出力する。ページ選択後に `DRV_HEADER`、以後はCSV形式の `DRV` 行を出力する。

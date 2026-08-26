@@ -53,6 +53,10 @@
 #include "stop_state_control.h"
 #include "util.h"
 
+/* Backup register経由で常駐bootloaderへMain更新・pending確定要求を渡す。 */
+#define BOOT_REQUEST_UPDATE UINT32_C(0x5557464F)
+#define BOOT_REQUEST_CONFIRM UINT32_C(0x4346574F)
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -83,6 +87,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
+static void request_main_bootloader(uint32_t request);
 uint8_t getModeSwitch();
 bool allEncInitialized();
 uint32_t HAL_GetTick(void)
@@ -1181,6 +1186,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         } else if (gateway_command == 3U) {
           fw_gateway_active = false;
           NVIC_SystemReset();
+        } else if (gateway_command == 4U) {
+          request_main_bootloader(BOOT_REQUEST_UPDATE);
+        } else if (gateway_command == 5U) {
+          request_main_bootloader(BOOT_REQUEST_CONFIRM);
         }
       } else if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
         memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
@@ -1274,3 +1283,16 @@ void assert_failed(uint8_t * file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+static void request_main_bootloader(uint32_t request)
+{
+  HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_2);
+  actuator_buzzer_off();
+  RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN | RCC_APB1ENR1_RTCAPBEN;
+  (void)RCC->APB1ENR1;
+  PWR->CR1 |= PWR_CR1_DBP;
+  while ((PWR->CR1 & PWR_CR1_DBP) == 0U) {}
+  TAMP->BKP1R = SCB->VTOR >= UINT32_C(0x08040000) ? 1U : 0U;
+  TAMP->BKP0R = request;
+  __DSB();
+  NVIC_SystemReset();
+}
