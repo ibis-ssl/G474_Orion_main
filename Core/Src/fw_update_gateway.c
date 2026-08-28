@@ -15,6 +15,8 @@
 #define UART_TRAILER_SIZE 4U
 #define UART_MAX_PAYLOAD 907U
 #define UART_BUFFER_SIZE (UART_HEADER_SIZE + UART_MAX_PAYLOAD + UART_TRAILER_SIZE)
+#define UART_RX_QUEUE_SIZE 2048U
+#define UART_RX_QUEUE_MASK (UART_RX_QUEUE_SIZE - 1U)
 
 #define MSG_ENTER 1U
 #define MSG_BEGIN 2U
@@ -22,6 +24,7 @@
 #define MSG_FINALIZE 4U
 #define MSG_REBOOT 5U
 #define MSG_STATUS 6U
+#define MSG_UART_DIAG_RESET 0x41U
 
 #define GATEWAY_OK 0U
 #define GATEWAY_FRAME_ERROR 1U
@@ -41,11 +44,36 @@
 extern volatile bool fw_gateway_active;
 
 static uint8_t uart_rx_buffer[UART_BUFFER_SIZE];
+/* USART2 IRQをproducer、main loopをconsumerとするSPSCリング。
+ * 2のべき乗サイズとDMBにより、コピー完了前のhead公開を防ぐ。 */
+static uint8_t uart_rx_queue[UART_RX_QUEUE_SIZE];
+static volatile uint16_t uart_rx_queue_head;
+static volatile uint16_t uart_rx_queue_tail;
 static volatile uint16_t uart_rx_index;
 static volatile uint16_t uart_rx_expected;
 static volatile bool uart_frame_ready;
 static volatile bool uart_rx_overflow;
 static volatile uint32_t uart_last_byte_tick;
+
+/* CM4 UART安定性試験で受信解析と応答送信を切り分ける診断カウンタ。 */
+volatile uint32_t fw_uart_frame_count;
+volatile uint32_t fw_uart_crc_error_count;
+volatile uint32_t fw_uart_ready_overflow_count;
+volatile uint32_t fw_uart_response_ok_count;
+volatile uint32_t fw_uart_response_fail_count;
+volatile uint32_t fw_uart_header_version_error_count;
+volatile uint32_t fw_uart_header_length_error_count;
+volatile uint32_t fw_uart_header_crc_error_count;
+volatile uint8_t fw_uart_last_bad_header[UART_HEADER_SIZE];
+volatile uint32_t fw_uart_input_byte_count;
+volatile uint32_t fw_uart_queue_overflow_count;
+volatile uint32_t fw_uart_raw_hash = UINT32_C(5381);
+volatile uint32_t fw_uart_raw_count;
+volatile uint32_t fw_uart_queue_hash = UINT32_C(5381);
+volatile uint32_t fw_uart_queue_count;
+volatile uint32_t fw_uart_magic_start_count;
+volatile uint32_t fw_uart_header_ok_count;
+volatile uint32_t fw_uart_parser_timeout_count;
 
 static volatile uint8_t can_reply[2][8];
 static volatile uint32_t can_reply_counter[2];
@@ -116,20 +144,40 @@ void fw_update_gateway_start(uint8_t session)
   update_session = session;
   uart_frame_ready = false;
   last_response_valid = false;
+  uart_rx_queue_head = 0U;
+  uart_rx_queue_tail = 0U;
   reset_uart_parser();
 }
 
 void fw_update_gateway_uart_rx_byte(uint8_t value)
 {
-  static const uint8_t magic[4] = {UART_MAGIC_0, UART_MAGIC_1, UART_MAGIC_2, UART_MAGIC_3};
+  const uint16_t head = uart_rx_queue_head;
+  const uint16_t next = (uint16_t)((head + 1U) & UART_RX_QUEUE_MASK);
+  fw_uart_input_byte_count++;
+  fw_uart_raw_hash = (fw_uart_raw_hash * UINT32_C(33)) ^ value;
+  fw_uart_raw_count++;
   uart_last_byte_tick = HAL_GetTick();
+  if (next == uart_rx_queue_tail) {
+    fw_uart_queue_overflow_count++;
+    return;
+  }
+  uart_rx_queue[head] = value;
+  __DMB();
+  uart_rx_queue_head = next;
+}
+
+static void parse_uart_byte(uint8_t value)
+{
+  static const uint8_t magic[4] = {UART_MAGIC_0, UART_MAGIC_1, UART_MAGIC_2, UART_MAGIC_3};
   if (uart_frame_ready) {
     uart_rx_overflow = true;
+    fw_uart_ready_overflow_count++;
     return;
   }
 
   if (uart_rx_index < 4U) {
     if (value == magic[uart_rx_index]) {
+      if (uart_rx_index == 0U) fw_uart_magic_start_count++;
       uart_rx_buffer[uart_rx_index++] = value;
     } else {
       uart_rx_index = value == magic[0] ? 1U : 0U;
@@ -147,17 +195,25 @@ void fw_update_gateway_uart_rx_byte(uint8_t value)
 
   if (uart_rx_index == UART_HEADER_SIZE) {
     const uint16_t payload_length = load_u16(&uart_rx_buffer[8]);
-    if (uart_rx_buffer[4] != UART_VERSION || payload_length > UART_MAX_PAYLOAD ||
-        crc16_ccitt(uart_rx_buffer, 10U) != load_u16(&uart_rx_buffer[10])) {
+    const bool version_error = uart_rx_buffer[4] != UART_VERSION;
+    const bool length_error = payload_length > UART_MAX_PAYLOAD;
+    const bool header_crc_error = crc16_ccitt(uart_rx_buffer, 10U) != load_u16(&uart_rx_buffer[10]);
+    if (version_error || length_error || header_crc_error) {
+      if (version_error) fw_uart_header_version_error_count++;
+      if (length_error) fw_uart_header_length_error_count++;
+      if (header_crc_error) fw_uart_header_crc_error_count++;
+      memcpy((void *)fw_uart_last_bad_header, uart_rx_buffer, UART_HEADER_SIZE);
       reset_uart_parser();
       return;
     }
     uart_rx_expected = (uint16_t)(UART_HEADER_SIZE + payload_length + UART_TRAILER_SIZE);
+    fw_uart_header_ok_count++;
   }
 
   if (uart_rx_expected != 0U && uart_rx_index == uart_rx_expected) {
     __DMB();
     uart_frame_ready = true;
+    fw_uart_frame_count++;
   }
 }
 
@@ -318,8 +374,12 @@ static void send_uart_response(uint8_t type, uint16_t sequence, const uint8_t * 
     const uint32_t start = HAL_GetTick();
     while (huart2.gState != HAL_UART_STATE_READY && HAL_GetTick() - start < 100U) {}
     if (huart2.gState == HAL_UART_STATE_READY &&
-        HAL_UART_Transmit(&huart2, frame, UART_HEADER_SIZE + payload_length + UART_TRAILER_SIZE, 100U) == HAL_OK) return;
+        HAL_UART_Transmit(&huart2, frame, UART_HEADER_SIZE + payload_length + UART_TRAILER_SIZE, 100U) == HAL_OK) {
+      fw_uart_response_ok_count++;
+      return;
+    }
   }
+  fw_uart_response_fail_count++;
 }
 
 static void set_result(uint8_t payload[8], uint8_t gateway_status, const uint8_t node_reply[8])
@@ -462,14 +522,40 @@ static void handle_request(uint8_t type, const uint8_t * payload, uint16_t lengt
     return;
   }
 
+  if (type == MSG_UART_DIAG_RESET) {
+    if (length != 0U) { result[0] = GATEWAY_RANGE_ERROR; return; }
+    fw_uart_raw_hash = UINT32_C(5381);
+    fw_uart_raw_count = 0U;
+    fw_uart_queue_hash = UINT32_C(5381);
+    fw_uart_queue_count = 0U;
+    return;
+  }
+
   result[0] = GATEWAY_FRAME_ERROR;
 }
 
 void fw_update_gateway_process(void)
 {
   if (!fw_gateway_active) return;
+  while (!uart_frame_ready) {
+    const uint16_t tail = uart_rx_queue_tail;
+    if (tail == uart_rx_queue_head) break;
+    __DMB();
+    const uint8_t value = uart_rx_queue[tail];
+    uart_rx_queue_tail = (uint16_t)((tail + 1U) & UART_RX_QUEUE_MASK);
+    fw_uart_queue_hash = (fw_uart_queue_hash * UINT32_C(33)) ^ value;
+    fw_uart_queue_count++;
+    parse_uart_byte(value);
+  }
   if (!uart_frame_ready) {
-    if (uart_rx_index != 0U && HAL_GetTick() - uart_last_byte_tick > 250U) reset_uart_parser();
+    /* HAL_GetTick()取得直後にIRQがlast_byte_tickを更新すると、符号なし減算が
+     * underflowして偽timeoutになる。snapshotの一致を再確認してから破棄する。 */
+    const uint32_t last_byte_tick = uart_last_byte_tick;
+    const uint32_t now = HAL_GetTick();
+    if (uart_rx_index != 0U && now - last_byte_tick > 250U && last_byte_tick == uart_last_byte_tick) {
+      fw_uart_parser_timeout_count++;
+      reset_uart_parser();
+    }
     return;
   }
 
@@ -479,6 +565,7 @@ void fw_update_gateway_process(void)
   const uint16_t payload_length = load_u16(&uart_rx_buffer[8]);
   const uint32_t expected_crc = load_u32(&uart_rx_buffer[UART_HEADER_SIZE + payload_length]);
   if (uart_rx_overflow || crc32c(uart_rx_buffer, UART_HEADER_SIZE + payload_length) != expected_crc) {
+    fw_uart_crc_error_count++;
     uart_frame_ready = false;
     reset_uart_parser();
     return;

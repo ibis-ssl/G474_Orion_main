@@ -450,8 +450,9 @@ int main(void)
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
 
-  HAL_UART_Init(&huart2);
-  HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
+  /* MX_USART2_UART_Init()で設定したRX FIFOを維持したまま受信割り込みを開始する。 */
+  SET_BIT(huart2.Instance->CR3, USART_CR3_EIE);
+  SET_BIT(huart2.Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
 
   HAL_UART_Init(&hlpuart1);
   HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
@@ -1239,7 +1240,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     toggleInterruptLED();
   }
-  if (!print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
+  /* FW更新中はOFW2応答と通常テレメトリのUSART2送信競合を防ぐ。 */
+  if (!fw_gateway_active && !print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
     sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
     robot_info_send_cnt++;
   }
@@ -1276,7 +1278,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
   if (huart->Instance == USART2) {
     rx_data_tmp = uart2_rx_it_buffer;
-    HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
+    /* RX割り込みは起動時に有効化済み。IRQ側でFIFOを直接drainするため再armしない。 */
 
     if (fw_gateway_active) {
       fw_update_gateway_uart_rx_byte(rx_data_tmp);

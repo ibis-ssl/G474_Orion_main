@@ -132,6 +132,16 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - 通常USART2受信もIRQ内でRX FIFOを全量drainし、72-byte FWUP要求と更新モード切替直後の長いOFW frameを取りこぼさない。
 - 2026-08-27の最終往復はB→Aが9.808秒、A→Bが9.796秒。Slot A generation 8、Slot B generation 9がともにCONFIRMED、boot attempts 0を確認した。
 
+## CM4 USART2割り込み受信の安定化
+
+- USART2は1 Mbps、RX FIFO有効、threshold 1/8で使用する。起動処理で`HAL_UART_Init()`を二重に呼ぶとFIFOENが消えるため、初期化は`MX_USART2_UART_Init()`だけで行う。
+- RXはHALの1-byte受信状態機械を使わず、RXNE/RXFNE割り込みを直接常時有効にする。ISRはFIFOをdrainして2 KBリングへ格納し、parserはmain loopで実行する。ISR末尾でRX interruptとerror interruptを再有効化する。
+- FW gateway中は通常robot telemetryのUSART2 DMA送信を停止し、OFW2応答との競合を防ぐ。
+- partial frame timeoutでは`uart_last_byte_tick`を先にsnapshotし、その後`HAL_GetTick()`を取得する。判定直前にsnapshotと現在の`uart_last_byte_tick`が一致する場合だけresetする。逆順に評価すると、その間のRX IRQ更新でunsigned減算がunderflowし、受信途中のframeを誤resetする。
+- 診断用にISR/queueのbyte countとrolling hash、FIFO drain最大数、ORE/FE/NE/PE、queue overflow、magic/header/frame、CRC、parser timeout、response成功/失敗をRAMへ保持する。
+- 2026-08-28、CM4をPL011（`/dev/serial0 -> ttyAMA0`）へ切替後、923-byte最大frameを3,000/3,000で初回応答成功した。median 14.891 ms、p95 16.937 ms、max 17.832 ms。CM4経由でB 10.108秒、A 9.932秒の更新後も1,000/1,000成功した。
+- 最終A/Bは同一build ID `1787928269`。Slot A CRC32C `23F1D426`、Slot B `CF4FCD66`、active slot A。
+
 ## 開発用FW識別
 
 - Slot A/Bの各アプリ先頭`+0x400`へ`FWVR` magicとUnix秒build IDを配置する。`build_slot_b.ps1`はA/Bを同じbuild IDで生成し、両slotのmetadataも必ず再生成する。
