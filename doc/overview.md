@@ -60,6 +60,12 @@ powershell -ExecutionPolicy Bypass -File .\Script\install_main_bootloader.ps1 -C
 powershell -ExecutionPolicy Bypass -File .\Script\install_main_bootloader.ps1 -Configuration Debug -Execute
 ```
 
+ブートローダーとDebug版Slot Aアプリを再ビルドし、Flash全体を退避してから、ブートローダー、アプリ、metadataを一括で書き込む場合は次を使用する。`flash_all.ps1`は確認オプションなしで直ちに書き込みまで実行するため、対象基板と安全状態を確認してから起動する。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Script\flash_all.ps1
+```
+
 ### ビルドしてから書き込み
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Script\build_and_flash.ps1 -Configuration Debug -BootloaderInstalled
