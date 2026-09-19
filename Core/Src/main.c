@@ -80,6 +80,7 @@
 
 const fw_version_t g_fw_version __attribute__((section(".fw_version"), used)) = {FW_VERSION_MAGIC, 0U};
 
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -464,8 +465,9 @@ int main(void)
   setbuf(stderr, NULL);
 
   /* MX_USART2_UART_Init()で設定したRX FIFOを維持したまま受信割り込みを開始する。 */
-  SET_BIT(huart2.Instance->CR3, USART_CR3_EIE);
-  SET_BIT(huart2.Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
+  /* DMA完了IRQによるDMAT/TCIEの更新を古い値で上書きしない。 */
+  ATOMIC_SET_BIT(huart2.Instance->CR3, USART_CR3_EIE);
+  ATOMIC_SET_BIT(huart2.Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
 
   HAL_UART_Init(&hlpuart1);
   HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);

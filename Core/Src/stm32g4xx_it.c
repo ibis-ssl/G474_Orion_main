@@ -54,6 +54,7 @@ volatile uint32_t uart2_rx_ne_count;
 volatile uint32_t uart2_rx_pe_count;
 volatile uint32_t uart2_rx_max_drain;
 
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -361,8 +362,9 @@ void USART2_IRQHandler(void)
   /* USER CODE BEGIN USART2_IRQn 1 */
 
   /* RXはHALの1-byte受信状態機械を使わない。エラーやTX完了処理後も常時有効を保証する。 */
-  SET_BIT(huart2.Instance->CR3, USART_CR3_EIE);
-  SET_BIT(huart2.Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
+  /* DMA完了IRQによるDMAT/TCIEの更新を古い値で上書きしない。 */
+  ATOMIC_SET_BIT(huart2.Instance->CR3, USART_CR3_EIE);
+  ATOMIC_SET_BIT(huart2.Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
 
   /* USER CODE END USART2_IRQn 1 */
 }
