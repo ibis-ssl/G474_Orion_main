@@ -517,7 +517,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_DRIVE_LOG;
+  debug.print_idx = PRINT_IDX_ODOM;
 
   char error_str[100] = {0};
 
