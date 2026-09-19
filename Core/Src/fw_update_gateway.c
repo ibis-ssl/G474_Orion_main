@@ -469,6 +469,9 @@ static void handle_request(uint8_t type, const uint8_t * payload, uint16_t lengt
           if ((active_mask & (uint8_t)(1U << bus)) != 0U && !fdcan_send_wait(bus, CAN_DATA_ID_BASE + sequence, data, 100U)) { send_ok = false; break; }
         }
         if (!send_ok) break;
+        /* Power bootloaderの受信FIFOを溢れさせないよう8フレームごとに待つ。 */
+        if ((update_nodes[0] == POWER_NODE_ID || update_nodes[1] == POWER_NODE_ID) &&
+            (order & 7U) == 7U) HAL_Delay(1U);
         if (chunk_attempt == 0U && (injection & 2U) != 0U && sequence == 7U) {
           for (uint32_t bus = 0U; bus < 2U; bus++) if ((active_mask & (uint8_t)(1U << bus)) != 0U && !fdcan_send_wait(bus, CAN_DATA_ID_BASE + sequence, data, 100U)) send_ok = false;
           if (!send_ok) break;

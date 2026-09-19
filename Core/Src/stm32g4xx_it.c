@@ -46,6 +46,7 @@
 
 /* CM4 UART受信の実機診断用カウンタ。デバッガから参照するためvolatileで保持する。 */
 volatile uint32_t uart2_rx_irq_count;
+volatile uint32_t uart2_rx_data_irq_count;
 volatile uint32_t uart2_rx_byte_count;
 volatile uint32_t uart2_rx_ore_count;
 volatile uint32_t uart2_rx_fe_count;
@@ -345,6 +346,9 @@ void USART2_IRQHandler(void)
     drained++;
   }
   uart2_rx_byte_count += drained;
+  if (drained != 0U) {
+    uart2_rx_data_irq_count++;
+  }
   if (drained > uart2_rx_max_drain) {
     uart2_rx_max_drain = drained;
   }

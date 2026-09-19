@@ -175,3 +175,17 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - 停止時に4輪出力を0にする整定状態は使用しない。条件成立中は回転角度誤差を時定数50msの一次遅れで減衰させ、1制御周期の補正量を最大 `0.001rad`（`0.5rad/s`）に制限する。残差が `0.0005rad` 未満になった場合だけ残りを同期する。
 - 条件が外れた場合は成立カウントと `angle_clear_active` を即座に解除し、その周期の補正量を0にする。再び2周期連続成立すれば、その時点の残差から補正を再開する。
 - `DRIVE_LOG` では、500Hz制御で `angle_clear_count=2` かつ `angle_clear_active=1` が回転角度誤差の補正中を示す。`rotation_angle_error` は補正前の回転成分、`rotation_clear_step` はその周期に各輪目標角度から差し引いた補正量をrad単位で示す。
+
+## CM4_105 Power更新の復旧（2026-09-16）
+
+- Power更新で3584 byte地点に欠落・順序異常（node status 3）が再現したため、fw_update_gateway.cにPower対象時のみ8 CAN frameごとの1 ms待機を追加した。
+- A/B build成功。build ID 1789484648、各84,500 byte、CRC32C A=AEC55D28、B=DB0D0D01。CM4経由のB更新9.652秒、A更新9.972秒、最終active A。両スロットのbuild IDとCRCが配布ファイルに一致した。
+- 修正後のPower更新は13.244秒で成功し、CRC32C A07D08B0一致、Sub・左右BLDCを含む全基板のversion応答復帰を確認した。UART再送は発生した。受信FIFO overflow自体は直接計測していない。
+
+## CM4 UART送受信競合の切り分け（2026-09-19）
+
+- COM57のUART RAW画面に、正常フレーム受信からの経過時間、USART2 IRQ/byte数、FIFO最大drain数、PE/FE/NE/ORE数を表示する。
+- UART RAW画面では全USART2割り込み数とは別に、RX byteを実際にdrainした割り込み数、72 byte組立完了数、チェックサム正常数も表示し、物理受信とパーサ結果を比較できる。
+- COM57から`t`を送信すると、MainからCM4への通常128 byteテレメトリ送信を一時停止・再開できる。FW更新応答には影響しない。
+- `Dt`はUARTフレームの受信間隔ではなく、AIコマンドの`check_counter`が最後に変化してからの時間である。UART受信停止の判定にはUART RAW画面の`RX age`を使用する。
+- 20秒の実機測定ではRX data IRQ 95,112回、受信95,112 byte、72 byteフレーム1,321個、チェックサム正常1,321個で完全一致した。約4秒周期の停止中は4カウンタがすべて同時に停止し、PE/FE/NEとチェックサムエラーは増加しなかったため、MainのパーサではなくCM4側の物理送信停止と判断した。

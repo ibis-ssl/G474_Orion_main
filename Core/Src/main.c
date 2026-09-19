@@ -166,6 +166,19 @@ volatile bool fw_gateway_active = false;
 volatile uint8_t fw_gateway_reply[8] = {0};
 volatile uint8_t fw_gateway_reply_counter = 0;
 static volatile bool fw_gateway_reply_pending = false;
+/* COM57から't'を送ると通常テレメトリTXを停止できる。CM4 RXとの競合切り分け用。 */
+static volatile bool cm4_telemetry_enabled = true;
+static volatile uint32_t cm4_rx_frame_count;
+static volatile uint32_t cm4_rx_valid_frame_count;
+
+extern volatile uint32_t uart2_rx_irq_count;
+extern volatile uint32_t uart2_rx_data_irq_count;
+extern volatile uint32_t uart2_rx_byte_count;
+extern volatile uint32_t uart2_rx_ore_count;
+extern volatile uint32_t uart2_rx_fe_count;
+extern volatile uint32_t uart2_rx_ne_count;
+extern volatile uint32_t uart2_rx_pe_count;
+extern volatile uint32_t uart2_rx_max_drain;
 
 typedef struct __attribute__((packed)) {
   uint32_t build_id;
@@ -958,6 +971,10 @@ int main(void)
           }
           setTextMagenta();
           p(" ck 0x%2x , error %4d", connection.check_cnt, connection.check_sum_error_cnt);
+          p(" RX age%4lu TX%d irq%lu rxirq%lu byte%lu frame%lu valid%lu max%lu PE%lu FE%lu NE%lu ORE%lu", (unsigned long)(sys.system_time_ms - connection.latest_cm4_cmd_update_time),
+            cm4_telemetry_enabled, (unsigned long)uart2_rx_irq_count, (unsigned long)uart2_rx_data_irq_count, (unsigned long)uart2_rx_byte_count,
+            (unsigned long)cm4_rx_frame_count, (unsigned long)cm4_rx_valid_frame_count, (unsigned long)uart2_rx_max_drain,
+            (unsigned long)uart2_rx_pe_count, (unsigned long)uart2_rx_fe_count, (unsigned long)uart2_rx_ne_count, (unsigned long)uart2_rx_ore_count);
           break;
 
         case PRINT_IDX_DRIVE_LOG: {
@@ -1241,7 +1258,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     toggleInterruptLED();
   }
   /* FW更新中はOFW2応答と通常テレメトリのUSART2送信競合を防ぐ。 */
-  if (!fw_gateway_active && !print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
+  if (cm4_telemetry_enabled && !fw_gateway_active && !print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
     sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
     robot_info_send_cnt++;
   }
@@ -1302,13 +1319,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
+      const bool checksum_ok = checkCM4CmdCheckSun(&connection, data_from_cm4);
+      cm4_rx_frame_count++;
+      if (checksum_ok) {
+        cm4_rx_valid_frame_count++;
+      }
       // UARTバスを送受信で同時に使えないので、受信完了してから送信開始
       //sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
       debug.sys_mnt.robot_info_tx_cnt++;
       uart_rx_cmd_idx = -1;
-      if (checkCM4CmdCheckSun(&connection, data_from_cm4) && memcmp(&data_from_cm4[1], "FWVR", 4U) == 0) {
+      if (checksum_ok && memcmp(&data_from_cm4[1], "FWVR", 4U) == 0) {
         fw_version_start();
-      } else if (checkCM4CmdCheckSun(&connection, data_from_cm4) && memcmp(&data_from_cm4[1], "FWUP", 4U) == 0) {
+      } else if (checksum_ok && memcmp(&data_from_cm4[1], "FWUP", 4U) == 0) {
         const uint8_t gateway_command = data_from_cm4[5];
         if (gateway_command == 1U) {
           fw_gateway_active = true;
@@ -1330,7 +1352,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         } else if (gateway_command == 5U) {
           request_main_bootloader(BOOT_REQUEST_CONFIRM);
         }
-      } else if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
+      } else if (checksum_ok) {
         memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
         cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
         updateCM4CmdTimeStamp(&connection, &sys);
@@ -1360,6 +1382,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         break;
       case 'g':
         setPrintPage(PRINT_IDX_DRIVE_LOG);
+        break;
+      case 't':
+        cm4_telemetry_enabled = !cm4_telemetry_enabled;
         break;
       case '0':
       case '1':
