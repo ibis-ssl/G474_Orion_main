@@ -213,3 +213,14 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM60 -
 - COM57から`t`を送信すると、MainからCM4への通常128 byteテレメトリ送信を一時停止・再開できる。FW更新応答には影響しない。
 - `Dt`はUARTフレームの受信間隔ではなく、AIコマンドの`check_counter`が最後に変化してからの時間である。UART受信停止の判定にはUART RAW画面の`RX age`を使用する。
 - 20秒の実機測定ではRX data IRQ 95,112回、受信95,112 byte、72 byteフレーム1,321個、チェックサム正常1,321個で完全一致した。約4秒周期の停止中は4カウンタがすべて同時に停止し、PE/FE/NEとチェックサムエラーは増加しなかったため、MainのパーサではなくCM4側の物理送信停止と判断した。
+
+## Mode 3 UARTタイミング診断（2026-09-20）
+
+- デバッグLPUARTで`y`を入力すると、10秒間のタイミング診断を開始する。通常表示は計測中も従来どおり継続し、診断用の追加出力は行わない。
+- 記録対象はSTOPフラグが立ち、command byte 38～41が`TPRB`の正常72 byteフレームだけとする。byte 42～45をlittle endianの送信連番として扱い、check counterとともに記録する。
+- この診断機能は安全インタロックではない。受信した指令は既存経路で通常どおり解釈され、STOPフラグだけではkickなど全出力の無効化を保証しない。実機試験では送信器を1つに限定し、速度・角速度・kick・dribbleなど全危険フィールドをゼロにしたうえで、機体の物理的な安全を別途確保する。
+- USART2で正常フレームが完成した時刻と、次のTIM7 500 Hz制御周期で指令を採用した時刻をDWT CYCCNTで記録する。170 MHzの32 bit CYCCNTは約25.3秒で周回するため、10秒計測中は周回しない。
+- RX/APPLYを各1500件の固定配列へ保存する。容量超過は`rx_overflow`/`apply_overflow`へ記録し、割り込み内では文字列整形やUART出力を行わない。
+- USART2がTIM7の指令コピーをプリエンプトした場合はpublish世代番号の不一致を検出し、誤った送信連番をAPPLYへ割り当てず`apply_race`へ加算する。
+- 10秒終了後は通常表示を一時停止し、LPUART1へ`TPRB_BEGIN`、CSV形式の`TPRB_RX`/`TPRB_APPLY`、集計`TPRB_END`の順でDMA出力する。続く`TPRB_STATS`には全frame、正常frame、checksum error、USART2 IRQ、data IRQ、byteの計測中増分、`TPRB_STATS_ERR`にはPE/FE/NE/OREの計測中増分を出力し、TPRB以外を含む物理受信と欠落の判断に使用する。各行は160 byteの出力バッファ内に収める。出力完了後に通常表示へ戻る。
+- CSVの各DMA送信開始はHAL tickで1 ms以上離す。2 MbpsのLPUARTを連続送信した際にUSB仮想COM側で文字が欠落することを防ぐためで、待機は10秒の計測終了後だけに適用する。約1000件のRXとAPPLYを出力する場合、完了まで約2秒かかる。

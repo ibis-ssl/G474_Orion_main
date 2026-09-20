@@ -172,6 +172,71 @@ static volatile bool cm4_telemetry_enabled = true;
 static volatile uint32_t cm4_rx_frame_count;
 static volatile uint32_t cm4_rx_valid_frame_count;
 
+/* STOP付きTPRB指令のUSART2受信完了と500 Hz制御への採用時刻を記録する。 */
+#define TIMING_PROBE_CAPACITY 1500U
+#define TIMING_PROBE_DURATION_CYCLES UINT32_C(1700000000)
+#define TIMING_PROBE_MARKER_OFFSET 38U
+#define TIMING_PROBE_SEQUENCE_OFFSET 42U
+
+typedef struct {
+  uint32_t cycle;
+  uint32_t marker_sequence;
+  uint16_t event_sequence;
+  uint8_t counter;
+  uint8_t reserved;
+} timing_probe_event_t;
+
+_Static_assert(sizeof(timing_probe_event_t) == 12U, "Timing probe event size changed");
+
+typedef enum {
+  TIMING_PROBE_IDLE = 0,
+  TIMING_PROBE_CAPTURING,
+  TIMING_PROBE_DUMP_HEADER,
+  TIMING_PROBE_DUMP_RX,
+  TIMING_PROBE_DUMP_APPLY,
+  TIMING_PROBE_DUMP_FOOTER,
+  TIMING_PROBE_DUMP_STATS_RX,
+  TIMING_PROBE_DUMP_STATS_ERROR,
+  TIMING_PROBE_DUMP_WAIT
+} timing_probe_state_t;
+
+static timing_probe_event_t timing_probe_rx[TIMING_PROBE_CAPACITY];
+static timing_probe_event_t timing_probe_apply[TIMING_PROBE_CAPACITY];
+static volatile timing_probe_state_t timing_probe_state;
+static volatile uint16_t timing_probe_rx_count;
+static volatile uint16_t timing_probe_apply_count;
+static volatile uint32_t timing_probe_rx_overflow;
+static volatile uint32_t timing_probe_apply_overflow;
+static volatile uint32_t timing_probe_filtered_count;
+static volatile uint32_t timing_probe_apply_race_count;
+static volatile uint32_t timing_probe_publish_generation;
+static volatile bool timing_probe_published_marker;
+static volatile uint32_t timing_probe_published_sequence;
+static volatile uint8_t timing_probe_published_counter;
+static uint32_t timing_probe_frame_start;
+static uint32_t timing_probe_valid_start;
+static uint32_t timing_probe_checksum_error_start;
+static uint32_t timing_probe_irq_start;
+static uint32_t timing_probe_rx_irq_start;
+static uint32_t timing_probe_byte_start;
+static uint32_t timing_probe_pe_start;
+static uint32_t timing_probe_fe_start;
+static uint32_t timing_probe_ne_start;
+static uint32_t timing_probe_ore_start;
+static uint32_t timing_probe_frame_delta;
+static uint32_t timing_probe_valid_delta;
+static uint32_t timing_probe_checksum_error_delta;
+static uint32_t timing_probe_irq_delta;
+static uint32_t timing_probe_rx_irq_delta;
+static uint32_t timing_probe_byte_delta;
+static uint32_t timing_probe_pe_delta;
+static uint32_t timing_probe_fe_delta;
+static uint32_t timing_probe_ne_delta;
+static uint32_t timing_probe_ore_delta;
+static uint16_t timing_probe_dump_index;
+static uint32_t timing_probe_dump_next_tick;
+static char timing_probe_dump_line[160];
+
 extern volatile uint32_t uart2_rx_irq_count;
 extern volatile uint32_t uart2_rx_data_irq_count;
 extern volatile uint32_t uart2_rx_byte_count;
@@ -315,6 +380,214 @@ static void fw_gateway_send_uart_reply(void)
   if (HAL_UART_Transmit(&huart2, frame, sizeof(frame), 10U) != HAL_OK) {
     fw_gateway_reply_pending = true;
   }
+}
+
+static uint32_t timing_probe_load_u32(const uint8_t * data)
+{
+  return (uint32_t)data[0] | ((uint32_t)data[1] << 8U) | ((uint32_t)data[2] << 16U) | ((uint32_t)data[3] << 24U);
+}
+
+static bool timing_probe_is_marker(const uint8_t * data)
+{
+  return (data[FLAGS] & (uint8_t)(1U << STOP_EMERGENCY)) != 0U &&
+         memcmp(&data[TIMING_PROBE_MARKER_OFFSET], "TPRB", 4U) == 0;
+}
+
+static void timing_probe_finish_capture(void)
+{
+  if (timing_probe_state != TIMING_PROBE_CAPTURING) return;
+  timing_probe_frame_delta = cm4_rx_frame_count - timing_probe_frame_start;
+  timing_probe_valid_delta = cm4_rx_valid_frame_count - timing_probe_valid_start;
+  timing_probe_checksum_error_delta = connection.check_sum_error_cnt - timing_probe_checksum_error_start;
+  timing_probe_irq_delta = uart2_rx_irq_count - timing_probe_irq_start;
+  timing_probe_rx_irq_delta = uart2_rx_data_irq_count - timing_probe_rx_irq_start;
+  timing_probe_byte_delta = uart2_rx_byte_count - timing_probe_byte_start;
+  timing_probe_pe_delta = uart2_rx_pe_count - timing_probe_pe_start;
+  timing_probe_fe_delta = uart2_rx_fe_count - timing_probe_fe_start;
+  timing_probe_ne_delta = uart2_rx_ne_count - timing_probe_ne_start;
+  timing_probe_ore_delta = uart2_rx_ore_count - timing_probe_ore_start;
+  __DMB();
+  timing_probe_state = TIMING_PROBE_DUMP_HEADER;
+  timing_probe_dump_index = 0U;
+  timing_probe_dump_next_tick = HAL_GetTick();
+  __DMB();
+}
+
+static bool timing_probe_capture_expired(uint32_t cycle)
+{
+  if (cycle < TIMING_PROBE_DURATION_CYCLES) return false;
+  timing_probe_finish_capture();
+  return true;
+}
+
+static void timing_probe_start(void)
+{
+  if (timing_probe_state != TIMING_PROBE_IDLE) return;
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0U;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+  timing_probe_rx_count = 0U;
+  timing_probe_apply_count = 0U;
+  timing_probe_rx_overflow = 0U;
+  timing_probe_apply_overflow = 0U;
+  timing_probe_filtered_count = 0U;
+  timing_probe_apply_race_count = 0U;
+  timing_probe_publish_generation = 0U;
+  timing_probe_published_marker = false;
+  timing_probe_published_sequence = 0U;
+  timing_probe_published_counter = 0U;
+  timing_probe_dump_index = 0U;
+  const uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  timing_probe_frame_start = cm4_rx_frame_count;
+  timing_probe_valid_start = cm4_rx_valid_frame_count;
+  timing_probe_checksum_error_start = connection.check_sum_error_cnt;
+  timing_probe_irq_start = uart2_rx_irq_count;
+  timing_probe_rx_irq_start = uart2_rx_data_irq_count;
+  timing_probe_byte_start = uart2_rx_byte_count;
+  timing_probe_pe_start = uart2_rx_pe_count;
+  timing_probe_fe_start = uart2_rx_fe_count;
+  timing_probe_ne_start = uart2_rx_ne_count;
+  timing_probe_ore_start = uart2_rx_ore_count;
+  __DMB();
+  timing_probe_state = TIMING_PROBE_CAPTURING;
+  if (primask == 0U) __enable_irq();
+}
+
+static void timing_probe_record_rx(const uint8_t * data, uint32_t cycle)
+{
+  if (timing_probe_state != TIMING_PROBE_CAPTURING || timing_probe_capture_expired(cycle)) return;
+  if (!timing_probe_is_marker(data)) {
+    timing_probe_filtered_count++;
+    return;
+  }
+
+  const uint16_t index = timing_probe_rx_count;
+  if (index >= TIMING_PROBE_CAPACITY) {
+    timing_probe_rx_overflow++;
+    return;
+  }
+  timing_probe_rx[index].cycle = cycle;
+  timing_probe_rx[index].marker_sequence = timing_probe_load_u32(&data[TIMING_PROBE_SEQUENCE_OFFSET]);
+  timing_probe_rx[index].event_sequence = index;
+  timing_probe_rx[index].counter = data[CHECK_COUNTER];
+  timing_probe_rx[index].reserved = 0U;
+  __DMB();
+  timing_probe_rx_count = (uint16_t)(index + 1U);
+}
+
+static void timing_probe_record_apply(uint32_t cycle, uint32_t generation_before, bool marker, uint32_t marker_sequence, uint8_t counter)
+{
+  if (timing_probe_state != TIMING_PROBE_CAPTURING || timing_probe_capture_expired(cycle)) return;
+  __DMB();
+  const uint32_t generation_after = timing_probe_publish_generation;
+  if (generation_before != generation_after || (generation_after & 1U) != 0U) {
+    timing_probe_apply_race_count++;
+    return;
+  }
+  if (!marker || cmd_v2.check_counter != counter) return;
+
+  const uint16_t index = timing_probe_apply_count;
+  if (index >= TIMING_PROBE_CAPACITY) {
+    timing_probe_apply_overflow++;
+    return;
+  }
+  timing_probe_apply[index].cycle = cycle;
+  timing_probe_apply[index].marker_sequence = marker_sequence;
+  timing_probe_apply[index].event_sequence = index;
+  timing_probe_apply[index].counter = counter;
+  timing_probe_apply[index].reserved = 0U;
+  __DMB();
+  timing_probe_apply_count = (uint16_t)(index + 1U);
+}
+
+static bool timing_probe_is_dumping(void)
+{
+  return timing_probe_state >= TIMING_PROBE_DUMP_HEADER;
+}
+
+static bool timing_probe_send_dump_line(const char * line)
+{
+  const uint32_t now = HAL_GetTick();
+  if ((int32_t)(now - timing_probe_dump_next_tick) < 0) return false;
+  if (hlpuart1.gState != HAL_UART_STATE_READY) return false;
+  if (HAL_UART_Transmit_DMA(&hlpuart1, (uint8_t *)line, strlen(line)) != HAL_OK) return false;
+  timing_probe_dump_next_tick = now + 1U;
+  return true;
+}
+
+static void timing_probe_process(void)
+{
+  if (timing_probe_state == TIMING_PROBE_CAPTURING) {
+    (void)timing_probe_capture_expired(DWT->CYCCNT);
+    return;
+  }
+  if (!timing_probe_is_dumping() || hlpuart1.gState != HAL_UART_STATE_READY) return;
+  if ((int32_t)(HAL_GetTick() - timing_probe_dump_next_tick) < 0) return;
+
+  if (timing_probe_state == TIMING_PROBE_DUMP_HEADER) {
+    (void)snprintf(timing_probe_dump_line, sizeof(timing_probe_dump_line),
+      "TPRB_BEGIN,version=1,clock_hz=%lu,duration_cycles=%lu\r\nTPRB_TYPE,event_sequence,cycle,marker_sequence,counter\r\n",
+      (unsigned long)SystemCoreClock, (unsigned long)TIMING_PROBE_DURATION_CYCLES);
+    if (timing_probe_send_dump_line(timing_probe_dump_line)) {
+      timing_probe_state = TIMING_PROBE_DUMP_RX;
+      timing_probe_dump_index = 0U;
+    }
+    return;
+  }
+
+  if (timing_probe_state == TIMING_PROBE_DUMP_RX) {
+    if (timing_probe_dump_index >= timing_probe_rx_count) {
+      timing_probe_state = TIMING_PROBE_DUMP_APPLY;
+      timing_probe_dump_index = 0U;
+      return;
+    }
+    const timing_probe_event_t * event = &timing_probe_rx[timing_probe_dump_index];
+    (void)snprintf(timing_probe_dump_line, sizeof(timing_probe_dump_line), "TPRB_RX,%u,%lu,%lu,%u\r\n", (unsigned int)event->event_sequence,
+      (unsigned long)event->cycle, (unsigned long)event->marker_sequence, (unsigned int)event->counter);
+    if (timing_probe_send_dump_line(timing_probe_dump_line)) timing_probe_dump_index++;
+    return;
+  }
+
+  if (timing_probe_state == TIMING_PROBE_DUMP_APPLY) {
+    if (timing_probe_dump_index >= timing_probe_apply_count) {
+      timing_probe_state = TIMING_PROBE_DUMP_FOOTER;
+      return;
+    }
+    const timing_probe_event_t * event = &timing_probe_apply[timing_probe_dump_index];
+    (void)snprintf(timing_probe_dump_line, sizeof(timing_probe_dump_line), "TPRB_APPLY,%u,%lu,%lu,%u\r\n", (unsigned int)event->event_sequence,
+      (unsigned long)event->cycle, (unsigned long)event->marker_sequence, (unsigned int)event->counter);
+    if (timing_probe_send_dump_line(timing_probe_dump_line)) timing_probe_dump_index++;
+    return;
+  }
+
+  if (timing_probe_state == TIMING_PROBE_DUMP_FOOTER) {
+    (void)snprintf(timing_probe_dump_line, sizeof(timing_probe_dump_line),
+      "TPRB_END,rx=%u,apply=%u,filtered=%lu,rx_overflow=%lu,apply_overflow=%lu,apply_race=%lu\r\n",
+      (unsigned int)timing_probe_rx_count, (unsigned int)timing_probe_apply_count, (unsigned long)timing_probe_filtered_count,
+      (unsigned long)timing_probe_rx_overflow, (unsigned long)timing_probe_apply_overflow, (unsigned long)timing_probe_apply_race_count);
+    if (timing_probe_send_dump_line(timing_probe_dump_line)) timing_probe_state = TIMING_PROBE_DUMP_STATS_RX;
+    return;
+  }
+
+  if (timing_probe_state == TIMING_PROBE_DUMP_STATS_RX) {
+    (void)snprintf(timing_probe_dump_line, sizeof(timing_probe_dump_line),
+      "TPRB_STATS,frame=%lu,valid=%lu,checksum_error=%lu,irq=%lu,rxirq=%lu,byte=%lu\r\n",
+      (unsigned long)timing_probe_frame_delta, (unsigned long)timing_probe_valid_delta, (unsigned long)timing_probe_checksum_error_delta,
+      (unsigned long)timing_probe_irq_delta, (unsigned long)timing_probe_rx_irq_delta, (unsigned long)timing_probe_byte_delta);
+    if (timing_probe_send_dump_line(timing_probe_dump_line)) timing_probe_state = TIMING_PROBE_DUMP_STATS_ERROR;
+    return;
+  }
+
+  if (timing_probe_state == TIMING_PROBE_DUMP_STATS_ERROR) {
+    (void)snprintf(timing_probe_dump_line, sizeof(timing_probe_dump_line), "TPRB_STATS_ERR,pe=%lu,fe=%lu,ne=%lu,ore=%lu\r\n",
+      (unsigned long)timing_probe_pe_delta, (unsigned long)timing_probe_fe_delta, (unsigned long)timing_probe_ne_delta, (unsigned long)timing_probe_ore_delta);
+    if (timing_probe_send_dump_line(timing_probe_dump_line)) timing_probe_state = TIMING_PROBE_DUMP_WAIT;
+    return;
+  }
+
+  if (timing_probe_state == TIMING_PROBE_DUMP_WAIT) timing_probe_state = TIMING_PROBE_IDLE;
 }
 
 /* USER CODE END PFP */
@@ -548,9 +821,10 @@ int main(void)
     fw_gateway_send_uart_reply();
     fw_update_gateway_process();
     fw_version_process();
+    timing_probe_process();
 
     debug.sys_mnt.main_loop_cnt++;
-    if (debug.print_flag /* && fabsf(omni.local_odom_speed_mvf[0]) > 0.01*/) {
+    if (debug.print_flag && !timing_probe_is_dumping() /* && fabsf(omni.local_odom_speed_mvf[0]) > 0.01*/) {
       debug.print_flag = false;
 
       // 文字列初期化
@@ -1147,7 +1421,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   // 関数化したほうがええかも
   if (connection.updated_flag) {
     connection.updated_flag = false;
-    memcpy(&cmd_v2, &cmd_v2_buf, sizeof(RobotCommandV2));
+    if (timing_probe_state == TIMING_PROBE_CAPTURING) {
+      const uint32_t probe_generation = timing_probe_publish_generation;
+      const bool probe_marker = timing_probe_published_marker;
+      const uint32_t probe_sequence = timing_probe_published_sequence;
+      const uint8_t probe_counter = timing_probe_published_counter;
+      memcpy(&cmd_v2, &cmd_v2_buf, sizeof(RobotCommandV2));
+      timing_probe_record_apply(DWT->CYCCNT, probe_generation, probe_marker, probe_sequence, probe_counter);
+    } else {
+      memcpy(&cmd_v2, &cmd_v2_buf, sizeof(RobotCommandV2));
+    }
   }
   commStateCheck(&connection, &sys, &cmd_v2);
 
@@ -1321,6 +1604,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
+      const uint32_t frame_complete_cycle = DWT->CYCCNT;
       const bool checksum_ok = checkCM4CmdCheckSun(&connection, data_from_cm4);
       cm4_rx_frame_count++;
       if (checksum_ok) {
@@ -1356,7 +1640,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         }
       } else if (checksum_ok) {
         memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
-        cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
+        if (timing_probe_state == TIMING_PROBE_CAPTURING) {
+          const bool probe_marker = timing_probe_is_marker(data_from_cm4);
+          timing_probe_publish_generation++;
+          __DMB();
+          cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
+          timing_probe_published_marker = probe_marker;
+          timing_probe_published_sequence = probe_marker ? timing_probe_load_u32(&data_from_cm4[TIMING_PROBE_SEQUENCE_OFFSET]) : 0U;
+          timing_probe_published_counter = data_from_cm4[CHECK_COUNTER];
+          __DMB();
+          timing_probe_publish_generation++;
+          timing_probe_record_rx(data_from_cm4, frame_complete_cycle);
+        } else {
+          cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
+        }
         updateCM4CmdTimeStamp(&connection, &sys);
         debug.sys_mnt.ai_cmd_rx_cnt++;
         // check updated
@@ -1387,6 +1684,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         break;
       case 't':
         cm4_telemetry_enabled = !cm4_telemetry_enabled;
+        break;
+      case 'y':
+        timing_probe_start();
         break;
       case '0':
       case '1':
