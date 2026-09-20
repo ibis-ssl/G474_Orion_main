@@ -114,6 +114,17 @@ void sendRobotInfo(
     float_to_uchar4(&(buf[64 + i * 4]), tx_value_array[i]);
   }
 
+  extern volatile bool fw_gateway_active;
+  extern volatile uint8_t fw_gateway_reply[8];
+  extern volatile uint8_t fw_gateway_reply_counter;
+  if (fw_gateway_active) {
+    buf[112] = 'F'; buf[113] = 'W'; buf[114] = 'R'; buf[115] = 'S';
+    for (uint32_t i = 0; i < 8U; i++) buf[116U + i] = fw_gateway_reply[i];
+    buf[124] = fw_gateway_reply_counter;
+    buf[125] = 4U;
+    buf[126] = 1U;
+  }
+
   uint32_t tx_check_cnt_all = 0;
   for (int i = 3; i < sizeof(buf); i++) {
     tx_check_cnt_all += buf[i];

@@ -43,6 +43,8 @@
 #include "can_ibis.h"
 #include "control_theta.h"
 #include "error.h"
+#include "fw_update_gateway.h"
+#include "fw_version.h"
 #include "icm20602_spi.h"
 #include "odom.h"
 #include "omni_wheel.h"
@@ -51,6 +53,10 @@
 #include "state_func.h"
 #include "stop_state_control.h"
 #include "util.h"
+
+/* Backup register経由で常駐bootloaderへMain更新・pending確定要求を渡す。 */
+#define BOOT_REQUEST_UPDATE UINT32_C(0x5557464F)
+#define BOOT_REQUEST_CONFIRM UINT32_C(0x4346574F)
 
 /* USER CODE END Includes */
 
@@ -72,6 +78,9 @@
 
 /* USER CODE BEGIN PV */
 
+const fw_version_t g_fw_version __attribute__((section(".fw_version"), used)) = {FW_VERSION_MAGIC, 0U};
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -82,6 +91,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs);
 void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan);
+static void request_main_bootloader(uint32_t request);
+static void fw_version_start(void);
+static void fw_version_process(void);
+static bool fw_version_can_rx(FDCAN_HandleTypeDef * hfdcan, uint32_t identifier, const uint8_t data[8]);
 uint8_t getModeSwitch();
 bool allEncInitialized();
 uint32_t HAL_GetTick(void)
@@ -150,6 +163,159 @@ static const print_page_config_t print_page_config[PRINT_IDX_MAX] = {
 // communication with CM4
 static uint8_t data_from_cm4[RX_BUF_SIZE_CM4];
 static uint8_t uart2_rx_it_buffer = 0, lpuart1_rx_buf = 0;
+volatile bool fw_gateway_active = false;
+volatile uint8_t fw_gateway_reply[8] = {0};
+volatile uint8_t fw_gateway_reply_counter = 0;
+static volatile bool fw_gateway_reply_pending = false;
+/* COM57から't'を送ると通常テレメトリTXを停止できる。CM4 RXとの競合切り分け用。 */
+static volatile bool cm4_telemetry_enabled = true;
+static volatile uint32_t cm4_rx_frame_count;
+static volatile uint32_t cm4_rx_valid_frame_count;
+
+extern volatile uint32_t uart2_rx_irq_count;
+extern volatile uint32_t uart2_rx_data_irq_count;
+extern volatile uint32_t uart2_rx_byte_count;
+extern volatile uint32_t uart2_rx_ore_count;
+extern volatile uint32_t uart2_rx_fe_count;
+extern volatile uint32_t uart2_rx_ne_count;
+extern volatile uint32_t uart2_rx_pe_count;
+extern volatile uint32_t uart2_rx_max_drain;
+
+typedef struct __attribute__((packed)) {
+  uint32_t build_id;
+  uint32_t image_crc32c;
+} fw_version_entry_t;
+
+typedef struct __attribute__((packed)) {
+  uint8_t magic[4];
+  uint8_t format;
+  uint8_t active_slot;
+  uint8_t present_mask;
+  uint8_t valid_mask;
+  fw_version_entry_t entry[6];
+  uint32_t crc32c;
+} fw_version_response_t;
+
+_Static_assert(sizeof(fw_version_response_t) == 60U, "FW version response size changed");
+
+static fw_version_response_t fw_version_response;
+static volatile bool fw_version_collecting = false;
+static volatile uint32_t fw_version_deadline = 0U;
+static volatile uint32_t fw_version_next_request = 0U;
+
+static uint32_t fw_version_crc32c(const void * source, uint32_t length)
+{
+  const uint8_t * data = source;
+  uint32_t crc = UINT32_C(0xFFFFFFFF);
+  for (uint32_t index = 0U; index < length; index++) {
+    crc ^= data[index];
+    for (uint32_t bit = 0U; bit < 8U; bit++) crc = (crc >> 1U) ^ ((crc & 1U) ? UINT32_C(0x82F63B78) : 0U);
+  }
+  return ~crc;
+}
+
+static void fw_version_load_main_slot(uint32_t slot)
+{
+  const uint32_t app_base = slot == 0U ? UINT32_C(0x08008000) : UINT32_C(0x08040000);
+  const uint32_t metadata_base = slot == 0U ? UINT32_C(0x08078000) : UINT32_C(0x08078800);
+  const fw_version_t * version = (const fw_version_t *)(app_base + UINT32_C(0x400));
+  const uint32_t * metadata = (const uint32_t *)metadata_base;
+  if (version->magic == FW_VERSION_MAGIC) {
+    fw_version_response.present_mask |= (uint8_t)(1U << slot);
+    fw_version_response.entry[slot].build_id = version->build_id;
+  }
+  if (metadata[0] == UINT32_C(0x3157464F) && metadata[3] == 4U && version->magic == FW_VERSION_MAGIC) {
+    fw_version_response.valid_mask |= (uint8_t)(1U << slot);
+    fw_version_response.entry[slot].image_crc32c = metadata[7];
+  }
+}
+
+static void fw_version_request_missing(void)
+{
+  uint8_t request[8] = {0U};
+  if ((fw_version_response.present_mask & (1U << 2U)) == 0U) {
+    request[0] = 4U;
+    can1_send(0x611, request);
+  }
+  if ((fw_version_response.present_mask & (1U << 3U)) == 0U) {
+    request[0] = 16U;
+    can1_send(0x611, request);
+  }
+  if ((fw_version_response.present_mask & (1U << 4U)) == 0U) {
+    request[0] = 17U;
+    can2_send(0x611, request);
+  }
+  if ((fw_version_response.present_mask & (1U << 5U)) == 0U) {
+    request[0] = 100U;
+    can1_send(0x611, request);
+    can2_send(0x611, request);
+  }
+}
+
+static void fw_version_start(void)
+{
+  memset(&fw_version_response, 0, sizeof(fw_version_response));
+  memcpy(fw_version_response.magic, "FWVR", 4U);
+  fw_version_response.format = 1U;
+  fw_version_response.active_slot = SCB->VTOR >= UINT32_C(0x08040000) ? 1U : 0U;
+  fw_version_load_main_slot(0U);
+  fw_version_load_main_slot(1U);
+  const uint32_t now = HAL_GetTick();
+  fw_version_collecting = true;
+  fw_version_deadline = now + 250U;
+  fw_version_next_request = now + 40U;
+  fw_version_request_missing();
+}
+
+static bool fw_version_can_rx(FDCAN_HandleTypeDef * hfdcan, uint32_t identifier, const uint8_t data[8])
+{
+  uint32_t index;
+  if (!fw_version_collecting) return false;
+  if (hfdcan->Instance == FDCAN1 && identifier == 0x664U) index = 2U;
+  else if (hfdcan->Instance == FDCAN1 && identifier == 0x670U) index = 3U;
+  else if (hfdcan->Instance == FDCAN2 && identifier == 0x671U) index = 4U;
+  else if ((hfdcan->Instance == FDCAN1 || hfdcan->Instance == FDCAN2) && identifier == 0x6C4U) index = 5U;
+  else return false;
+  memcpy(&fw_version_response.entry[index], data, 8U);
+  fw_version_response.present_mask |= (uint8_t)(1U << index);
+  if (fw_version_response.entry[index].build_id != 0U) fw_version_response.valid_mask |= (uint8_t)(1U << index);
+  return true;
+}
+
+static void fw_version_process(void)
+{
+  if (!fw_version_collecting) return;
+  const uint32_t now = HAL_GetTick();
+  if ((int32_t)(now - fw_version_deadline) < 0) {
+    if ((int32_t)(now - fw_version_next_request) >= 0) {
+      fw_version_next_request = now + 40U;
+      fw_version_request_missing();
+    }
+    return;
+  }
+  if (huart2.gState != HAL_UART_STATE_READY) return;
+  fw_version_collecting = false;
+  fw_version_response.crc32c = fw_version_crc32c(&fw_version_response, sizeof(fw_version_response) - sizeof(uint32_t));
+  (void)HAL_UART_Transmit(&huart2, (uint8_t *)&fw_version_response, sizeof(fw_version_response), 20U);
+}
+
+static void fw_gateway_send_uart_reply(void)
+{
+  if (!fw_gateway_reply_pending || huart2.gState != HAL_UART_STATE_READY) return;
+
+  uint8_t frame[16] = {'F', 'W', 'R', 'P'};
+  __disable_irq();
+  memcpy(&frame[4], (const void *)fw_gateway_reply, 8U);
+  frame[12] = fw_gateway_reply_counter;
+  fw_gateway_reply_pending = false;
+  __enable_irq();
+  frame[13] = 0U;
+  for (uint32_t i = 0; i < 13U; i++) frame[13] = (uint8_t)(frame[13] + frame[i]);
+  frame[14] = '\r'; frame[15] = '\n';
+  if (HAL_UART_Transmit(&huart2, frame, sizeof(frame), 10U) != HAL_OK) {
+    fw_gateway_reply_pending = true;
+  }
+}
 
 /* USER CODE END PFP */
 
@@ -298,8 +464,10 @@ int main(void)
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
 
-  HAL_UART_Init(&huart2);
-  HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
+  /* MX_USART2_UART_Init()で設定したRX FIFOを維持したまま受信割り込みを開始する。 */
+  /* DMA完了IRQによるDMAT/TCIEの更新を古い値で上書きしない。 */
+  ATOMIC_SET_BIT(huart2.Instance->CR3, USART_CR3_EIE);
+  ATOMIC_SET_BIT(huart2.Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
 
   HAL_UART_Init(&hlpuart1);
   HAL_UART_Receive_IT(&hlpuart1, &lpuart1_rx_buf, 1);
@@ -364,7 +532,7 @@ int main(void)
   // TIM interrupt is TIM7 only.
 
   HAL_Delay(500);
-  debug.print_idx = PRINT_IDX_DRIVE_LOG;
+  debug.print_idx = PRINT_IDX_ODOM;
 
   char error_str[100] = {0};
 
@@ -376,6 +544,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    fw_gateway_send_uart_reply();
+    fw_update_gateway_process();
+    fw_version_process();
 
     debug.sys_mnt.main_loop_cnt++;
     if (debug.print_flag /* && fabsf(omni.local_odom_speed_mvf[0]) > 0.01*/) {
@@ -801,6 +973,10 @@ int main(void)
           }
           setTextMagenta();
           p(" ck 0x%2x , error %4d", connection.check_cnt, connection.check_sum_error_cnt);
+          p(" RX age%4lu TX%d irq%lu rxirq%lu byte%lu frame%lu valid%lu max%lu PE%lu FE%lu NE%lu ORE%lu", (unsigned long)(sys.system_time_ms - connection.latest_cm4_cmd_update_time),
+            cm4_telemetry_enabled, (unsigned long)uart2_rx_irq_count, (unsigned long)uart2_rx_data_irq_count, (unsigned long)uart2_rx_byte_count,
+            (unsigned long)cm4_rx_frame_count, (unsigned long)cm4_rx_valid_frame_count, (unsigned long)uart2_rx_max_drain,
+            (unsigned long)uart2_rx_pe_count, (unsigned long)uart2_rx_fe_count, (unsigned long)uart2_rx_ne_count, (unsigned long)uart2_rx_ore_count);
           break;
 
         case PRINT_IDX_DRIVE_LOG: {
@@ -922,11 +1098,23 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef * hfdcan, uint32_t RxFifo0ITs
   uint8_t RxData[CAN_RX_DATA_SIZE];
   FDCAN_RxHeaderTypeDef RxHeader;
 
-  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+  while ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET && HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0U) {
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK) {
       Error_Handler();
     }
 
+    if (fw_update_gateway_can_rx(hfdcan, RxHeader.Identifier, RxData)) {
+      continue;
+    }
+    if (fw_version_can_rx(hfdcan, RxHeader.Identifier, RxData)) {
+      continue;
+    }
+    if (fw_gateway_active && hfdcan->Instance == FDCAN1 && RxHeader.Identifier == 0x634U) {
+      memcpy((void *)fw_gateway_reply, RxData, 8U);
+      fw_gateway_reply_counter++;
+      fw_gateway_reply_pending = true;
+      return;
+    }
     parseCanCmd(RxHeader.Identifier, RxData, &can_raw, &sys, &motor, &mouse);
     // 関数のネストを浅くするためにparseCanCmd()の中から移動
     if (RxHeader.Identifier == 0x241) {
@@ -943,6 +1131,11 @@ void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef * hfdcan)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
   sys.system_time_ms += (1000 / MAIN_LOOP_CYCLE);
+  if (fw_gateway_active) {
+    maintaskStop(&output);
+    actuator_buzzer_off();
+    return;
+  }
   // TIM interrupt is TIM7 only.
 
   debug.sys_mnt.tim_cnt_now[0] = htim7.Instance->CNT;  // パフォーマンス計測用
@@ -1066,7 +1259,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
     toggleInterruptLED();
   }
-  if (!print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
+  /* FW更新中はOFW2応答と通常テレメトリのUSART2送信競合を防ぐ。 */
+  if (cm4_telemetry_enabled && !fw_gateway_active && !print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
     sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
     robot_info_send_cnt++;
   }
@@ -1086,6 +1280,13 @@ uint8_t getModeSwitch()
                (HAL_GPIO_ReadPin(DIP_3_GPIO_Port, DIP_3_Pin) << 2));
 }
 
+void cm4_uart_rx_byte(uint8_t value)
+{
+  /* USART2 IRQでFIFOから取り出したbyteを既存のCM4パーサへ渡す。 */
+  uart2_rx_it_buffer = value;
+  HAL_UART_RxCpltCallback(&huart2);
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
   static int32_t uart_rx_cmd_idx = -1;
@@ -1096,7 +1297,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
   if (huart->Instance == USART2) {
     rx_data_tmp = uart2_rx_it_buffer;
-    HAL_UART_Receive_IT(&huart2, &uart2_rx_it_buffer, 1);
+    /* RX割り込みは起動時に有効化済み。IRQ側でFIFOを直接drainするため再armしない。 */
+
+    if (fw_gateway_active) {
+      fw_update_gateway_uart_rx_byte(rx_data_tmp);
+      return;
+    }
 
     if (uart_rx_cmd_idx >= 0 && uart_rx_cmd_idx < RX_BUF_SIZE_CM4) {
       data_from_cm4[uart_rx_cmd_idx] = rx_data_tmp;
@@ -1115,11 +1321,40 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 
     // end
     if (uart_rx_cmd_idx == RX_BUF_SIZE_CM4) {
+      const bool checksum_ok = checkCM4CmdCheckSun(&connection, data_from_cm4);
+      cm4_rx_frame_count++;
+      if (checksum_ok) {
+        cm4_rx_valid_frame_count++;
+      }
       // UARTバスを送受信で同時に使えないので、受信完了してから送信開始
       //sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
       debug.sys_mnt.robot_info_tx_cnt++;
       uart_rx_cmd_idx = -1;
-      if (checkCM4CmdCheckSun(&connection, data_from_cm4)) {
+      if (checksum_ok && memcmp(&data_from_cm4[1], "FWVR", 4U) == 0) {
+        fw_version_start();
+      } else if (checksum_ok && memcmp(&data_from_cm4[1], "FWUP", 4U) == 0) {
+        const uint8_t gateway_command = data_from_cm4[5];
+        if (gateway_command == 1U) {
+          fw_gateway_active = true;
+          fw_update_gateway_start(data_from_cm4[17]);
+          HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_2);
+          actuator_buzzer_off();
+          const uint8_t reply[8] = {0xF1U, 0U, 0U, 0U, 0U, 0U, 0U, data_from_cm4[17]};
+          memcpy((void *)fw_gateway_reply, reply, sizeof(reply));
+          fw_gateway_reply_counter++;
+          fw_gateway_reply_pending = true;
+        } else if (gateway_command == 2U && fw_gateway_active) {
+          const uint32_t can_id = (uint32_t)data_from_cm4[6] | ((uint32_t)data_from_cm4[7] << 8U);
+          can1_send((int)can_id, &data_from_cm4[8]);
+        } else if (gateway_command == 3U) {
+          fw_gateway_active = false;
+          NVIC_SystemReset();
+        } else if (gateway_command == 4U) {
+          request_main_bootloader(BOOT_REQUEST_UPDATE);
+        } else if (gateway_command == 5U) {
+          request_main_bootloader(BOOT_REQUEST_CONFIRM);
+        }
+      } else if (checksum_ok) {
         memcpy(&cmd_data_v2, data_from_cm4, sizeof(cmd_data_v2));
         cmd_v2_buf = RobotCommandSerializedV2_deserialize(&cmd_data_v2);
         updateCM4CmdTimeStamp(&connection, &sys);
@@ -1149,6 +1384,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         break;
       case 'g':
         setPrintPage(PRINT_IDX_DRIVE_LOG);
+        break;
+      case 't':
+        cm4_telemetry_enabled = !cm4_telemetry_enabled;
         break;
       case '0':
       case '1':
@@ -1211,3 +1449,16 @@ void assert_failed(uint8_t * file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+static void request_main_bootloader(uint32_t request)
+{
+  HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_2);
+  actuator_buzzer_off();
+  RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN | RCC_APB1ENR1_RTCAPBEN;
+  (void)RCC->APB1ENR1;
+  PWR->CR1 |= PWR_CR1_DBP;
+  while ((PWR->CR1 & PWR_CR1_DBP) == 0U) {}
+  TAMP->BKP1R = SCB->VTOR >= UINT32_C(0x08040000) ? 1U : 0U;
+  TAMP->BKP0R = request;
+  __DSB();
+  NVIC_SystemReset();
+}

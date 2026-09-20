@@ -116,6 +116,12 @@ void MX_USART2_UART_Init(void)
   }
   /* USER CODE BEGIN USART2_Init 2 */
 
+  /* CM4からの1 Mbps受信では割り込み遅延中の後続byteを8 byte RX FIFOで保持する。 */
+  if (HAL_UARTEx_EnableFifoMode(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
   /* USER CODE END USART2_Init 2 */
 
 }

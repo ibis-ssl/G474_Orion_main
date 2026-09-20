@@ -37,7 +37,8 @@ _Min_Stack_Size = 0x400;	/* required amount of stack */
 MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 128K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 512K
+  /* 先頭32KBは常駐bootloader、0x08040000以降はSlot B/metadata用に予約する。 */
+  FLASH    (rx)    : ORIGIN = DEFINED(APP_FLASH_ORIGIN) ? APP_FLASH_ORIGIN : 0x08008000, LENGTH = 224K
 }
 
 /* Sections */
@@ -49,6 +50,11 @@ SECTIONS
     . = ALIGN(4);
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
+  } >FLASH
+
+  .fw_version ORIGIN(FLASH) + 0x400 :
+  {
+    KEEP(*(.fw_version))
   } >FLASH
 
   /* The program code and other data into "FLASH" Rom type memory */

@@ -23,6 +23,7 @@
 #include "stm32g4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "fw_update_gateway.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,6 +43,17 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+
+/* CM4 UART受信の実機診断用カウンタ。デバッガから参照するためvolatileで保持する。 */
+volatile uint32_t uart2_rx_irq_count;
+volatile uint32_t uart2_rx_data_irq_count;
+volatile uint32_t uart2_rx_byte_count;
+volatile uint32_t uart2_rx_ore_count;
+volatile uint32_t uart2_rx_fe_count;
+volatile uint32_t uart2_rx_ne_count;
+volatile uint32_t uart2_rx_pe_count;
+volatile uint32_t uart2_rx_max_drain;
+
 
 /* USER CODE END PV */
 
@@ -68,6 +80,7 @@ extern UART_HandleTypeDef hlpuart1;
 extern UART_HandleTypeDef huart2;
 extern TIM_HandleTypeDef htim7;
 /* USER CODE BEGIN EV */
+extern volatile bool fw_gateway_active;
 
 /* USER CODE END EV */
 
@@ -312,9 +325,46 @@ void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
 
+  const uint32_t status = huart2.Instance->ISR;
+  uint32_t drained = 0U;
+
+  uart2_rx_irq_count++;
+  if ((status & USART_ISR_ORE) != 0U) {
+    uart2_rx_ore_count++;
+  }
+  if ((status & USART_ISR_FE) != 0U) {
+    uart2_rx_fe_count++;
+  }
+  if ((status & USART_ISR_NE) != 0U) {
+    uart2_rx_ne_count++;
+  }
+  if ((status & USART_ISR_PE) != 0U) {
+    uart2_rx_pe_count++;
+  }
+
+  while ((huart2.Instance->ISR & USART_ISR_RXNE_RXFNE) != 0U) {
+    cm4_uart_rx_byte((uint8_t)huart2.Instance->RDR);
+    drained++;
+  }
+  uart2_rx_byte_count += drained;
+  if (drained != 0U) {
+    uart2_rx_data_irq_count++;
+  }
+  if (drained > uart2_rx_max_drain) {
+    uart2_rx_max_drain = drained;
+  }
+  huart2.Instance->ICR = USART_ICR_PECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_ORECF;
+  /* RX FIFOを全量退避した後、通常テレメトリのTCなど残りの割込み要因を
+     HALへ渡す。ゲートウェイ切替時のIRQ再入ループも防ぐ。 */
+
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
+
+  /* RXはHALの1-byte受信状態機械を使わない。エラーやTX完了処理後も常時有効を保証する。 */
+  /* DMA完了IRQによるDMAT/TCIEの更新を古い値で上書きしない。 */
+  ATOMIC_SET_BIT(huart2.Instance->CR3, USART_CR3_EIE);
+  ATOMIC_SET_BIT(huart2.Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
 
   /* USER CODE END USART2_IRQn 1 */
 }

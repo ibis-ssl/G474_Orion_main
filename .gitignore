@@ -7,3 +7,5 @@
 *.map
 *.elf
 .vscode/c_cpp_properties.json
+Script/Logs/
+Script/__pycache__/

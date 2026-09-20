@@ -16,6 +16,7 @@ C_SRCS += \
 ../Core/Src/dma.c \
 ../Core/Src/error.c \
 ../Core/Src/fdcan.c \
+../Core/Src/fw_update_gateway.c \
 ../Core/Src/gpio.c \
 ../Core/Src/icm20602_spi.c \
 ../Core/Src/keeper.c \
@@ -47,6 +48,7 @@ OBJS += \
 ./Core/Src/dma.o \
 ./Core/Src/error.o \
 ./Core/Src/fdcan.o \
+./Core/Src/fw_update_gateway.o \
 ./Core/Src/gpio.o \
 ./Core/Src/icm20602_spi.o \
 ./Core/Src/keeper.o \
@@ -78,6 +80,7 @@ C_DEPS += \
 ./Core/Src/dma.d \
 ./Core/Src/error.d \
 ./Core/Src/fdcan.d \
+./Core/Src/fw_update_gateway.d \
 ./Core/Src/gpio.d \
 ./Core/Src/icm20602_spi.d \
 ./Core/Src/keeper.d \
