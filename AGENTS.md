@@ -1,17 +1,16 @@
-# About Answers
-1. Provide your final response to the user in Japanese.
-2. Write text assuming it is in UTF-8. Please note that Japanese characters are easily garbled.
+# コード
+- Arm Cortex-M4F CPU上でリアルタイムなモーター制御を実行するため、実行速度が極めて重要です。
+- 特定のチップでのみ動作するため、移植性は考慮しなくていいです｡
+- レガシーな環境への対応は不要です｡
+- メモリ容量は十分なのでケチケチしたコードは書かないでください｡
+- 変数･フラグを不必要に増やさないでください｡機能上どのような情報を保持する必要があるのかを考え､1つの状態に対して複数の変数が存在するような実装を避けてください｡
 
+# テスト
+- コードを変更した場合は、ビルドが成功するまで確認してください。
 
-# STM32CubeHAL
-1. It runs on an ArmCoretexM4F CPU at cycle speeds of over 1kHz, so execution speed is extremely important.
-2. Ignore portability as it only runs on specific chips.
-3. The development language is C. Please do not mix in any C++ specific code.
-4. Describe the function and responsibility of the code file in a comment at the beginning of the file.
+# ドキュメント
+- 他の開発者に情報を残すため、重要な点をdoc/以下のドキュメントに記載してください。
+- 目的を考慮して記述･整理してください｡
+- 作業記録と仕様ドキュメントは分離してください｡
+- コードファイルの先頭に、そのファイルの機能と責務を説明するコメントを記載してください。
 
-# Test
-1. If you make any code changes, check the build until it succeeds.
-
-# Document
-1. Write important points in doc/overview.md to leave information for other developers.
-2. Documents should be written in Japanese
