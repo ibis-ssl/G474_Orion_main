@@ -32,3 +32,7 @@
 
 ## デバッグプリント
 なにか文字を送るたびに切り替え、backspaceでindexを1つ戻る
+
+## 機体内の制御機構成
+
+Main、CM4、左右 BLDC、Sub、電源基板の役割と通信経路は [doc/control_system_architecture.md](doc/control_system_architecture.md) を参照。

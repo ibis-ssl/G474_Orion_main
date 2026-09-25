@@ -1,11 +1,48 @@
-﻿# Orion 速度制御レイヤ
+﻿# Orion MAIN_MODE_FULL_AI_CONTROL の速度制御
 
-この文書は `Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系を、現行ソースコードに合わせて整理したものです。
+この文書は `MAIN_MODE_FULL_AI_CONTROL` で `Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系を、現行ソースコードに合わせて整理したものです。
 主制御は TIM7 割り込み内で 500Hz（2ms 周期）実行されます。
+
+## 速度指令から車輪出力までの制御ブロック図
+
+`MAIN_MODE_FULL_AI_CONTROL` での 4 輪駆動を示します。矢印は値の流れで、Main 制御基板上の制御演算は 500 Hz 周期で実行します。最後の CAN 指令より先の BLDC 基板内部制御はこのリポジトリの対象外です。
+
+```mermaid
+flowchart TB
+    CMD["上位指令: 並進速度の大きさ・方向<br/>目標ヨー角・加速度/角速度制限"]
+    XY["極座標 → グローバル XY<br/>IMU yaw で機体ローカル XY へ変換<br/>X×1.1、Y×1.3"]
+    ACC["内部速度目標との差から加速度方向を決定<br/>加速度制限・条件付き boost"]
+    INT["加速度をグローバル座標で積分<br/>現在の内部速度目標をローカル座標へ戻す"]
+    THETA["目標ヨー角と IMU yaw の角度制御<br/>目標旋回速度と yaw 減衰を生成"]
+    KIN["4 輪オムニ逆運動学<br/>ローカル XY 速度 + 目標旋回速度 → 各輪目標 rps"]
+    ANG["各輪の目標 rps を積分 → 目標角度"]
+    CTRL["各輪の出力計算<br/>角度 P + rps 偏差項 + yaw 減衰 + rps FF"]
+    LIMIT["出力を ±60 に制限"]
+    CAN["CAN 指令<br/>右前・右後: CAN1 ID 0x100/0x101<br/>左後・左前: CAN2 ID 0x102/0x103"]
+    DRIVE["左右 BLDC 基板 → 4 輪モータ"]
+    FB["CAN フィードバック<br/>各輪の実 rps・エンコーダ角度"]
+    IMU["IMU yaw・yaw 角速度"]
+
+    CMD --> XY --> ACC --> INT --> KIN --> ANG --> CTRL --> LIMIT --> CAN
+    CMD --> THETA --> KIN
+    THETA --> CTRL
+    INT -->|現在の内部速度目標| ACC
+    IMU --> XY
+    IMU --> INT
+    IMU --> THETA
+    CAN --> DRIVE --> FB
+    FB --> CTRL
+```
+
+モータ高温時は加速度の boost を省略します。
+
+各輪の出力は `clamp(Kp × 目標角度と実角度の差, ±15) - Kd × (実 rps - 目標 rps) + ROBOT_RADIUS × yaw_rps_drag + 目標 rps` です。`omniMoveIndiv()` がこれを ±60 に制限して CAN へ送ります。`output.motor_voltage` は変数名であり、BLDC 基板へ送る duty / 電圧相当の指令値です。実際のモータ端子電圧ではありません。
+
+この図の並進速度ループは、内部速度目標と上位指令の差を使います。`MAIN_MODE_FULL_AI_CONTROL` では実並進速度を直接 PID していません。実 rps とエンコーダ角度は各輪の制御へ戻ります。
 
 ## 全体の流れ
 
-`maintaskRun()` の通常走行時は、次の順序で指令を処理します。
+`MAIN_MODE_FULL_AI_CONTROL` の `maintaskRun()` は、次の順序で指令を処理します。
 
 1. 上位指令をローカル速度目標へ変換する。
 2. 加速度制限値を決める。
@@ -13,7 +50,7 @@
 4. ヨー角目標から旋回速度 `target.yaw_rps` を決める。
 5. 並進速度と旋回速度を各オムニホイールの目標 rps と目標角度へ変換する。
 6. ホイール角度差、実 rps、ヨー減衰を使って各モータ出力を計算する。
-7. stop / vision lost / emergency stop の条件を満たさない場合だけ CAN へモータ出力を送る。
+7. 各輪の出力を制限して CAN へモータ指令を送る。
 
 呼び出し順は以下です。
 
@@ -21,13 +58,13 @@
 setLocalTargetSpeed()
 setTargetAccel()
 accelControl()
-accelBoost()
+accelBoost()  // モータ高温時は省略
 speedControl()
 thetaControl()
 setTargetOmniAngle()
+clearOmniRotationAngleErrorIfStopped()
 omniAngleControl()
 omniMoveIndiv()
-sendActuatorCanCmdRun()
 ```
 
 ## 入力と座標系
@@ -52,7 +89,7 @@ global velocity polar
   -> target.local_vel
 ```
 
-制御内部では以下の 2 つの速度を分けて持ちます。
+制御内部では以下の速度を分けて持ちます。
 
 | 変数 | 意味 |
 | --- | --- |
@@ -78,10 +115,8 @@ global velocity polar
 
 ## accelBoost()
 
-`accelBoost()` は加速度指令に追加補正を掛ける層です。
+`accelBoost()` は加速度指令に X 方向の追加補正を掛ける層です。
 
-- 手動制御相当の `local_deccel_control_flag` が true の場合、後退方向 X 加速度を `0.7 * accel_target` に制限する。
-- 同じく `local_deccel_control_flag` が true の場合、現在速度と加速度の符号が逆の軸は減速中とみなし、加速度を 1.8 倍する。
 - X 方向加速度比率が大きい場合、X 加速度へ最大 1.5 倍の boost を掛ける。
 - boost gain が 1.0 未満または 2.0 超過になった場合は 1.0 に戻す。
 
@@ -151,22 +186,21 @@ LPUART1 デバッグ入力で `q/a` が kp、`w/s` が kd の倍率調整に使�
 
 ## 停止条件
 
-通常走行モードでも、以下のいずれかを満たす場合は `omniStopAll()` で 4 輪出力を 0 にします。
+`MAIN_MODE_FULL_AI_CONTROL` でも、以下のいずれかを満たす場合は `omniStopAll()` で 4 輪出力を 0 にします。
 
 - `sys.stop_flag` が true
 - 上位指令の `stop_emergency` が true
 - vision が無効
 - vision の最終更新から 500ms 超過
-- `MAIN_MODE_CMD_DEBUG_MODE`
 
-停止中は `clearSpeedContrlValue()` が呼ばれ、速度制御内部状態を実オドメトリ側へ寄せます。
+`sys.stop_flag` が立っている周期には `clearSpeedContrlValue()` が呼ばれ、速度制御内部状態を実オドメトリ側へ寄せます。非常停止指令や vision 喪失のみでゼロ出力となった周期には、この関数は呼ばれません。
 具体的には `omni.local_odom_speed_mvf` をグローバル速度へ変換し、`target.global_vel_now` に入れます。
 これにより停止解除時の速度目標が実速度から再開し、内部速度状態だけが飛ぶのを避けます。
 
 ## 実速度・オドメトリとの関係
 
 `omniOdometryUpdate()` はモータ角度差からローカル速度、グローバル速度、オドメトリを更新します。
-速度制御の直接フィードバックには `target.local_vel_now` を使っており、通常の加速度制御では実速度 `omni.local_odom_speed_mvf` を直接使っていません。
+速度制御の直接フィードバックには `target.local_vel_now` を使っており、`MAIN_MODE_FULL_AI_CONTROL` の加速度制御では実速度 `omni.local_odom_speed_mvf` を直接使っていません。
 
 実速度が速度制御へ入る主な経路は以下です。
 
