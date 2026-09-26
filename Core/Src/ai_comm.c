@@ -1,4 +1,5 @@
 #include "ai_comm.h"
+// CM4との制御指令受信と、G474の状態を128バイトfeedbackとして送信する処理を担当する。
 
 #include "main.h"
 #include "robot_packet.h"
@@ -9,6 +10,19 @@
 #define CM4_CMD_TIMEOUT (AI_CMD_TIMEOUT + 0.5)
 
 #define TX_VALUE_ARRAY_SIZE (14)
+
+// CRC-8/ATM: poly=0x07, init=0x00, refin/refout=false, xorout=0x00。
+static uint8_t feedbackCrc8(const uint8_t * data, uint32_t size)
+{
+  uint8_t crc = 0;
+  for (uint32_t i = 0; i < size; i++) {
+    crc ^= data[i];
+    for (uint32_t bit = 0; bit < 8; bit++) {
+      crc = (crc & 0x80U) ? (uint8_t)((crc << 1) ^ 0x07U) : (uint8_t)(crc << 1);
+    }
+  }
+  return crc;
+}
 
 // 以下float array
 
@@ -30,7 +44,6 @@ void sendRobotInfo(
 
   buf[0] = 0xAB;
   buf[1] = 0xEA;
-  buf[2] = 10;  // CRC, 10:dummy
   buf[3] = ai_cmd->check_counter;
 
   float_to_uchar4(&(buf[4]), imu->yaw_deg);
@@ -125,11 +138,7 @@ void sendRobotInfo(
     buf[126] = 1U;
   }
 
-  uint32_t tx_check_cnt_all = 0;
-  for (int i = 3; i < sizeof(buf); i++) {
-    tx_check_cnt_all += buf[i];
-  }
-  buf[2] = tx_check_cnt_all & 0xFF;
+  buf[2] = feedbackCrc8(&buf[3], sizeof(buf) - 3U);
 
   HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
 }
