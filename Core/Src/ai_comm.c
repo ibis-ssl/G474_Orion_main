@@ -1,15 +1,14 @@
-#include "ai_comm.h"
 // CM4との制御指令受信と、G474の状態を128バイトfeedbackとして送信する処理を担当する。
+#include "ai_comm.h"
 
 #include "main.h"
 #include "robot_packet.h"
 #include "stop_state_control.h"
 #include "util.h"
+#include <string.h>
 
 #define AI_CMD_TIMEOUT (0.5)
 #define CM4_CMD_TIMEOUT (AI_CMD_TIMEOUT + 0.5)
-
-#define TX_VALUE_ARRAY_SIZE (14)
 
 // CRC-8/ATM: poly=0x07, init=0x00, refin/refout=false, xorout=0x00。
 static uint8_t feedbackCrc8(const uint8_t * data, uint32_t size)
@@ -24,123 +23,65 @@ static uint8_t feedbackCrc8(const uint8_t * data, uint32_t size)
   return crc;
 }
 
-// 以下float array
-
-static int enqueueFloatArray(float array[], int idx, float data)
-{
-  if (idx >= TX_VALUE_ARRAY_SIZE || idx < 0) {
-    return 0;
-  }
-  array[idx] = data;
-  return idx + 1;
-}
-
 void sendRobotInfo(
-  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integ_control_t * integ, output_t * out, target_t * target,
-  camera_t * cam)
+  can_raw_t * can_raw, system_t * sys, imu_t * imu, omni_t * omni, mouse_t * mouse, RobotCommandV2 * ai_cmd, connection_t * con, integ_control_t * integ, output_t * out, target_t * target)
 {
-  static uint8_t buf[128];  // DMAで使用するためstaticでなければならない
+  static uint8_t buf[128];  // DMA送信が完了するまで保持する
   static uint8_t tx_cycle_count = 0;
+
+  (void)con;
+  (void)target;
+  if (huart2.gState != HAL_UART_STATE_READY) return;
+  memset(buf, 0, sizeof(buf));
 
   buf[0] = 0xAB;
   buf[1] = 0xEA;
   buf[3] = ai_cmd->check_counter;
+  buf[4] = tx_cycle_count;
+  buf[5] = (uint8_t)(sys->current_error.id & 0xFF);
+  buf[6] = (uint8_t)((sys->current_error.id >> 8) & 0xFF);
+  buf[7] = (uint8_t)(sys->current_error.info & 0xFF);
+  buf[8] = (uint8_t)((sys->current_error.info >> 8) & 0xFF);
+  float_to_uchar4(&buf[9], sys->current_error.value);
 
-  float_to_uchar4(&(buf[4]), imu->yaw_deg);
+  float_to_uchar4(&buf[13], imu->yaw_deg);
+  buf[17] = can_raw->ball_detection[0];
+  buf[18] = can_raw->ball_detection[1];
+  buf[19] = 0;  // 追加のボール検出値はOrionMainでは未使用
+  float_to_uchar4(&buf[20], imu->yaw_deg - radian_to_deg(ai_cmd->vision_global_theta));
 
-  // battery(BLDC right)
-  float_to_uchar4(&(buf[8]), can_raw->power_voltage[0]);
+  float_to_uchar4(&buf[24], can_raw->power_voltage[0]);
+  buf[28] = sys->kick_state / 10;
+  buf[29] = (uint8_t)can_raw->temp_fet;
+  buf[30] = (uint8_t)can_raw->temp_coil[0];
+  buf[31] = (uint8_t)can_raw->temp_coil[1];
+  float_to_uchar4(&buf[32], can_raw->power_voltage[6]);
+  float_to_uchar4(&buf[36], mouse->odom[0]);
+  float_to_uchar4(&buf[40], mouse->odom[1]);
+  float_to_uchar4(&buf[44], mouse->global_vel[0]);
+  float_to_uchar4(&buf[48], mouse->global_vel[1]);
+  float_to_uchar4(&buf[52], mouse->quality);
 
-  buf[12] = can_raw->ball_detection[0];
-  buf[13] = can_raw->ball_detection[1];
-  buf[14] = tx_cycle_count;
-  tx_cycle_count++;
-
-  buf[15] = sys->kick_state / 10;
-
-  buf[16] = (uint8_t)(sys->current_error.id & 0xFF);
-  buf[17] = (uint8_t)((sys->current_error.id >> 8) & 0xFF);
-  buf[18] = (uint8_t)(sys->current_error.info & 0xFF);
-  buf[19] = (uint8_t)((sys->current_error.info >> 8) & 0xFF);
-
-  float_to_uchar4(&(buf[20]), sys->current_error.value);
-
-  buf[24] = (uint8_t)(can_raw->current[0] * 10);
-  buf[25] = (uint8_t)(can_raw->current[1] * 10);
-  buf[26] = (uint8_t)(can_raw->current[2] * 10);
-  buf[27] = (uint8_t)(can_raw->current[3] * 10);
-
-  buf[28] = 0;  // unused
-
-  buf[29] = (uint8_t)can_raw->temp_motor[0];
-  buf[30] = (uint8_t)can_raw->temp_motor[1];
-  buf[31] = (uint8_t)can_raw->temp_motor[2];
-  buf[32] = (uint8_t)can_raw->temp_motor[3];
-  buf[33] = (uint8_t)can_raw->temp_fet;
-  buf[34] = (uint8_t)can_raw->temp_coil[0];
-  buf[35] = (uint8_t)can_raw->temp_coil[1];
-
-  float diff_angle = imu->yaw_deg - radian_to_deg(ai_cmd->vision_global_theta);
-
-  float_to_uchar4(&(buf[36]), diff_angle);
-  // capacitor boost
-  float_to_uchar4(&(buf[40]), can_raw->power_voltage[6]);
-
-  float_to_uchar4(&(buf[44]), integ->vision_based_position[0]);
-  float_to_uchar4(&(buf[48]), integ->vision_based_position[1]);
-
-  float_to_uchar4(&(buf[52]), omni->global_odom_speed[0]);
-  float_to_uchar4(&(buf[56]), omni->global_odom_speed[1]);
-
-  buf[60] = cam->pos_xy[0] / 2;  // 0~340 -> 0-170
-  buf[61] = cam->pos_xy[1];      // 0~180 -> 0-90
-  buf[62] = cam->radius / 4;     // ??? -> ???
-  buf[63] = cam->fps;            // ~60
-
-  static float tx_value_array[TX_VALUE_ARRAY_SIZE] = {0};
-  int value_idx = 0;
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->odom[0]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->odom[1]);
-
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->global_vel[0]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->global_vel[1]);
-
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[0]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, out->velocity[1]);
-
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[0]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[1]);
-
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[2]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, can_raw->motor_feedback[3]);
-
-  //value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[0]);
-  //value_idx = enqueueFloatArray(tx_value_array, value_idx, target->global_vel_now[1]);
-
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[0]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[1]);
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, omni->local_odom_speed_mvf[2]);
-
-  value_idx = enqueueFloatArray(tx_value_array, value_idx, mouse->quality);
-
-  for (int i = 0; i < TX_VALUE_ARRAY_SIZE; i++) {
-    float_to_uchar4(&(buf[64 + i * 4]), tx_value_array[i]);
+  for (uint32_t i = 0; i < 4U; i++) {
+    buf[56U + i] = (uint8_t)(can_raw->current[i] * 10);
+    buf[60U + i] = (uint8_t)can_raw->temp_motor[i];
+    float_to_uchar4(&buf[72U + 4U * i], can_raw->motor_feedback[i]);
+    buf[100U + 2U * i] = 0x7F;  // Orionにはステアがないため角度0の符号化値
+    buf[101U + 2U * i] = 0xFF;
   }
-
-  extern volatile bool fw_gateway_active;
-  extern volatile uint8_t fw_gateway_reply[8];
-  extern volatile uint8_t fw_gateway_reply_counter;
-  if (fw_gateway_active) {
-    buf[112] = 'F'; buf[113] = 'W'; buf[114] = 'R'; buf[115] = 'S';
-    for (uint32_t i = 0; i < 8U; i++) buf[116U + i] = fw_gateway_reply[i];
-    buf[124] = fw_gateway_reply_counter;
-    buf[125] = 4U;
-    buf[126] = 1U;
+  float_to_uchar4(&buf[64], out->velocity[0]);
+  float_to_uchar4(&buf[68], out->velocity[1]);
+  for (uint32_t i = 0; i < 3U; i++) {
+    float_to_uchar4(&buf[88U + 4U * i], omni->local_odom_speed_mvf[i]);
   }
+  float_to_uchar4(&buf[112], integ->vision_based_position[0]);
+  float_to_uchar4(&buf[116], integ->vision_based_position[1]);
+  float_to_uchar4(&buf[120], omni->global_odom_speed[0]);
+  float_to_uchar4(&buf[124], omni->global_odom_speed[1]);
 
   buf[2] = feedbackCrc8(&buf[3], sizeof(buf) - 3U);
 
-  HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf));
+  if (HAL_UART_Transmit_DMA(&huart2, buf, sizeof(buf)) == HAL_OK) tx_cycle_count++;
 }
 
 static void updateAICmdTimeStamp(connection_t * connection, system_t * sys)

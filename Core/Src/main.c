@@ -1261,7 +1261,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   }
   /* FW更新中はOFW2応答と通常テレメトリのUSART2送信競合を防ぐ。 */
   if (cm4_telemetry_enabled && !fw_gateway_active && !print_timing && robot_info_send_cnt < robot_info_send_target_cnt) {
-    sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
+    sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
     robot_info_send_cnt++;
   }
 
@@ -1327,7 +1327,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
         cm4_rx_valid_frame_count++;
       }
       // UARTバスを送受信で同時に使えないので、受信完了してから送信開始
-      //sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target, &camera);
+      //sendRobotInfo(&can_raw, &sys, &imu, &omni, &mouse, &cmd_v2, &connection, &integ, &output, &target);
       debug.sys_mnt.robot_info_tx_cnt++;
       uart_rx_cmd_idx = -1;
       if (checksum_ok && memcmp(&data_from_cm4[1], "FWVR", 4U) == 0) {
