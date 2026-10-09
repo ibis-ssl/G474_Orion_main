@@ -1,38 +1,50 @@
-{
+﻿{
     "version": "2.0.0",
-    "type": "shell",
-    "echoCommand": true,
     "tasks": [
         {
-            "label": "Build project",
-            "command": "make",
-            "args": [
-                "all",
-                "GCC_PATH=C:\\tools\\gcc-arm-none-eabi-9-2019-q4-major-win32\\bin"
-            ],
-            "options": {
-                "env": {
-                    "PATH": "C:\\tools\\make-3.81-bin\\bin"
-                }
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "label": "Refresh code browse (Debug)",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/Script/update_code_browse.ps1", "-Configuration", "Debug"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "problemMatcher": []
         },
         {
-            "label": "Clean project",
-            "command": "powershell -Command Remove-Item",
-            "args": [
-                "${workspaceFolder}\\build",
-                "-Recurse"
-            ],
-            "problemMatcher": [
-                "$gcc"
-            ],
+            "label": "Refresh code browse (Release)",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/Script/update_code_browse.ps1", "-Configuration", "Release"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "problemMatcher": []
+        },
+        {
+            "label": "Build project (Debug)",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/Script/build.ps1", "-Configuration", "Debug"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "Refresh code browse (Debug)",
+            "problemMatcher": {"base": "$gcc", "fileLocation": ["relative", "${workspaceFolder}/Debug"]},
+            "group": {"kind": "build", "isDefault": true}
+        },
+        {
+            "label": "Build project (Release)",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/Script/build.ps1", "-Configuration", "Release"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "Refresh code browse (Release)",
+            "problemMatcher": {"base": "$gcc", "fileLocation": ["relative", "${workspaceFolder}/Release"]},
+            "group": "build"
+        },
+        {
+            "label": "Build bootloader",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/Script/build_bootloader.ps1"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "Refresh code browse (Debug)",
+            "problemMatcher": {"base": "$gcc", "fileLocation": ["relative", "${workspaceFolder}/Bootloader"]},
             "group": "build"
         }
     ]

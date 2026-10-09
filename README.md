@@ -1,4 +1,6 @@
 # G474_Orion_main
+VS Codeの補完・定義ジャンプ・参照検索の設定と更新手順は [doc/vscode.md](doc/vscode.md) を参照。
+
 ## ロータリースイッチによるモード切り替え
 0,通常動作モード
 

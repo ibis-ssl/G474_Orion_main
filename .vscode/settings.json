@@ -1,4 +1,10 @@
 {
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.configurationProvider": "",
+    "stm32cube-ide-clangd.enable": false,
+    "[c]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools"
+    },
     "files.autoSave": "afterDelay",
     "editor.formatOnPaste": true,
     "editor.formatOnSave": true,

@@ -1,0 +1,35 @@
+﻿{
+    "configurations": [
+        {
+            "name": "Debug",
+            "compilerPath": "C:/ST/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/arm-none-eabi-gcc.exe",
+            "compilerArgs": ["-mcpu=cortex-m4", "-mthumb", "-mfpu=fpv4-sp-d16", "-mfloat-abi=hard"],
+            "intelliSenseMode": "windows-gcc-arm",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "compileCommands": "${workspaceFolder}/.vscode/compile_commands.Debug.json",
+            "includePath": ["${workspaceFolder}/Core/Inc", "${workspaceFolder}/Drivers/STM32G4xx_HAL_Driver/Inc", "${workspaceFolder}/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy", "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32G4xx/Include", "${workspaceFolder}/Drivers/CMSIS/Include"],
+            "defines": ["USE_HAL_DRIVER", "STM32G474xx", "DEBUG"],
+            "browse": {
+                "path": ["${workspaceFolder}/Core", "${workspaceFolder}/Drivers", "${workspaceFolder}/Bootloader/Inc", "${workspaceFolder}/Bootloader/Src"],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        },
+        {
+            "name": "Release",
+            "compilerPath": "C:/ST/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/arm-none-eabi-gcc.exe",
+            "compilerArgs": ["-mcpu=cortex-m4", "-mthumb", "-mfpu=fpv4-sp-d16", "-mfloat-abi=hard"],
+            "intelliSenseMode": "windows-gcc-arm",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "compileCommands": "${workspaceFolder}/.vscode/compile_commands.Release.json",
+            "includePath": ["${workspaceFolder}/Core/Inc", "${workspaceFolder}/Drivers/STM32G4xx_HAL_Driver/Inc", "${workspaceFolder}/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy", "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32G4xx/Include", "${workspaceFolder}/Drivers/CMSIS/Include"],
+            "defines": ["USE_HAL_DRIVER", "STM32G474xx"],
+            "browse": {
+                "path": ["${workspaceFolder}/Core", "${workspaceFolder}/Drivers", "${workspaceFolder}/Bootloader/Inc", "${workspaceFolder}/Bootloader/Src"],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}
