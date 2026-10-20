@@ -1,7 +1,6 @@
-﻿# Orion MAIN_MODE_FULL_AI_CONTROL の速度制御
+# Orion：速度制御（MAIN_MODE_FULL_AI_CONTROL）
 
-この文書は `MAIN_MODE_FULL_AI_CONTROL` で `Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系を、現行ソースコードに合わせて整理したものです。
-主制御は TIM7 割り込み内で 500Hz（2ms 周期）実行されます。
+Orion（4輪オムニホイール）の `MAIN_MODE_FULL_AI_CONTROL` のとき、`Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系をまとめる。主制御の周期は [対外仕様](../specs/stm/orion_board_spec.md#制御周期) を参照。CM4 から受け取るコマンド定義は Atlas と共通だが、以下のオムニ逆運動学、補正値、ゲイン、各輪出力は Orion の実装である。共通契約はspecs、以下の演算と内部状態の正本は本書とする。
 
 ## 速度指令から車輪出力までの制御ブロック図
 
@@ -18,7 +17,7 @@ flowchart TB
     ANG["各輪の目標 rps を積分 → 目標角度"]
     CTRL["各輪の出力計算<br/>角度 P + rps 偏差項 + yaw 減衰 + rps FF"]
     LIMIT["出力を ±60 に制限"]
-    CAN["CAN 指令<br/>右前・右後: CAN1 ID 0x100/0x101<br/>左後・左前: CAN2 ID 0x102/0x103"]
+    CAN["CAN 指令<br/>左右の BLDC 基板へ送信"]
     DRIVE["左右 BLDC 基板 → 4 輪モータ"]
     FB["CAN フィードバック<br/>各輪の実 rps・エンコーダ角度"]
     IMU["IMU yaw・yaw 角速度"]
@@ -69,15 +68,7 @@ omniMoveIndiv()
 
 ## 入力と座標系
 
-上位指令は `RobotCommandV2` で受信します。
-現在サポートされている制御モードは `POLAR_VELOCITY_TARGET_MODE` です。
-
-- `target_global_velocity_r`: グローバル座標での速度スカラー
-- `target_global_velocity_theta`: グローバル座標での速度方向
-- `target_global_theta`: グローバル座標での目標ヨー角
-- `acceleration_limit`: 並進加速度制限
-- `linear_velocity_limit`: 現状の速度制御レイヤでは直接使っていない
-- `angular_velocity_limit`: ヨー速度制限
+上位指令の配置・単位・mode 3の意味は[制御パケット](../specs/common/control_packet.md)を参照する。本書は受信後の内部計算を扱う。
 
 `setLocalTargetSpeed()` では、極座標の速度指令をグローバル XY に戻し、IMU yaw を使ってローカル XY に変換します。
 その後、指令値段階の補正として X に 1.1 倍、Y に 1.3 倍を掛けています。
@@ -179,19 +170,29 @@ motor_voltage =
 | `ROBOT_RADIUS * yaw_rps_drag` | ヨー方向の減衰補正 |
 | `current_target_rps` | 目標 rps のフィードフォワード |
 
-`target.omni_angle_kp` と `target.omni_angle_kd` は起動時にそれぞれ 50 と 1 です。
-LPUART1 デバッグ入力で `q/a` が kp、`w/s` が kd の倍率調整に使われます。
+`target.omni_angle_kp` と `target.omni_angle_kd` の初期値はそれぞれ 25 と 2（`main.c` の `target` の初期化子）。
+LPUART1 のデバッグ入力で、`q/a` で kp を、`w/s` で kd を 1.1 倍ずつ調整できる（[Orion：STM 概要](overview.md#デバッグ-uartlpuart12-mbps)）。
 
 最終的な `output.motor_voltage[i]` は `omniMoveIndiv()` で `OMNI_OUTPUT_VOLTAGE_LIMIT = 60.0` に制限され、CAN 経由で各 BLDC 基板へ送られます。
 
+## 静止時のオムニ角度誤差クリア
+
+`clearOmniRotationAngleErrorIfStopped()` は、4 輪の角度誤差をオムニホイールの逆運動学で並進成分と機体回転成分に分け、機体回転成分だけを内部目標角度から取り除く。並進方向の角度誤差は残す。
+
+- 補正する条件：次がすべて 2 制御周期（4 ms）続いたとき。
+  - 最終ローカル速度指令と内部速度目標の XY 各成分が `0.01 m/s` 未満
+  - 各輪の目標が `0.05 rps` 未満
+  - 目標機体角度と IMU yaw の誤差が ±1 deg の不感帯内
+  - IMU yaw 角速度と目標 yaw 角速度が `0.05 rad/s` 未満
+  - CAN の受信間隔が 4 ms 以下
+- 実際の車輪速度は条件に使わない。機体の回転は IMU の yaw 角速度で判定し、個々のエンコーダー速度のノイズで補正の機会を失わないようにする。
+- 停止時に 4 輪出力を 0 にする整定状態は使わない。条件が成り立っている間は、回転角度誤差を時定数 50 ms の一次遅れで減衰させる。1 制御周期の補正量は最大 `0.001 rad`（`0.5 rad/s`）に制限し、残差が `0.0005 rad` 未満になったときだけ残りを同期する。
+- 条件が外れたら、成立カウントと `angle_clear_active` をすぐ解除し、その周期の補正量を 0 にする。再び 2 周期続けて成り立てば、その時点の残差から補正を再開する。
+- `DRIVE_LOG` での見え方は [診断機能](diagnostics.md#直進加速診断ログdrive_log) を参照。
+
 ## 停止条件
 
-`MAIN_MODE_FULL_AI_CONTROL` でも、以下のいずれかを満たす場合は `omniStopAll()` で 4 輪出力を 0 にします。
-
-- `sys.stop_flag` が true
-- 上位指令の `stop_emergency` が true
-- vision が無効
-- vision の最終更新から 500ms 超過
+`MAIN_MODE_FULL_AI_CONTROL` でも、停止条件（[停止判定](../specs/common/safety_stop.md#g474-の走行停止条件)）を満たす周期は `omniStopAll()` で 4 輪出力を 0 にします。
 
 `sys.stop_flag` が立っている周期には `clearSpeedContrlValue()` が呼ばれ、速度制御内部状態を実オドメトリ側へ寄せます。非常停止指令や vision 喪失のみでゼロ出力となった周期には、この関数は呼ばれません。
 具体的には `omni.local_odom_speed_mvf` をグローバル速度へ変換し、`target.global_vel_now` に入れます。
@@ -214,5 +215,10 @@ LPUART1 デバッグ入力で `q/a` が kp、`w/s` が kd の倍率調整に使�
 
 - `linear_velocity_limit` は `RobotCommandV2` に存在しますが、現行の `setLocalTargetSpeed()` では速度ベクトルの制限に使われていません。
 - `SPEED_SCALAR_LIMIT` は `robot_control.c` に定義されていますが、現行実装では未使用です。
-- `accelBoost()` 内で `accel_scalar` が 0 の場合、X 加速度比率の計算で 0 除算の可能性があります。現状は後段の gain 保護で大きな異常値を 1 に戻す意図に見えますが、将来修正するなら先に `accel_scalar <= 0` を判定する方が明確です。
+- `accelBoost()` 内で `accel_scalar` が 0 の場合、X 加速度比率の計算で 0 除算の可能性があります。NaNでは範囲比較によるgain保護が成立しないため、修正・実機確認が必要な課題である。
 - `omniMoveIndiv()` の引数名は `out_limit` ですが、実際にはモータ基板へ送る duty / 電圧相当の制限値として使われています。
+
+
+## マニュアルモードのカメラ入力
+
+`maintaskRun()`は`MAIN_MODE_MANUAL_CONTROL`かつ`cam->is_detected`の場合、ローカルY速度を`(cam->pos_xy[0] - 160) / 100`で上書きする既存処理を持つ。最新の共通契約ではカメラ値をMainへ送らないため、この補正を現行CM4との接続で利用できるとは扱わない。残存する受信処理と確認範囲は[UART実装](uart_cm4.md#共通契約との差)を参照する。

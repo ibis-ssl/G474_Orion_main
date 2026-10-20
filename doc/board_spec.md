@@ -1,7 +1,6 @@
-﻿# G474_Orion_main ハードウェア仕様
+# Main基板のハードウェア実装
 
-この文書は `G474_Orion_main.ioc` と `Core` 配下のソースコードから読み取れるハードウェア仕様を整理したものです。
-回路図未確認のため、信号名がソース上で未命名の GPIO は「用途未確定」として扱います。
+`G474_Orion_main.ioc` と `Core` 配下のソースコードから読み取れるハードウェア仕様をまとめる。回路図は確認していないので、ソース上で信号名のない GPIO は「用途未確定」として扱う。
 
 ## MCU / クロック
 
@@ -11,12 +10,12 @@
 - 外部クロック: HSE を使用
 - PLL: HSE / 2 * 85 / 2 により 170 MHz を生成
 - SysTick: HAL 標準の 1 ms tick
-- 主制御周期: TIM7 割り込み 500 Hz（2 ms）
+- 主制御周期の契約: [対外仕様](../specs/stm/orion_board_spec.md#制御周期)
 
 ## 主要な処理周期
 
 - TIM7: メイン制御割り込み。`MAIN_LOOP_CYCLE = 500` として 500 Hz で実行する。
-- ロボット情報送信: `ROBOT_INFO_CYCLE = 125`。500 Hz 制御内で間引いて USART2 へ送信する。
+- ロボット情報送信: 制御周期内で`ROBOT_INFO_CYCLE`に従い間引く。目標周期は[feedback契約](../specs/common/feedback_packet.md#送信元と経路)、実際の登録条件は[UART実装](uart_cm4.md#dma送信)を参照。
 - デバッグ表示: 通常 `PRINT_LOOP_CYCLE = 60`、TUI 表示時 `PRINT_TUI_CYCLE = 10`。
 - 起動時は IMU 初期化、IMU キャリブレーション、CAN 初期化、アクチュエータ停止指令、キッカー充電設定後に TIM7 を開始する。
 
@@ -110,72 +109,27 @@
 
 ### USART2: CM4 / 上位系通信
 
-- Pin: PB3 TX / PB4 RX
-- Baudrate: 1,000,000 bps
-- 8N1、FIFO 無効
-- USART の pin swap を有効化している。
-- RX: 1 byte 割り込み受信
+- Pin: PB3 TX / PB4 RX（USART の pin swap を有効化）
+- Baudrate: 1,000,000 bps、8N1
+- RX: FIFO を有効にし、RXNE/RXFNE 割り込みで FIFO を読み切る。生成コード（`MX_USART2_UART_Init()`）は FIFO を無効にするが、同じ関数の USER CODE で再び有効にしている（`.ioc` には FIFO の設定はない）。
 - TX: DMA1_Channel8 normal
-- 受信パケット:
-  - 先頭 byte: `0xFE`
-  - 長さ: `RX_BUF_SIZE_CM4 = 72` byte
-  - 先頭 64 byte: `RobotCommandSerializedV2`
-  - 後続 8 byte: カメラ簡易パケット
-  - 最終 byte: チェックサム
-- 送信パケット:
-  - 長さ: 128 byte
-  - 先頭: `0xAB, 0xEA`
-  - yaw、電圧、ボールセンサ、エラー、温度、推定位置、速度、カメラ情報などを格納する。
+- 受信フレーム: 72 byte（`RX_BUF_SIZE_CM4`）。形式は [制御パケット](../specs/common/control_packet.md#cm4main-パケット72-バイト) を参照。
+- 送信フレーム: 128 byte。形式は [フィードバックパケット](../specs/common/feedback_packet.md) を参照。
+- 受信処理と診断の詳細は [CM4 との UART](uart_cm4.md) を参照。
 
-## FDCAN
+## FDCAN実装
 
-- FDCAN1: PA11 RX / PA12 TX
-- FDCAN2: PB12 RX / PB13 TX
-- フレーム形式: Classic CAN
-- ID: Standard ID
-- モード: Normal
-- Auto retransmission: Enable
-- Bit rate: 約 1 Mbps
-- Prescaler: 10
-- Nominal TimeSeg1 / TimeSeg2: 14 / 2
-- フィルタ: mask 0x000 / 0x000 で全標準 ID を FIFO0 に受信
-- TX FIFO が満杯の場合はソフトウェア側の 20 frame スタックバッファに退避する。
+通信速度・バス割当・CAN IDは[CAN共通契約](../specs/common/orion_can.md)を参照する。ピンは本書のピン表で管理する。
 
-### FDCAN バスの使い分け
+FDCAN1/2はNormal、auto retransmission有効。prescaler 10、Nominal TimeSeg1/2は14/2。mask 0x000 / 0x000で全標準IDをFIFO0へ通す。これはMain側のペリフェラル設定で、共通契約の通信速度を実現する。
 
-- FDCAN1: 右側モータ系、ドリブラー、電源 / キッカー系を送信対象に含む。
-- FDCAN2: 左側モータ系、電源 / キッカー系を送信対象に含む。
-- コメント上は FDCAN1 が power / FC / mouse 系を含む想定だが、受信は両 FDCAN の FIFO0 コールバックで同じ parser に入る。
+### CAN 送信 FIFO
 
-### 送信 CAN ID
-
-| ID | 送信先 / 指令 | バス | データ |
-| --- | --- | --- | --- |
-| 0x010 | 電源制御 / パラメータ | FDCAN1, FDCAN2 | byte0: param id、byte1 以降: 値 |
-| 0x100 | Front Right モータ | FDCAN1 | float duty |
-| 0x101 | Back Right モータ | FDCAN1 | float duty |
-| 0x102 | Back Left モータ | FDCAN2 | float duty |
-| 0x103 | Front Left モータ | FDCAN2 | float duty |
-| 0x104 | ドリブラーモータ | FDCAN1 | float duty |
-| 0x110 | キッカー | FDCAN1, FDCAN2 | 充電、電圧、ストレート / チップ、キック強度 |
-| 0x300 - 0x304 | モータパラメータ | FDCAN1/FDCAN2 | param id + float |
-| 0x310 | モータキャリブレーション | FDCAN1 or FDCAN2 | dummy 8 byte |
-| 0x000 | エラー通知 | FDCAN1, FDCAN2 | 8 byte |
-| 0x001 | 電源基板リセット | FDCAN1, FDCAN2 | `0x5A, 0xA5` |
-
-### 受信 CAN ID
-
-| ID | 内容 |
-| --- | --- |
-| 0x000 - 0x001 | エラー ID / info / value |
-| 0x200 - 0x204 | モータ・ドリブラーの rps と角度 |
-| 0x210 - 0x216 | 各基板の電圧、電源バッテリ、キャパシタ電圧 |
-| 0x220 - 0x223 | モータ温度、ドライバ温度 |
-| 0x224 | 電源系 FET 温度、コイル温度 |
-| 0x230 - 0x234 | 各系統の電流 |
-| 0x240 | ボール検出 |
-| 0x241 | マウスセンサ raw X/Y と quality |
-| 0x500 - 0x503 | モータパラメータ rps |
+- FDCAN1/FDCAN2 のハードウェア送信 FIFO が満杯のときは、バスごとに独立した固定長のリング FIFO（`CAN_BUF_CAPACITY = 20`）へ退避する。
+- 書き込み位置 `head` と読み出し位置 `tail` を分け、格納した順に送る。送信 FIFO 空き割り込みで、ハードウェア FIFO に空きがある間、古いフレームから順に転送する。
+- ソフトウェア FIFO に未送信のフレームがある間は、新しいフレームがハードウェア FIFO へ直接追い越さないよう、必ずソフトウェア FIFO の末尾に追加する。
+- FIFO が満杯なら新しいフレームを捨て、`can_tx_debug.sw_dropped[]` を加算する。HAL 送信登録の成功・失敗、退避回数、左右モーター指令関数の呼び出し時刻差も `can_tx_debug` で計測する。
+- CAN 送信ヘッダーは送信関数ごとのローカル変数にしている。TIM7 と FDCAN の割り込みがネストしたとき、CAN1/CAN2 間でヘッダーを共有して競合するのを防ぐためである。
 
 ## タイマ
 
@@ -212,30 +166,19 @@
 | LPUART1_IRQn | 13 |
 | DMA1_Channel6_IRQn | 14 |
 | DMA1_Channel7_IRQn | 15 |
-| DMA1_Channel8_IRQn | 0（ioc 上は未有効扱い） |
+| DMA1_Channel8_IRQn | 0（USART2 TX） |
 
 ## 起動時のハードウェア制御
 
 1. GPIO / DMA / FDCAN / UART / SPI / TIM / ADC を初期化する。
 2. TIM5 CH2 の PWM を開始し、起動音を鳴らす。
-3. USART2 と LPUART1 の 1 byte 受信割り込みを開始する。
+3. USART2 の RX/エラー割り込み（RXNE/RXFNE、EIE）を直接有効にし、LPUART1 の 1 byte 受信割り込みを開始する。
 4. ADC5 の DMA 変換を開始し、アナログスイッチ値を `sys.sw_adc_raw` に入れる。
 5. IMU を初期化、キャリブレーション、角度クリアする。
 6. FDCAN1 / FDCAN2 を開始し、全 ID 受信と TX FIFO empty 通知を有効にする。
 7. アクチュエータを停止状態へ設定し、キッカー充電と保護パラメータを設定する。
 8. 1 秒の停止要求を入れてから TIM7 の 500 Hz 制御を開始する。
 
-## 保護 / フェイルセーフ
+## 保護・停止
 
-- `LOW_VOLTAGE_LIMIT = 22.5` V を低電圧判定の基準に使う。
-- 電源基板へ起動時に以下の保護パラメータを送る。
-  - min voltage: 15.0
-  - max voltage: 35.0
-  - max current: 50.0
-  - max FET temp: 90.0
-  - max solenoid temp: 90.0
-- CAN 受信 timeout は 100 cycle。500 Hz 制御なので約 200 ms。
-- エンコーダ / マウス初期化が揃うまでは停止要求を継続する。
-- AI 接続 timeout は 0.5 s、CM4 接続 timeout は 1.0 s。
-- AI 接続後に CM4 が 6 s 以上途切れると自己リセットする。
-- エラー時はメインモードを `MAIN_MODE_ERROR` にし、モータ停止、CAN エラー送信、手動電源リセット待ちに入る。
+外部へ設定する保護値は[対外仕様](../specs/stm/orion_board_spec.md#保護条件)、通信・CAN・初期化未完了の停止条件は[停止判定](../specs/common/safety_stop.md)を参照する。
