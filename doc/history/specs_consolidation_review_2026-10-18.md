@@ -17,9 +17,9 @@
 | 現在の文書 | `specs` 側にのみ記載する内容 | 集約先 | 本リポジトリでの扱い |
 |---|---|---|---|
 | [README.md](../../README.md) | ロータリースイッチのモード一覧、LED の意味、デバッグ表示の操作、制御機構成の説明 | [STM 概要](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/stm/overview.md)、[システム構成](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/system_overview.md) | プロジェクトの入口、開発環境・仕様へのリンクだけを残す |
-| [ai_cmd_definition.md](../ai_cmd_definition.md) | 指令の経路と互換性、全フィールドの意味・単位・座標系、mode 3 の解釈、遅延補償時間、停止指令・vision の扱い | [制御パケット](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/control_packet.md)、[停止判定](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/safety_stop.md) | 全文が仕様。移行先への案内に置換可能 |
-| [feedback_packet.md](../feedback_packet.md) | 128 byte の枠、同期値、CRC-8/ATM の計算範囲・パラメータ・検査値、計算順序、受信時の検証、応答領域上書き時の扱い | [フィードバックパケット](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/feedback_packet.md)、必要に応じて [FW 更新](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/firmware_update.md) | **先に集約先の更新が必要**。更新後は案内に置換 |
-| [control_system_architecture.md](../control_system_architecture.md) | 制御機の役割、通信構成図、CAN バスとノード、指令・センサ・状態情報の流れ、更新経路、物理配線未確認という範囲の制約 | [システム構成](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/system_overview.md)、[FW 更新](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/firmware_update.md) | ほぼ収録済み。根拠となるファイル・関数の参照も集約先へまとめ、ローカルは案内にする |
+| [ai_cmd_definition.md](https://github.com/ibis-ssl/G474_Orion_main/blob/120b1e7/doc/ai_cmd_definition.md) | 指令の経路と互換性、全フィールドの意味・単位・座標系、mode 3 の解釈、遅延補償時間、停止指令・vision の扱い | [制御パケット](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/control_packet.md)、[停止判定](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/safety_stop.md) | 全文が仕様。移行先への案内に置換可能 |
+| [feedback_packet.md](https://github.com/ibis-ssl/G474_Orion_main/blob/120b1e7/doc/feedback_packet.md) | 128 byte の枠、同期値、CRC-8/ATM の計算範囲・パラメータ・検査値、計算順序、受信時の検証、応答領域上書き時の扱い | [フィードバックパケット](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/feedback_packet.md)、必要に応じて [FW 更新](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/firmware_update.md) | **先に集約先の更新が必要**。更新後は案内に置換 |
+| [control_system_architecture.md](https://github.com/ibis-ssl/G474_Orion_main/blob/120b1e7/doc/control_system_architecture.md) | 制御機の役割、通信構成図、CAN バスとノード、指令・センサ・状態情報の流れ、更新経路、物理配線未確認という範囲の制約 | [システム構成](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/system_overview.md)、[FW 更新](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/firmware_update.md) | ほぼ収録済み。根拠となるファイル・関数の参照も集約先へまとめ、ローカルは案内にする |
 | [board_spec.md](../board_spec.md) | MCU・クロック・周期、ピン、スイッチ閾値、ADC/DMA、IMU、UART、CAN ID、タイマ、NVIC、起動順序、保護値 | [Main ハードウェア仕様](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/stm/board_spec.md) | 全文が仕様。古い UART/FIFO 記述をコピーせず、集約先へ案内する |
 | 同上 | AI/CM4/CAN/vision のタイムアウト、停止・リセット条件 | [停止判定](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/common/safety_stop.md) | タイムアウト値はローカルに残さない。`specs/stm/board_spec.md` 内の重複値もリンクへ整理する候補 |
 | [hw_control.md](../hw_control.md) | 制御ブロック図、関数の呼出順、座標変換、加速度制限と boost、ヨー制御、逆運動学、各輪制御式・ゲイン・出力制限、オドメトリとの関係、未使用フィールド | [速度制御](https://github.com/ibis-ssl/specs/blob/d93a17753d1c3031fe49aa8ae1edd575076e0499/stm/speed_control.md) | ほぼ収録済み。旧ゲインを引き継がず案内に置換。停止条件そのものは共通仕様へリンク |
@@ -58,7 +58,7 @@
 
 ### 1. フィードバック形式は `specs` の更新が必要
 
-`Core/Src/ai_comm.c` の `sendRobotInfo()` / `feedbackCrc8()` を確認した。ローカルの [feedback_packet.md](../feedback_packet.md) にある CRC-8 の説明は現行コードと一致する。一方、`specs/common/feedback_packet.md` は旧形式であり、CRC の置換だけでは不足する。
+`Core/Src/ai_comm.c` の `sendRobotInfo()` / `feedbackCrc8()` を確認した。ローカルの [feedback_packet.md](https://github.com/ibis-ssl/G474_Orion_main/blob/120b1e7/doc/feedback_packet.md) にある CRC-8 の説明は現行コードと一致する。一方、`specs/common/feedback_packet.md` は旧形式であり、CRC の置換だけでは不足する。
 
 | 項目 | 現在の `specs` の記述 | 現行コード |
 |---|---|---|
